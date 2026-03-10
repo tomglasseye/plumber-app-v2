@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
 
@@ -19,13 +20,137 @@ export function Sidebar({ onClose }: Props) {
 		onClose?.();
 	}
 
-	const navItems = [
-		{ to: "/", icon: "⊞", label: "Dashboard" },
-		{ to: "/calendar", icon: "▦", label: "Calendar" },
-		...(!isMaster ? [{ to: "/my-day", icon: "⬡", label: "My Day" }] : []),
-		...(isMaster ? [{ to: "/new-job", icon: "+", label: "New Job" }] : []),
-		...(isMaster ? [{ to: "/team", icon: "◎", label: "Team" }] : []),
-		...(isMaster ? [{ to: "/account", icon: "⚙", label: "Account" }] : []),
+	const S = "h-4 w-4";
+	const navItems: { to: string; icon: ReactNode; label: string }[] = [
+		{
+			to: "/",
+			label: "Dashboard",
+			icon: (
+				<svg
+					className={S}
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					strokeWidth={1.8}
+				>
+					<rect x="3" y="3" width="7" height="7" rx="1" />
+					<rect x="14" y="3" width="7" height="7" rx="1" />
+					<rect x="3" y="14" width="7" height="7" rx="1" />
+					<rect x="14" y="14" width="7" height="7" rx="1" />
+				</svg>
+			),
+		},
+		{
+			to: "/calendar",
+			label: "Calendar",
+			icon: (
+				<svg
+					className={S}
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					strokeWidth={1.8}
+				>
+					<rect x="3" y="4" width="18" height="18" rx="2" />
+					<path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" />
+				</svg>
+			),
+		},
+		...(!isMaster
+			? [
+					{
+						to: "/my-day",
+						label: "My Day",
+						icon: (
+							<svg
+								className={S}
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={1.8}
+							>
+								<circle cx="12" cy="12" r="4" />
+								<path
+									strokeLinecap="round"
+									d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
+								/>
+							</svg>
+						),
+					},
+				]
+			: []),
+		...(isMaster
+			? [
+					{
+						to: "/new-job",
+						label: "New Job",
+						icon: (
+							<svg
+								className={S}
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={1.8}
+							>
+								<path
+									strokeLinecap="round"
+									d="M12 5v14M5 12h14"
+								/>
+							</svg>
+						),
+					},
+				]
+			: []),
+		...(isMaster
+			? [
+					{
+						to: "/team",
+						label: "Team",
+						icon: (
+							<svg
+								className={S}
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={1.8}
+							>
+								<path
+									strokeLinecap="round"
+									d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"
+								/>
+								<circle cx="9" cy="7" r="4" />
+								<path
+									strokeLinecap="round"
+									d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"
+								/>
+							</svg>
+						),
+					},
+				]
+			: []),
+		...(isMaster
+			? [
+					{
+						to: "/account",
+						label: "Account",
+						icon: (
+							<svg
+								className={S}
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={1.8}
+							>
+								<path
+									strokeLinecap="round"
+									d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+								/>
+								<circle cx="12" cy="12" r="3" />
+							</svg>
+						),
+					},
+				]
+			: []),
 	];
 
 	const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -111,7 +236,20 @@ export function Sidebar({ onClose }: Props) {
 						className="text-neutral-600 hover:text-neutral-300 transition-colors border-0 bg-transparent p-1"
 						title="Sign out"
 					>
-						⏻
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							className="h-4 w-4"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							strokeWidth={2}
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+							/>
+						</svg>
 					</button>
 				</div>
 			)}

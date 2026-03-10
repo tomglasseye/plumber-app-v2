@@ -1,21 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
-import { NotificationBell } from "../components/NotificationBell";
 import { JobCard } from "../components/JobCard";
 import { STATUSES, STATUS_COLORS, TODAY } from "../data";
 
 export function DashboardPage() {
-	const {
-		isMaster,
-		myJobs,
-		jobs,
-		myNotifs,
-		clearNotifs,
-		business,
-		currentUser,
-		users,
-	} = useApp();
+	const { isMaster, myJobs, jobs, business, currentUser, users } = useApp();
 	const userAccent = currentUser?.color ?? business.accentColor;
 	const navigate = useNavigate();
 	const [search, setSearch] = useState("");
@@ -59,11 +49,6 @@ export function DashboardPage() {
 					</p>
 				</div>
 				<div className="flex items-center gap-3">
-					<NotificationBell
-						notifications={myNotifs}
-						onClear={clearNotifs}
-						onNavigate={(jobId) => navigate(`/jobs/${jobId}`)}
-					/>
 					{isMaster && (
 						<button
 							onClick={() => navigate("/new-job")}

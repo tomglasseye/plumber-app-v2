@@ -93,7 +93,7 @@ export function MyDayPage() {
 						{/* Start — home */}
 						<div className="flex gap-3 items-start mb-1">
 							<div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 border-orange-500 bg-neutral-900 text-orange-500 text-sm">
-								⌂
+								🏠
 							</div>
 							<div className="mt-1">
 								<p className="text-[10px] uppercase tracking-wider text-neutral-600">

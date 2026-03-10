@@ -151,7 +151,7 @@ export function TeamPage() {
 	});
 
 	return (
-		<div className="p-5 md:p-7 max-w-6xl">
+		<div className="p-5 md:p-7 max-w-6xl overflow-x-hidden">
 			<h1 className="mb-6 text-2xl font-normal text-neutral-100 tracking-tight">
 				Team
 			</h1>
@@ -194,7 +194,7 @@ export function TeamPage() {
 										)}
 										{u.home && (
 											<p className="mt-0.5 text-xs text-neutral-700 truncate">
-												⌂ {u.home}
+												🏠 {u.home}
 											</p>
 										)}
 									</div>
@@ -315,7 +315,7 @@ export function TeamPage() {
 											)}
 											{u.home && (
 												<p className="mt-0.5 text-xs text-neutral-700 truncate">
-													⌂ {u.home}
+													🏠 {u.home}
 												</p>
 											)}
 										</div>
@@ -494,7 +494,7 @@ export function TeamPage() {
 																							ec,
 																					}}
 																				/>
-																				<span className="w-14 flex-shrink-0 text-[10px] text-neutral-600">
+																				<span className="hidden sm:block w-14 flex-shrink-0 text-[10px] text-neutral-600">
 																					{
 																						j.ref
 																					}
@@ -513,7 +513,7 @@ export function TeamPage() {
 																					</span>
 																				</div>
 																				<span
-																					className={`text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-mono ${sc.bg} ${sc.text}`}
+																					className={`hidden sm:inline text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-mono ${sc.bg} ${sc.text}`}
 																				>
 																					{
 																						j.status
