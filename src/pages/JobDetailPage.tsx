@@ -83,6 +83,7 @@ export function JobDetailPage() {
 		draftTimeSpent !== job.timeSpent;
 
 	function handleSave() {
+		if (!job) return;
 		if (isMaster) {
 			if (draftCustomer !== job.customer)
 				updateJob(job.id, "customer", draftCustomer);
