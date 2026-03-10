@@ -14,8 +14,35 @@ export function MyDayPage() {
 	const { currentUser, jobs } = useApp();
 	const navigate = useNavigate();
 	const [activeStop, setActiveStop] = useState<string | null>(null);
+	const [gpsStart, setGpsStart] = useState<string | null>(null);
+	const [gpsLoading, setGpsLoading] = useState(false);
+	const [gpsError, setGpsError] = useState<string | null>(null);
+
+	function requestLocation() {
+		if (!navigator.geolocation) {
+			setGpsError("Geolocation not supported");
+			return;
+		}
+		setGpsLoading(true);
+		setGpsError(null);
+		navigator.geolocation.getCurrentPosition(
+			(pos) => {
+				setGpsStart(`${pos.coords.latitude},${pos.coords.longitude}`);
+				setGpsLoading(false);
+			},
+			() => {
+				setGpsError(
+					"Could not get location — check browser permissions",
+				);
+				setGpsLoading(false);
+			},
+			{ timeout: 10000 },
+		);
+	}
 
 	if (!currentUser) return null;
+
+	const routeStart = gpsStart ?? currentUser.home;
 
 	const todayJobs = jobs
 		.filter((j) => j.assignedTo === currentUser.id && j.date === TODAY)
@@ -30,10 +57,7 @@ export function MyDayPage() {
 
 	const routeUrl =
 		todayJobs.length > 0
-			? mapsRouteUrl([
-					currentUser.home,
-					...todayJobs.map((j) => j.address),
-				])
+			? mapsRouteUrl([routeStart, ...todayJobs.map((j) => j.address)])
 			: null;
 
 	return (
@@ -90,18 +114,87 @@ export function MyDayPage() {
 
 					{/* Route strip */}
 					<div className="relative">
-						{/* Start — home */}
+						{/* Start */}
 						<div className="flex gap-3 items-start mb-1">
 							<div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 border-orange-500 bg-neutral-900 text-orange-500 text-sm">
-								🏠
+								{gpsStart ? "📍" : "🏠"}
 							</div>
-							<div className="mt-1">
+							<div className="mt-1 flex-1">
 								<p className="text-[10px] uppercase tracking-wider text-neutral-600">
-									Start — Home
+									{gpsStart
+										? "Start — Current Location"
+										: "Start — Home"}
 								</p>
 								<p className="text-xs text-neutral-500 mt-0.5">
-									{currentUser.home}
+									{gpsStart
+										? "Using GPS coordinates"
+										: currentUser.home}
 								</p>
+								{gpsError && (
+									<p className="text-[10px] text-red-400 mt-1">
+										{gpsError}
+									</p>
+								)}
+								<div className="mt-1.5 flex items-center gap-2">
+									{gpsStart ? (
+										<button
+											onClick={() => setGpsStart(null)}
+											className="text-[10px] text-neutral-500 hover:text-neutral-300 underline cursor-pointer transition-colors"
+										>
+											Use home address instead
+										</button>
+									) : (
+										<button
+											onClick={requestLocation}
+											disabled={gpsLoading}
+											className="flex items-center gap-1 rounded-md border border-neutral-700 bg-neutral-800 px-2.5 py-1 text-[10px] text-neutral-300 hover:border-neutral-500 disabled:opacity-50 cursor-pointer transition-colors"
+										>
+											{gpsLoading ? (
+												<>
+													<svg
+														className="h-3 w-3 animate-spin"
+														viewBox="0 0 24 24"
+														fill="none"
+													>
+														<circle
+															className="opacity-25"
+															cx="12"
+															cy="12"
+															r="10"
+															stroke="currentColor"
+															strokeWidth="4"
+														/>
+														<path
+															className="opacity-75"
+															fill="currentColor"
+															d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+														/>
+													</svg>
+													Locating…
+												</>
+											) : (
+												<>
+													<svg
+														className="h-3 w-3"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														strokeWidth="2"
+													>
+														<circle
+															cx="12"
+															cy="12"
+															r="3"
+														/>
+														<path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+														<path d="M12 8a4 4 0 100 8 4 4 0 000-8z" />
+													</svg>
+													Use my current location
+												</>
+											)}
+										</button>
+									)}
+								</div>
 							</div>
 						</div>
 
