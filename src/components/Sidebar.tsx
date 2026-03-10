@@ -10,7 +10,8 @@ export function Sidebar({ onClose }: Props) {
 		useApp();
 	const navigate = useNavigate();
 
-	const activeColor = currentUser?.color ?? business.accentColor;
+	const activeColor = business.accentColor;
+	const avatarColor = currentUser?.color ?? business.accentColor;
 
 	function handleLogout() {
 		logout();
@@ -76,7 +77,14 @@ export function Sidebar({ onClose }: Props) {
 			{/* User footer */}
 			{currentUser && (
 				<div className="flex items-center gap-3 border-t border-neutral-800 px-4 py-3">
-					<div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-neutral-800 border border-neutral-700 text-xs text-neutral-400">
+					<div
+						className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium"
+						style={{
+							background: avatarColor + "22",
+							border: `1px solid ${avatarColor}44`,
+							color: avatarColor,
+						}}
+					>
 						{currentUser.avatar}
 					</div>
 					<div className="flex-1 min-w-0">

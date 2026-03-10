@@ -6,8 +6,9 @@ import { JobCard } from "../components/JobCard";
 import { STATUSES, STATUS_COLORS, TODAY } from "../data";
 
 export function DashboardPage() {
-	const { isMaster, myJobs, jobs, myNotifs, clearNotifs, business } =
+	const { isMaster, myJobs, jobs, myNotifs, clearNotifs, business, currentUser } =
 		useApp();
+	const userAccent = currentUser?.color ?? business.accentColor;
 	const navigate = useNavigate();
 	const [search, setSearch] = useState("");
 	const [statusFilter, setStatusFilter] = useState("All");
@@ -100,7 +101,7 @@ export function DashboardPage() {
 					</div>
 					<span
 						className="text-xl"
-						style={{ color: business.accentColor }}
+						style={{ color: userAccent }}
 					>
 						›
 					</span>

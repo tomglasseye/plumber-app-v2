@@ -35,6 +35,7 @@ export interface Job {
 	notes: string;
 	timeSpent: number;
 	readyToInvoice: boolean;
+	sortOrder?: number;
 }
 
 export interface Notification {

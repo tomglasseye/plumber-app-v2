@@ -155,6 +155,12 @@ export function engColor(id: string): string {
 	return ENG_PALETTE[Math.abs(h) % ENG_PALETTE.length];
 }
 
+/** Resolves a user's colour: uses their saved accent colour if set, otherwise falls back to the hash-based palette colour. */
+export function userColor(id: string, users: User[]): string {
+	const u = users.find((u) => u.id === id);
+	return u?.color ?? engColor(id);
+}
+
 export const INITIAL_JOBS: Job[] = [
 	{
 		id: "1",

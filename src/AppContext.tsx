@@ -68,6 +68,7 @@ const JOB_COL: Partial<Record<keyof Job, string>> = {
 	assignedTo: "assigned_to",
 	timeSpent: "time_spent",
 	readyToInvoice: "ready_to_invoice",
+	sortOrder: "sort_order",
 };
 function jobCol(field: keyof Job): string {
 	return JOB_COL[field] ?? field;
@@ -90,6 +91,7 @@ function mapJob(r: any): Job {
 		notes: r.notes ?? "",
 		timeSpent: r.time_spent ?? 0,
 		readyToInvoice: r.ready_to_invoice ?? false,
+		sortOrder: r.sort_order ?? 0,
 	};
 }
 

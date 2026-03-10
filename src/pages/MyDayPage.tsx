@@ -19,9 +19,14 @@ export function MyDayPage() {
 
 	const todayJobs = jobs
 		.filter((j) => j.assignedTo === currentUser.id && j.date === TODAY)
-		.sort(
-			(a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority],
-		);
+		.sort((a, b) => {
+			// If master has set a sort order, use it; otherwise fall back to priority
+			const aOrder = a.sortOrder ?? 0;
+			const bOrder = b.sortOrder ?? 0;
+			if (aOrder !== 0 || bOrder !== 0)
+				return (aOrder || 999) - (bOrder || 999);
+			return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+		});
 
 	const routeUrl =
 		todayJobs.length > 0

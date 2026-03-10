@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
-import { ACCENT_OPTIONS, engColor, STATUS_COLORS } from "../data";
-import type { Role, User } from "../types";
+import { ACCENT_OPTIONS, STATUS_COLORS, TODAY, userColor } from "../data";
+import type { Job, Role, User } from "../types";
 
 interface EditForm {
 	name: string;
@@ -14,8 +14,17 @@ interface EditForm {
 }
 
 export function TeamPage() {
-	const { jobs, users, saveUser, changePassword, isMaster, business } =
-		useApp();
+	const {
+		jobs,
+		users,
+		saveUser,
+		changePassword,
+		isMaster,
+		business,
+		updateJob,
+		addNotification,
+		currentUser,
+	} = useApp();
 	const navigate = useNavigate();
 
 	const [editing, setEditing] = useState<User | null>(null);
@@ -94,6 +103,47 @@ export function TeamPage() {
 		}
 	}
 
+	// Drag-and-drop state for today's job ordering
+	const [dragJobId, setDragJobId] = useState<string | null>(null);
+	const [todayOrders, setTodayOrders] = useState<Record<string, string[]>>(
+		{},
+	);
+
+	function dayLabel(date: string): string {
+		const tomorrow = new Date(TODAY + "T00:00:00");
+		tomorrow.setDate(tomorrow.getDate() + 1);
+		const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+		if (date === TODAY) return "Today";
+		if (date === tomorrowStr) return "Tomorrow";
+		return new Date(date + "T00:00:00").toLocaleDateString("en-GB", {
+			weekday: "long",
+			day: "numeric",
+			month: "short",
+		});
+	}
+
+	function handleDrop(engId: string, targetId: string, currentIds: string[]) {
+		if (!dragJobId || dragJobId === targetId) return;
+		const from = currentIds.indexOf(dragJobId);
+		const to = currentIds.indexOf(targetId);
+		if (from < 0 || to < 0) return;
+		const next = [...currentIds];
+		next.splice(from, 1);
+		next.splice(to, 0, dragJobId);
+		setTodayOrders((p) => ({ ...p, [engId]: next }));
+		next.forEach((id, i) => updateJob(id, "sortOrder", i + 1));
+		setDragJobId(null);
+		// Notify the engineer their run order has changed
+		const eng = users.find((u) => u.id === engId);
+		if (eng) {
+			addNotification({
+				icon: "🗺",
+				message: `${currentUser?.name ?? "Master"} updated your job run order for today`,
+				for: engId,
+			});
+		}
+	}
+
 	// All users — master first, then engineers alphabetically
 	const sorted = [...users].sort((a, b) => {
 		if (a.role === b.role) return a.name.localeCompare(b.name);
@@ -101,102 +151,204 @@ export function TeamPage() {
 	});
 
 	return (
-		<div className="p-5 md:p-7 max-w-5xl">
+		<div className="p-5 md:p-7 max-w-6xl">
 			<h1 className="mb-6 text-2xl font-normal text-neutral-100 tracking-tight">
 				Team
 			</h1>
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-				{sorted.map((u) => {
-					const assigned = jobs.filter((j) => j.assignedTo === u.id);
-					const active = assigned.filter((j) =>
-						["En Route", "On Site"].includes(j.status),
-					);
-					const done = assigned.filter(
-						(j) => j.status === "Completed",
-					);
-					const ec =
-						u.role === "master"
-							? business.accentColor
-							: engColor(u.id);
-
-					return (
-						<div
-							key={u.id}
-							className="rounded-xl border border-neutral-800 bg-neutral-900 p-5"
-						>
-							{/* Header */}
-							<div className="flex gap-3 items-start mb-4">
-								<div
-									className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium"
-									style={{
-										background: ec + "22",
-										border: `1px solid ${ec}44`,
-										color: ec,
-									}}
-								>
-									{u.avatar}
-								</div>
-								<div className="flex-1 min-w-0">
-									<div className="flex items-center gap-2">
-										<p className="text-base text-neutral-100 truncate">
-											{u.name}
-										</p>
-										<span
-											className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-mono ${
-												u.role === "master"
-													? "bg-orange-950 text-orange-400"
-													: "bg-blue-950 text-blue-400"
-											}`}
-										>
-											{u.role === "master"
-												? "Master"
-												: "Engineer"}
-										</span>
-									</div>
-									{u.phone && (
-										<p className="text-xs text-neutral-600 mt-0.5">
-											📞 {u.phone}
-										</p>
-									)}
-									{u.home && (
-										<p className="mt-0.5 text-xs text-neutral-700 truncate">
-											⌂ {u.home}
-										</p>
-									)}
-								</div>
-								{isMaster && (
-									<button
-										onClick={() => openEdit(u)}
-										className="flex-shrink-0 rounded-lg p-1.5 text-neutral-600 hover:text-neutral-300 hover:bg-neutral-800 transition-colors"
-										title="Edit member"
+			{/* Masters — compact row */}
+			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+				{sorted
+					.filter((u) => u.role === "master")
+					.map((u) => {
+						const ec = u.color ?? business.accentColor;
+						return (
+							<div
+								key={u.id}
+								className="rounded-xl border border-neutral-800 bg-neutral-900 p-5"
+							>
+								<div className="flex gap-3 items-start">
+									<div
+										className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium"
+										style={{
+											background: ec + "22",
+											border: `1px solid ${ec}44`,
+											color: ec,
+										}}
 									>
-										<svg
-											className="h-4 w-4"
-											fill="none"
-											viewBox="0 0 24 24"
-											stroke="currentColor"
-											strokeWidth={1.5}
+										{u.avatar}
+									</div>
+									<div className="flex-1 min-w-0">
+										<div className="flex items-center gap-2">
+											<p className="text-base text-neutral-100 truncate">
+												{u.name}
+											</p>
+											<span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-mono bg-orange-950 text-orange-400">
+												Master
+											</span>
+										</div>
+										{u.phone && (
+											<p className="text-xs text-neutral-600 mt-0.5">
+												📞 {u.phone}
+											</p>
+										)}
+										{u.home && (
+											<p className="mt-0.5 text-xs text-neutral-700 truncate">
+												⌂ {u.home}
+											</p>
+										)}
+									</div>
+									{isMaster && (
+										<button
+											onClick={() => openEdit(u)}
+											className="flex-shrink-0 rounded-lg p-1.5 text-neutral-600 hover:text-neutral-300 hover:bg-neutral-800 transition-colors"
+											title="Edit member"
 										>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"
-											/>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												d="M19.5 7.125L18 8.625"
-											/>
-										</svg>
-									</button>
-								)}
+											<svg
+												className="h-4 w-4"
+												fill="none"
+												viewBox="0 0 24 24"
+												stroke="currentColor"
+												strokeWidth={1.5}
+											>
+												<path
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"
+												/>
+												<path
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													d="M19.5 7.125L18 8.625"
+												/>
+											</svg>
+										</button>
+									)}
+								</div>
 							</div>
+						);
+					})}
+			</div>
 
-							{/* Stats — only meaningful for engineers with jobs */}
-							{assigned.length > 0 && (
-								<>
-									<div className="flex rounded-xl bg-neutral-950 mb-4 overflow-hidden">
+			{/* Engineers — full-width cards with day-grouped schedule */}
+			<div className="space-y-4">
+				{sorted
+					.filter((u) => u.role === "engineer")
+					.map((u) => {
+						const ec = userColor(u.id, users);
+						const assigned = jobs.filter(
+							(j) => j.assignedTo === u.id,
+						);
+						const active = assigned.filter((j) =>
+							["En Route", "On Site"].includes(j.status),
+						);
+						const done = assigned.filter(
+							(j) => j.status === "Completed",
+						);
+
+						// Today + future, excluding completed/invoiced
+						const upcoming = assigned
+							.filter(
+								(j) =>
+									j.date >= TODAY &&
+									!["Completed", "Invoiced"].includes(
+										j.status,
+									),
+							)
+							.sort(
+								(a, b) =>
+									a.date.localeCompare(b.date) ||
+									(a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+							);
+
+						// Group by date
+						const byDate: Record<string, Job[]> = {};
+						for (const j of upcoming) {
+							(byDate[j.date] ??= []).push(j);
+						}
+
+						const todayJobsForEng = byDate[TODAY] ?? [];
+						const currentTodayOrder =
+							todayOrders[u.id] ??
+							todayJobsForEng.map((j) => j.id);
+						const orderedToday = currentTodayOrder
+							.map((id) =>
+								todayJobsForEng.find((j) => j.id === id),
+							)
+							.filter(Boolean) as Job[];
+
+						const dateEntries = Object.entries(byDate).sort(
+							([a], [b]) => a.localeCompare(b),
+						);
+
+						return (
+							<div
+								key={u.id}
+								className="rounded-xl border border-neutral-800 bg-neutral-900 p-5 flex flex-col md:flex-row gap-5 md:gap-6"
+							>
+								{/* Left panel: user info + stats */}
+								<div className="md:w-52 flex-shrink-0">
+									<div className="flex gap-3 items-start mb-4">
+										<div
+											className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium"
+											style={{
+												background: ec + "22",
+												border: `1px solid ${ec}44`,
+												color: ec,
+											}}
+										>
+											{u.avatar}
+										</div>
+										<div className="flex-1 min-w-0">
+											<div className="flex items-center gap-2 flex-wrap">
+												<p className="text-base text-neutral-100 truncate">
+													{u.name}
+												</p>
+												<span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-mono bg-blue-950 text-blue-400">
+													Engineer
+												</span>
+											</div>
+											{u.phone && (
+												<p className="text-xs text-neutral-600 mt-0.5">
+													📞 {u.phone}
+												</p>
+											)}
+											{u.home && (
+												<p className="mt-0.5 text-xs text-neutral-700 truncate">
+													⌂ {u.home}
+												</p>
+											)}
+										</div>
+										{isMaster && (
+											<button
+												onClick={() => openEdit(u)}
+												className="flex-shrink-0 rounded-lg p-1.5 text-neutral-600 hover:text-neutral-300 hover:bg-neutral-800 transition-colors"
+												title="Edit member"
+											>
+												<svg
+													className="h-4 w-4"
+													fill="none"
+													viewBox="0 0 24 24"
+													stroke="currentColor"
+													strokeWidth={1.5}
+												>
+													<path
+														strokeLinecap="round"
+														strokeLinejoin="round"
+														d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"
+													/>
+													<path
+														strokeLinecap="round"
+														strokeLinejoin="round"
+														d="M19.5 7.125L18 8.625"
+													/>
+												</svg>
+											</button>
+										)}
+									</div>
+
+									{/* Stats */}
+									<div className="flex rounded-xl bg-neutral-950 overflow-hidden">
 										{[
 											{
 												label: "Total",
@@ -229,55 +381,154 @@ export function TeamPage() {
 											</div>
 										))}
 									</div>
+								</div>
 
-									<div className="space-y-0">
-										{assigned.slice(0, 4).map((j) => {
-											const sc = STATUS_COLORS[j.status];
-											return (
-												<div
-													key={j.id}
-													onClick={() =>
-														navigate(`/job/${j.id}`)
-													}
-													className="flex items-center gap-2 border-t border-neutral-800 py-2 cursor-pointer hover:bg-neutral-800/30 -mx-1 px-1 rounded transition-colors"
-												>
-													<div
-														className="h-2 w-2 flex-shrink-0 rounded-full"
-														style={{
-															background: ec,
-														}}
-													/>
-													<span className="w-14 flex-shrink-0 text-[10px] text-neutral-600">
-														{j.ref}
-													</span>
-													<span className="flex-1 truncate text-sm text-neutral-400">
-														{j.customer}
-													</span>
-													<span
-														className={`text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-mono ${sc.bg} ${sc.text}`}
-													>
-														{j.status}
-													</span>
-												</div>
-											);
-										})}
-										{assigned.length > 4 && (
-											<p className="pt-2 text-xs text-neutral-600 text-center">
-												+{assigned.length - 4} more
-											</p>
-										)}
-									</div>
-								</>
-							)}
-
-							{assigned.length === 0 && (
-								<p className="text-xs text-neutral-700 text-center py-2">
-									No jobs assigned
-								</p>
-							)}
-						</div>
-					);
-				})}
+								{/* Right panel: day-grouped schedule */}
+								<div className="flex-1 min-w-0 md:border-l md:border-neutral-800 md:pl-6">
+									{dateEntries.length === 0 ? (
+										<p className="text-xs text-neutral-700 py-2">
+											No upcoming jobs scheduled
+										</p>
+									) : (
+										<div className="space-y-5">
+											{dateEntries.map(
+												([date, dateJobs]) => {
+													const isToday =
+														date === TODAY;
+													const displayJobs = isToday
+														? orderedToday
+														: dateJobs;
+													return (
+														<div key={date}>
+															<p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-2">
+																{dayLabel(date)}
+																{isToday &&
+																	isMaster && (
+																		<span className="normal-case tracking-normal text-neutral-700">
+																			—
+																			drag
+																			to
+																			reorder
+																		</span>
+																	)}
+															</p>
+															<div>
+																{displayJobs.map(
+																	(
+																		j,
+																		idx,
+																	) => {
+																		const sc =
+																			STATUS_COLORS[
+																				j
+																					.status
+																			];
+																		return (
+																			<div
+																				key={
+																					j.id
+																				}
+																				draggable={
+																					isToday &&
+																					isMaster
+																				}
+																				onDragStart={() => {
+																					if (
+																						isToday &&
+																						isMaster
+																					)
+																						setDragJobId(
+																							j.id,
+																						);
+																				}}
+																				onDragOver={(
+																					e,
+																				) => {
+																					if (
+																						isToday &&
+																						isMaster
+																					)
+																						e.preventDefault();
+																				}}
+																				onDrop={(
+																					e,
+																				) => {
+																					e.preventDefault();
+																					if (
+																						isToday &&
+																						isMaster
+																					)
+																						handleDrop(
+																							u.id,
+																							j.id,
+																							currentTodayOrder,
+																						);
+																				}}
+																				onClick={() =>
+																					navigate(
+																						`/job/${j.id}`,
+																					)
+																				}
+																				className={`flex items-center gap-2 border-t border-neutral-800 py-2 -mx-1 px-1 rounded hover:bg-neutral-800/40 transition-colors select-none ${isToday && isMaster ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${dragJobId === j.id ? "opacity-30" : ""}`}
+																			>
+																				{isToday &&
+																					isMaster && (
+																						<svg
+																							className="h-3.5 w-3.5 text-neutral-700 flex-shrink-0"
+																							fill="currentColor"
+																							viewBox="0 0 20 20"
+																						>
+																							<path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z" />
+																						</svg>
+																					)}
+																				{isToday && (
+																					<span className="w-4 flex-shrink-0 text-[10px] text-neutral-700 font-mono text-center">
+																						{idx +
+																							1}
+																					</span>
+																				)}
+																				<div
+																					className="h-2 w-2 flex-shrink-0 rounded-full"
+																					style={{
+																						background:
+																							ec,
+																					}}
+																				/>
+																				<span className="w-14 flex-shrink-0 text-[10px] text-neutral-600">
+																					{
+																						j.ref
+																					}
+																				</span>
+																				<div className="flex-1 min-w-0">
+																					<span className="block truncate text-sm text-neutral-400">
+																						{j.customer}
+																					</span>
+																					<span className="block truncate text-xs text-neutral-600">
+																						📍 {j.address}
+																					</span>
+																				</div>
+																				<span
+																					className={`text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-mono ${sc.bg} ${sc.text}`}
+																				>
+																					{
+																						j.status
+																					}
+																				</span>
+																			</div>
+																		);
+																	},
+																)}
+															</div>
+														</div>
+													);
+												},
+											)}
+										</div>
+									)}
+								</div>
+							</div>
+						);
+					})}
 			</div>
 
 			{/* Edit Modal */}

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { engColor, PRIORITY_COLORS, STATUS_COLORS } from "../data";
+import { PRIORITY_COLORS, STATUS_COLORS, userColor } from "../data";
 import type { Job } from "../types";
 import { useApp } from "../AppContext";
 
@@ -64,8 +64,8 @@ export function JobCard({ job }: Props) {
 					<span
 						className="ml-auto flex h-6 w-6 items-center justify-center rounded-full text-xs"
 						style={{
-							background: engColor(job.assignedTo) + "22",
-							color: engColor(job.assignedTo),
+							background: userColor(job.assignedTo, users) + "22",
+							color: userColor(job.assignedTo, users),
 						}}
 					>
 						{eng?.avatar}
