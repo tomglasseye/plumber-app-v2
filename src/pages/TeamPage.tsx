@@ -501,10 +501,15 @@ export function TeamPage() {
 																				</span>
 																				<div className="flex-1 min-w-0">
 																					<span className="block truncate text-sm text-neutral-400">
-																						{j.customer}
+																						{
+																							j.customer
+																						}
 																					</span>
 																					<span className="block truncate text-xs text-neutral-600">
-																						📍 {j.address}
+																						📍{" "}
+																						{
+																							j.address
+																						}
 																					</span>
 																				</div>
 																				<span

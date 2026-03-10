@@ -110,9 +110,7 @@ export function CalendarPage() {
 					<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
 						Calendar
 					</h1>
-					<p className="mt-1 text-sm text-neutral-600">
-						{viewLabel}
-					</p>
+					<p className="mt-1 text-sm text-neutral-600">{viewLabel}</p>
 				</div>
 				<div className="flex items-center gap-2 flex-wrap">
 					{isMaster && (
@@ -133,11 +131,11 @@ export function CalendarPage() {
 					)}
 					{/* View toggle */}
 					<div className="flex rounded-lg border border-neutral-700 overflow-hidden text-sm">
-						{([
+						{[
 							{ v: "today" as CalView, label: "Today" },
 							{ v: "week" as CalView, label: "Working Week" },
 							{ v: "month" as CalView, label: "Month" },
-						]).map(({ v, label }) => (
+						].map(({ v, label }) => (
 							<button
 								key={v}
 								onClick={() => setViewPersisted(v)}
@@ -351,9 +349,7 @@ export function CalendarPage() {
 													{j.type}
 												</p>
 												{isMaster && eng && (
-													<div
-														className="mt-1.5 flex items-center gap-1"
-													>
+													<div className="mt-1.5 flex items-center gap-1">
 														<div
 															className="h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-medium flex-shrink-0"
 															style={{
@@ -368,7 +364,11 @@ export function CalendarPage() {
 															)}
 														</div>
 														<span className="text-[10px] text-neutral-500 truncate">
-															{eng.name.split(" ")[0]}
+															{
+																eng.name.split(
+																	" ",
+																)[0]
+															}
 														</span>
 													</div>
 												)}
@@ -385,45 +385,81 @@ export function CalendarPage() {
 			{/* ── TODAY VIEW ── */}
 			{view === "today" && (
 				<div className="max-w-xl">
-					{(byDate[calDate.toISOString().slice(0, 10)] ?? []).length === 0 ? (
+					{(byDate[calDate.toISOString().slice(0, 10)] ?? [])
+						.length === 0 ? (
 						<div className="flex flex-col items-center justify-center py-20 text-center rounded-xl border border-neutral-800 bg-neutral-900">
 							<span className="text-4xl mb-3">📭</span>
-							<p className="text-neutral-600 text-sm">No jobs scheduled for this day.</p>
+							<p className="text-neutral-600 text-sm">
+								No jobs scheduled for this day.
+							</p>
 						</div>
 					) : (
 						<div className="space-y-3">
-							{(byDate[calDate.toISOString().slice(0, 10)] ?? []).map((j) => {
+							{(
+								byDate[calDate.toISOString().slice(0, 10)] ?? []
+							).map((j) => {
 								const sc = STATUS_COLORS[j.status];
 								const pc = PRIORITY_COLORS[j.priority];
 								const uc = userColor(j.assignedTo, users);
-								const eng = users.find((u) => u.id === j.assignedTo);
+								const eng = users.find(
+									(u) => u.id === j.assignedTo,
+								);
 								return (
 									<div
 										key={j.id}
 										onClick={() => navigate(`/job/${j.id}`)}
 										className="cursor-pointer rounded-xl border border-neutral-800 bg-neutral-900 p-4 hover:border-neutral-700 transition-colors"
-										style={{ borderLeft: `4px solid ${uc}` }}
+										style={{
+											borderLeft: `4px solid ${uc}`,
+										}}
 									>
 										<div className="flex items-center justify-between gap-2 mb-2">
 											<div className="flex items-center gap-2 min-w-0">
-												<span className="text-[10px] text-neutral-600 font-mono flex-shrink-0">{j.ref}</span>
-												<span className={`text-[10px] px-2 py-0.5 rounded-full ${pc.bg} ${pc.text}`}>{j.priority}</span>
+												<span className="text-[10px] text-neutral-600 font-mono flex-shrink-0">
+													{j.ref}
+												</span>
+												<span
+													className={`text-[10px] px-2 py-0.5 rounded-full ${pc.bg} ${pc.text}`}
+												>
+													{j.priority}
+												</span>
 											</div>
-											<span className={`text-[10px] px-2.5 py-1 rounded-full font-mono flex-shrink-0 ${sc.bg} ${sc.text}`}>{j.status}</span>
+											<span
+												className={`text-[10px] px-2.5 py-1 rounded-full font-mono flex-shrink-0 ${sc.bg} ${sc.text}`}
+											>
+												{j.status}
+											</span>
 										</div>
-										<p className="text-base text-neutral-100 font-normal mb-0.5">{j.customer}</p>
-										<p className="text-sm text-neutral-500 mb-3">{j.type}</p>
+										<p className="text-base text-neutral-100 font-normal mb-0.5">
+											{j.customer}
+										</p>
+										<p className="text-sm text-neutral-500 mb-3">
+											{j.type}
+										</p>
 										<div className="flex items-center gap-3 flex-wrap">
-											<span className="text-xs text-neutral-600">📍 {j.address.split(",").slice(-2).join(",").trim()}</span>
+											<span className="text-xs text-neutral-600">
+												📍{" "}
+												{j.address
+													.split(",")
+													.slice(-2)
+													.join(",")
+													.trim()}
+											</span>
 											{isMaster && eng && (
 												<div className="ml-auto flex items-center gap-1.5">
 													<div
 														className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium"
-														style={{ background: uc + "22", color: uc }}
+														style={{
+															background:
+																uc + "22",
+															color: uc,
+														}}
 													>
 														{eng.avatar.slice(0, 2)}
 													</div>
-													<span className="text-xs text-neutral-500">{eng.name}</span>
+													<span className="text-xs text-neutral-500">
+														{eng.name}
+													</span>
 												</div>
 											)}
 										</div>
@@ -434,5 +470,6 @@ export function CalendarPage() {
 					)}
 				</div>
 			)}
-		</div>	);
+		</div>
+	);
 }

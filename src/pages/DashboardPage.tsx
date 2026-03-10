@@ -6,8 +6,15 @@ import { JobCard } from "../components/JobCard";
 import { STATUSES, STATUS_COLORS, TODAY } from "../data";
 
 export function DashboardPage() {
-	const { isMaster, myJobs, jobs, myNotifs, clearNotifs, business, currentUser } =
-		useApp();
+	const {
+		isMaster,
+		myJobs,
+		jobs,
+		myNotifs,
+		clearNotifs,
+		business,
+		currentUser,
+	} = useApp();
 	const userAccent = currentUser?.color ?? business.accentColor;
 	const navigate = useNavigate();
 	const [search, setSearch] = useState("");
@@ -99,10 +106,7 @@ export function DashboardPage() {
 							Tap to view your day's route
 						</p>
 					</div>
-					<span
-						className="text-xl"
-						style={{ color: userAccent }}
-					>
+					<span className="text-xl" style={{ color: userAccent }}>
 						›
 					</span>
 				</div>
