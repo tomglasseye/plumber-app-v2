@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* ── Dark mode (default) ─────────────────────────── */
+:root {
+	color-scheme: dark;
+}
+
+/* ── Light mode override ─────────────────────────── */
+/* Tailwind v4 exposes every colour as a CSS var so    */
+/* overriding them here re-themes the whole app.       */
+[data-theme="light"] {
+	color-scheme: light;
+
+	/* neutral palette — flipped dark↔light */
+	--color-neutral-50: #020617;
+	--color-neutral-100: #0f172a;
+	--color-neutral-200: #1e293b;
+	--color-neutral-300: #334155;
+	--color-neutral-400: #475569;
+	--color-neutral-500: #64748b;
+	--color-neutral-600: #64748b;
+	--color-neutral-700: #b0bac7;
+	--color-neutral-800: #dde3ec;
+	--color-neutral-900: #f1f5f9;
+	--color-neutral-950: #f8fafc;
+}
