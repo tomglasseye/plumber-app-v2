@@ -31,7 +31,7 @@ interface AppCtx {
 	jobs: Job[];
 	myJobs: Job[];
 	isMaster: boolean;
-	saveUser: (user: User) => void;
+	saveUser: (user: User) => Promise<void>;
 	changePassword: (
 		userId: string,
 		password: string,
@@ -492,22 +492,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		);
 	}
 
-	function saveUser(user: User) {
+	async function saveUser(user: User) {
 		setUsers((prev) => prev.map((u) => (u.id === user.id ? user : u)));
 		if (currentUser?.id === user.id) setCurrentUser(user);
-		dbSave(
-			supabase
-				.from("profiles")
-				.update({
-					name: user.name,
-					phone: user.phone,
-					home_address: user.home,
-					avatar: user.avatar,
-					role: user.role,
-					accent_color: user.color,
-				})
-				.eq("id", user.id),
-		);
+		const { error } = await supabase
+			.from("profiles")
+			.update({
+				name: user.name,
+				phone: user.phone,
+				home_address: user.home,
+				avatar: user.avatar,
+				role: user.role,
+				accent_color: user.color,
+			})
+			.eq("id", user.id);
+		if (error) {
+			const msg =
+				error instanceof Error
+					? error.message
+					: ((error as { message?: string }).message ??
+						"Save failed");
+			setSaveError(msg);
+		}
 	}
 
 	function toggleTheme() {

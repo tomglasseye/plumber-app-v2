@@ -66,7 +66,7 @@ export function TeamPage() {
 	async function handleSave() {
 		if (!editing) return;
 		setSaving(true);
-		saveUser({
+		await saveUser({
 			...editing,
 			name: form.name.trim(),
 			phone: form.phone.trim(),
