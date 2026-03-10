@@ -14,13 +14,21 @@ export function DashboardPage() {
 		clearNotifs,
 		business,
 		currentUser,
+		users,
 	} = useApp();
 	const userAccent = currentUser?.color ?? business.accentColor;
 	const navigate = useNavigate();
 	const [search, setSearch] = useState("");
 	const [statusFilter, setStatusFilter] = useState("All");
+	const [engFilter, setEngFilter] = useState("all");
 
-	const displayJobs = myJobs.filter((j) => {
+	const baseJobs = isMaster
+		? engFilter === "all"
+			? jobs
+			: jobs.filter((j) => j.assignedTo === engFilter)
+		: myJobs;
+
+	const displayJobs = baseJobs.filter((j) => {
 		const matchSearch =
 			!search ||
 			j.customer.toLowerCase().includes(search.toLowerCase()) ||
@@ -116,7 +124,9 @@ export function DashboardPage() {
 			{isMaster && (
 				<div className="mb-5 flex gap-2.5 flex-wrap">
 					{STATUSES.map((s) => {
-						const count = jobs.filter((j) => j.status === s).length;
+						const count = baseJobs.filter(
+							(j) => j.status === s,
+						).length;
 						const sc = STATUS_COLORS[s];
 						return (
 							<div
@@ -149,6 +159,22 @@ export function DashboardPage() {
 					onChange={(e) => setSearch(e.target.value)}
 					className="flex-1 min-w-48 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600"
 				/>
+				{isMaster && (
+					<select
+						value={engFilter}
+						onChange={(e) => setEngFilter(e.target.value)}
+						className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-300 outline-none"
+					>
+						<option value="all">All Engineers</option>
+						{users
+							.filter((u) => u.role === "engineer")
+							.map((u) => (
+								<option key={u.id} value={u.id}>
+									{u.name}
+								</option>
+							))}
+					</select>
+				)}
 				{!isMaster && (
 					<select
 						value={statusFilter}
