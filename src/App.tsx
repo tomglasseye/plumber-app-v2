@@ -68,7 +68,7 @@ export default function App() {
 	}
 
 	return (
-		<div className="flex min-h-screen bg-neutral-950 font-serif text-neutral-100">
+		<div className="flex min-h-screen bg-neutral-950 font-sans text-neutral-100">
 			<PushBanner push={pushBanner} onDismiss={dismissPush} />
 
 			{/* Save error toast */}

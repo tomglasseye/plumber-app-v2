@@ -18,6 +18,7 @@ export function CalendarPage() {
 	const navigate = useNavigate();
 	const [calDate, setCalDate] = useState(new Date());
 	const [filter, setFilter] = useState("all");
+	const [selectedDay, setSelectedDay] = useState<string | null>(null);
 	const [view, setView] = useState<CalView>(
 		() => (localStorage.getItem("calView") as CalView) ?? "month",
 	);
@@ -101,6 +102,16 @@ export function CalendarPage() {
 	function goToday() {
 		setCalDate(new Date());
 	}
+
+	const selectedDayJobs = selectedDay ? (byDate[selectedDay] ?? []) : [];
+	const selectedDayLabel = selectedDay
+		? new Date(selectedDay + "T00:00:00").toLocaleDateString("en-GB", {
+				weekday: "long",
+				day: "numeric",
+				month: "long",
+				year: "numeric",
+			})
+		: "";
 
 	return (
 		<div className="p-5 md:p-7 max-w-[1100px]">
@@ -215,10 +226,11 @@ export function CalendarPage() {
 						return (
 							<div
 								key={i}
-								className={`min-h-[88px] rounded-lg border p-1.5 ${
+								onClick={() => setSelectedDay(cell.ds)}
+								className={`min-h-[88px] rounded-lg border p-1.5 cursor-pointer transition-colors ${
 									isToday
-										? "border-orange-700/50 bg-orange-950/30"
-										: "border-neutral-800 bg-neutral-900"
+										? "border-orange-700/50 bg-orange-950/30 hover:border-orange-600/60"
+										: "border-neutral-800 bg-neutral-900 hover:border-neutral-700"
 								}`}
 							>
 								<span
@@ -237,10 +249,7 @@ export function CalendarPage() {
 										return (
 											<div
 												key={j.id}
-												onClick={() =>
-													navigate(`/job/${j.id}`)
-												}
-												className={`cursor-pointer rounded px-1 py-0.5 text-[10px] ${sc.bg} overflow-hidden`}
+												className={`rounded px-1 py-0.5 text-[10px] ${sc.bg} overflow-hidden`}
 												style={{
 													borderLeft: `3px solid ${uc}`,
 												}}
@@ -291,7 +300,10 @@ export function CalendarPage() {
 										: "border-neutral-800 bg-neutral-900"
 								}`}
 							>
-								<div className="mb-3 text-center">
+								<button
+									onClick={() => setSelectedDay(ds)}
+									className="mb-3 w-full text-center rounded-lg py-1 cursor-pointer hover:bg-neutral-700/40 transition-colors"
+								>
 									<p
 										className={`text-[10px] uppercase tracking-widest ${isToday ? "text-orange-400" : "text-neutral-500"}`}
 									>
@@ -302,7 +314,7 @@ export function CalendarPage() {
 									>
 										{dayNum}
 									</p>
-								</div>
+								</button>
 								<div className="flex flex-col gap-1.5">
 									{dayJobs.length === 0 && (
 										<p className="text-center text-[10px] text-neutral-700 pt-4">
@@ -323,7 +335,7 @@ export function CalendarPage() {
 											<div
 												key={j.id}
 												onClick={() =>
-													navigate(`/job/${j.id}`)
+													setSelectedDay(ds)
 												}
 												className={`cursor-pointer rounded-lg p-2 ${sc.bg} hover:opacity-90 transition-opacity`}
 												style={{
@@ -379,6 +391,109 @@ export function CalendarPage() {
 							</div>
 						);
 					})}
+				</div>
+			)}
+
+			{/* ── DAY DETAIL MODAL ── */}
+			{selectedDay && (
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+					onClick={() => setSelectedDay(null)}
+				>
+					<div
+						className="bg-neutral-900 border border-neutral-700 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="flex items-center justify-between p-4 border-b border-neutral-800">
+							<div>
+								<p className="text-neutral-100 font-medium">
+									{selectedDayLabel}
+								</p>
+								<p className="text-xs text-neutral-500">
+									{selectedDayJobs.length} job
+									{selectedDayJobs.length !== 1 ? "s" : ""}
+									scheduled
+								</p>
+							</div>
+							<button
+								onClick={() => setSelectedDay(null)}
+								className="text-neutral-500 hover:text-neutral-200 text-2xl leading-none cursor-pointer transition-colors"
+							>
+								×
+							</button>
+						</div>
+						<div className="overflow-y-auto p-4 space-y-2 flex-1">
+							{selectedDayJobs.length === 0 ? (
+								<div className="flex flex-col items-center justify-center py-10 text-center">
+									<span className="text-3xl mb-2">📭</span>
+									<p className="text-neutral-600 text-sm">
+										No jobs scheduled
+									</p>
+								</div>
+							) : (
+								selectedDayJobs.map((j) => {
+									const sc = STATUS_COLORS[j.status];
+									const pc = PRIORITY_COLORS[j.priority];
+									const uc = userColor(j.assignedTo, users);
+									const eng = users.find(
+										(u) => u.id === j.assignedTo,
+									);
+									return (
+										<div
+											key={j.id}
+											onClick={() => {
+												setSelectedDay(null);
+												navigate(`/job/${j.id}`);
+											}}
+											className="cursor-pointer rounded-xl border border-neutral-800 bg-neutral-800/50 p-3 hover:border-neutral-600 transition-colors"
+											style={{
+												borderLeft: `4px solid ${uc}`,
+											}}
+										>
+											<div className="flex items-center justify-between gap-2 mb-1">
+												<div className="flex items-center gap-1.5">
+													<div
+														className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${pc.dot}`}
+													/>
+													<span className="text-[10px] text-neutral-500 font-mono">
+														{j.ref}
+													</span>
+												</div>
+												<span
+													className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${sc.bg} ${sc.text}`}
+												>
+													{j.status}
+												</span>
+											</div>
+											<p className="text-sm text-neutral-100 font-medium truncate">
+												{j.customer}
+											</p>
+											<p className="text-xs text-neutral-500 truncate">
+												{j.type}
+											</p>
+											{isMaster && eng && (
+												<div className="mt-1.5 flex items-center gap-1">
+													<div
+														className="h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-medium"
+														style={{
+															background:
+																uc + "33",
+															color: uc,
+														}}
+													>
+														{eng.avatar.slice(0, 2)}
+													</div>
+													<span className="text-[10px] text-neutral-500">
+														{eng.name}
+													</span>
+												</div>
+											)}
+										</div>
+									);
+								})
+							)}
+						</div>
+					</div>
 				</div>
 			)}
 
