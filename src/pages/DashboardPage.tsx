@@ -140,19 +140,27 @@ export function DashboardPage() {
 										: "All Time"}
 						</p>
 						<div className="flex rounded-lg border border-neutral-700 overflow-hidden text-xs">
-							{(["week", "month", "year", "all"] as const).map((p) => (
-								<button
-									key={p}
-									onClick={() => setStatsPeriod(p)}
-									className={`px-2.5 py-1.5 transition-colors cursor-pointer ${
-										statsPeriod === p
-											? "bg-neutral-700 text-neutral-100"
-											: "bg-neutral-800 text-neutral-500 hover:text-neutral-300"
-									}`}
-								>
-									{p === "week" ? "Week" : p === "month" ? "Month" : p === "year" ? "Year" : "All"}
-								</button>
-							))}
+							{(["week", "month", "year", "all"] as const).map(
+								(p) => (
+									<button
+										key={p}
+										onClick={() => setStatsPeriod(p)}
+										className={`px-2.5 py-1.5 transition-colors cursor-pointer ${
+											statsPeriod === p
+												? "bg-neutral-700 text-neutral-100"
+												: "bg-neutral-800 text-neutral-500 hover:text-neutral-300"
+										}`}
+									>
+										{p === "week"
+											? "Week"
+											: p === "month"
+												? "Month"
+												: p === "year"
+													? "Year"
+													: "All"}
+									</button>
+								),
+							)}
 						</div>
 					</div>
 					<div className="mb-5 flex gap-2.5 flex-wrap">
@@ -171,7 +179,9 @@ export function DashboardPage() {
 									}
 									className={`flex-1 min-w-[80px] rounded-xl border px-3 py-2 cursor-pointer transition-opacity ${sc.bg} ${sc.border} ${statusFilter === s ? "opacity-100 ring-1 ring-white/20" : "opacity-80 hover:opacity-100"}`}
 								>
-									<p className={`text-2xl font-bold ${sc.text}`}>
+									<p
+										className={`text-2xl font-bold ${sc.text}`}
+									>
 										{count}
 									</p>
 									<p className="text-[11px] text-neutral-500">
