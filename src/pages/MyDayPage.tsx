@@ -55,9 +55,14 @@ export function MyDayPage() {
 			return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
 		});
 
+	const DONE_STATUSES = ["Completed", "Invoiced"];
+	const routeJobs = todayJobs.filter(
+		(j) => !DONE_STATUSES.includes(j.status),
+	);
+
 	const routeUrl =
-		todayJobs.length > 0
-			? mapsRouteUrl([routeStart, ...todayJobs.map((j) => j.address)])
+		routeJobs.length > 0
+			? mapsRouteUrl([routeStart, ...routeJobs.map((j) => j.address)])
 			: null;
 
 	return (
@@ -198,10 +203,12 @@ export function MyDayPage() {
 							</div>
 						</div>
 
-						{todayJobs.map((job, idx) => {
+						{todayJobs.map((job) => {
 							const pc = PRIORITY_COLORS[job.priority];
 							const sc = STATUS_COLORS[job.status];
 							const isOpen = activeStop === job.id;
+							const isDone = DONE_STATUSES.includes(job.status);
+							const routeIdx = routeJobs.indexOf(job);
 
 							return (
 								<div key={job.id}>
@@ -215,16 +222,22 @@ export function MyDayPage() {
 											)
 										}
 										className={`flex gap-3 rounded-xl border bg-neutral-900 p-4 cursor-pointer transition-colors ${
-											isOpen
-												? "border-orange-500/50"
-												: "border-neutral-800 hover:border-neutral-700"
+											isDone
+												? "border-neutral-800 opacity-50"
+												: isOpen
+													? "border-orange-500/50"
+													: "border-neutral-800 hover:border-neutral-700"
 										}`}
 									>
 										{/* Order badge */}
 										<div
-											className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${pc.dot}`}
+											className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
+												isDone
+													? "bg-neutral-700"
+													: pc.dot
+											}`}
 										>
-											{idx + 1}
+											{isDone ? "✓" : routeIdx + 1}
 										</div>
 
 										<div className="flex-1 min-w-0">
@@ -240,7 +253,9 @@ export function MyDayPage() {
 															{job.priority}
 														</span>
 													</div>
-													<p className="text-base text-neutral-100">
+													<p
+														className={`text-base ${isDone ? "line-through text-neutral-500" : "text-neutral-100"}`}
+													>
 														{job.customer}
 													</p>
 													<p
@@ -264,17 +279,19 @@ export function MyDayPage() {
 
 											{isOpen && (
 												<div className="mt-3 flex gap-2 flex-wrap">
-													<a
-														href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.address)}&travelmode=driving`}
-														target="_blank"
-														rel="noreferrer"
-														className="rounded-lg border border-blue-800 bg-blue-950 px-3 py-1.5 text-xs text-blue-300 no-underline"
-														onClick={(e) =>
-															e.stopPropagation()
-														}
-													>
-														▲ Navigate
-													</a>
+													{!isDone && (
+														<a
+															href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.address)}&travelmode=driving`}
+															target="_blank"
+															rel="noreferrer"
+															className="rounded-lg border border-blue-800 bg-blue-950 px-3 py-1.5 text-xs text-blue-300 no-underline"
+															onClick={(e) =>
+																e.stopPropagation()
+															}
+														>
+															▲ Navigate
+														</a>
+													)}
 													<button
 														onClick={(e) => {
 															e.stopPropagation();

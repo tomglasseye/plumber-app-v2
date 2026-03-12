@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useApp } from "../AppContext";
 import { PRIORITIES, PRIORITY_COLORS, STATUSES, STATUS_COLORS } from "../data";
@@ -22,9 +22,10 @@ export function JobDetailPage() {
 
 	const job = jobs.find((j) => j.id === id);
 
-	// Local draft â€” initialised from job, only persisted on Save
+	// Local draft — initialised from job, only persisted on Save
 	const [draftCustomer, setDraftCustomer] = useState(job?.customer ?? "");
 	const [draftAddress, setDraftAddress] = useState(job?.address ?? "");
+	const [draftPhone, setDraftPhone] = useState(job?.phone ?? "");
 	const [draftType, setDraftType] = useState(job?.type ?? "");
 	const [draftDescription, setDraftDescription] = useState(
 		job?.description ?? "",
@@ -49,6 +50,7 @@ export function JobDetailPage() {
 		if (!job) return;
 		setDraftCustomer(job.customer);
 		setDraftAddress(job.address);
+		setDraftPhone(job.phone ?? "");
 		setDraftType(job.type);
 		setDraftDescription(job.description);
 		setDraftAssignedTo(job.assignedTo);
@@ -72,6 +74,7 @@ export function JobDetailPage() {
 		(isMaster &&
 			(draftCustomer !== job.customer ||
 				draftAddress !== job.address ||
+				draftPhone !== job.phone ||
 				draftType !== job.type ||
 				draftDescription !== job.description ||
 				draftAssignedTo !== job.assignedTo ||
@@ -95,13 +98,15 @@ export function JobDetailPage() {
 			if (draftAssignedTo !== job.assignedTo) {
 				updateJob(job.id, "assignedTo", draftAssignedTo);
 				addNotification({
-					icon: "📋",
-					message: `Job ${job.ref} has been assigned to you — ${draftCustomer} (${draftType})`,
+					icon: "??",
+					message: `Job ${job.ref} has been assigned to you � ${draftCustomer} (${draftType})`,
 					for: draftAssignedTo,
 					jobId: job.id,
 				});
 			}
 			if (draftDate !== job.date) updateJob(job.id, "date", draftDate);
+			if (draftPhone !== job.phone)
+				updateJob(job.id, "phone", draftPhone);
 		}
 		if (draftStatus !== job.status) changeStatus(job.id, draftStatus);
 		if (draftPriority !== job.priority)
@@ -119,7 +124,7 @@ export function JobDetailPage() {
 				draftTimeSpent !== job.timeSpent)
 		) {
 			addNotification({
-				icon: "🔧",
+				icon: "??",
 				message: `${currentUser!.name} updated job ${job.ref} (${job.customer})`,
 				for: "master",
 				jobId: job.id,
@@ -135,7 +140,7 @@ export function JobDetailPage() {
 				onClick={() => navigate(-1)}
 				className="mb-5 text-sm text-neutral-600 hover:text-neutral-300 transition-colors border-0 bg-transparent p-0 cursor-pointer block"
 			>
-				â† Back
+				← Back
 			</button>
 
 			{/* Job header */}
@@ -152,7 +157,7 @@ export function JobDetailPage() {
 						</span>
 						{job.readyToInvoice && (
 							<span className="text-xs bg-green-950 text-green-400 px-2.5 py-0.5 rounded-full">
-								âœ… Final Complete
+								✅ Final Complete
 							</span>
 						)}
 					</div>
@@ -165,6 +170,26 @@ export function JobDetailPage() {
 					>
 						{draftType || job.type}
 					</p>
+					{job.phone && (
+						<a
+							href={`tel:${job.phone}`}
+							className="mt-1 inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-200 transition-colors"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								className="w-3.5 h-3.5 flex-shrink-0"
+							>
+								<path
+									fillRule="evenodd"
+									d="M2 3.5A1.5 1.5 0 0 1 3.5 2h1.148a1.5 1.5 0 0 1 1.465 1.175l.716 3.223a1.5 1.5 0 0 1-1.052 1.767l-.933.267c-.41.117-.643.555-.48.95a11.542 11.542 0 0 0 6.254 6.254c.395.163.833-.07.95-.48l.267-.933a1.5 1.5 0 0 1 1.767-1.052l3.223.716A1.5 1.5 0 0 1 18 16.352V17.5a1.5 1.5 0 0 1-1.5 1.5H15c-1.149 0-2.263-.15-3.326-.43A13.022 13.022 0 0 1 2.43 8.326 13.019 13.019 0 0 1 2 5V3.5Z"
+									clipRule="evenodd"
+								/>
+							</svg>
+							{job.phone}
+						</a>
+					)}
 				</div>
 				<span
 					className={`text-sm px-3 py-1.5 rounded-full font-mono ${sc.bg} ${sc.text}`}
@@ -195,6 +220,7 @@ export function JobDetailPage() {
 										setDraftAddress,
 										"text",
 									],
+									["Phone", draftPhone, setDraftPhone, "tel"],
 									[
 										"Job Type",
 										draftType,
@@ -281,6 +307,28 @@ export function JobDetailPage() {
 									</span>
 								</div>
 							))}
+							{job.phone && (
+								<div className="mb-3">
+									<a
+										href={`tel:${job.phone}`}
+										className="inline-flex items-center gap-2 rounded-lg border border-green-900 bg-green-950 px-3 py-1.5 text-sm text-green-300 no-underline hover:bg-green-900 transition-colors"
+									>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											viewBox="0 0 20 20"
+											fill="currentColor"
+											className="w-4 h-4 flex-shrink-0"
+										>
+											<path
+												fillRule="evenodd"
+												d="M2 3.5A1.5 1.5 0 0 1 3.5 2h1.148a1.5 1.5 0 0 1 1.465 1.175l.716 3.223a1.5 1.5 0 0 1-1.052 1.767l-.933.267c-.41.117-.643.555-.48.95a11.542 11.542 0 0 0 6.254 6.254c.395.163.833-.07.95-.48l.267-.933a1.5 1.5 0 0 1 1.767-1.052l3.223.716A1.5 1.5 0 0 1 18 16.352V17.5a1.5 1.5 0 0 1-1.5 1.5H15c-1.149 0-2.263-.15-3.326-.43A13.022 13.022 0 0 1 2.43 8.326 13.019 13.019 0 0 1 2 5V3.5Z"
+												clipRule="evenodd"
+											/>
+										</svg>
+										Call {job.phone}
+									</a>
+								</div>
+							)}
 							<a
 								href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`}
 								target="_blank"
@@ -350,7 +398,7 @@ export function JobDetailPage() {
 					</h4>
 					<textarea
 						rows={4}
-						placeholder="Add notes from siteâ€¦"
+						placeholder="Add notes from site…"
 						value={draftNotes}
 						readOnly={!canEdit}
 						onChange={(e) => setDraftNotes(e.target.value)}
@@ -365,7 +413,7 @@ export function JobDetailPage() {
 					</h4>
 					<textarea
 						rows={3}
-						placeholder="e.g. 22mm copper pipe x2, PTFE tapeâ€¦"
+						placeholder="e.g. 22mm copper pipe x2, PTFE tape…"
 						value={draftMaterials}
 						readOnly={!canEdit}
 						onChange={(e) => setDraftMaterials(e.target.value)}
@@ -409,7 +457,7 @@ export function JobDetailPage() {
 									: business.accentColor,
 							}}
 						>
-							{saved ? "âœ“ Saved" : "Save Changes"}
+							{saved ? "✓ Saved" : "Save Changes"}
 						</button>
 					</div>
 				)}
@@ -420,7 +468,7 @@ export function JobDetailPage() {
 					!job.readyToInvoice && (
 						<div className="md:col-span-2 rounded-xl border border-orange-800/40 bg-orange-950/30 p-5">
 							<p className="mb-1 text-base text-neutral-100">
-								â³ Awaiting HQ Approval
+								⏳ Awaiting HQ Approval
 							</p>
 							<p className="mb-4 text-sm text-neutral-500">
 								The engineer has marked this job complete.
@@ -431,7 +479,7 @@ export function JobDetailPage() {
 								onClick={() => finalComplete(job.id)}
 								className="rounded-lg bg-green-800 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition-colors border-0 cursor-pointer"
 							>
-								âœ… Mark as Final Complete
+								✅ Mark as Final Complete
 							</button>
 						</div>
 					)}
@@ -444,7 +492,7 @@ export function JobDetailPage() {
 						</div>
 						<div className="flex-1">
 							<p className="text-base text-green-400">
-								Approved â€” Ready to Invoice
+								Approved — Ready to Invoice
 							</p>
 							<p className="mt-0.5 text-sm text-neutral-500">
 								{business.xeroConnected

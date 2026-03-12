@@ -6,6 +6,7 @@ import type { NewJobForm } from "../types";
 
 const EMPTY: NewJobForm = {
 	customer: "",
+	phone: "",
 	address: "",
 	type: "",
 	description: "",
@@ -58,6 +59,12 @@ export function NewJobPage() {
 							key: "customer",
 							type: "text",
 							ph: "e.g. Mr & Mrs Smith",
+						},
+						{
+							label: "Phone Number",
+							key: "phone",
+							type: "tel",
+							ph: "e.g. 07700 900123",
 						},
 						{
 							label: "Address *",

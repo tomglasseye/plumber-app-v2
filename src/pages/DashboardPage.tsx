@@ -11,13 +11,17 @@ export function DashboardPage() {
 	const [search, setSearch] = useState("");
 	const [statusFilter, setStatusFilter] = useState("All");
 	const [engFilter, setEngFilter] = useState("all");
+	const [page, setPage] = useState(1);
+	const PAGE_SIZE = 25;
 
-	type StatsPeriod = "week" | "month" | "year" | "all";
+	type StatsPeriod = "today" | "week" | "month" | "year" | "all";
 	const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>("month");
 
 	function periodStart(period: StatsPeriod): string {
 		const d = new Date(TODAY + "T00:00:00");
-		if (period === "week") {
+		if (period === "today") {
+			return TODAY;
+		} else if (period === "week") {
 			const day = d.getDay();
 			const diff = day === 0 ? -6 : 1 - day;
 			d.setDate(d.getDate() + diff);
@@ -47,8 +51,18 @@ export function DashboardPage() {
 			j.type.toLowerCase().includes(search.toLowerCase()) ||
 			j.ref.toLowerCase().includes(search.toLowerCase());
 		const matchStatus = statusFilter === "All" || j.status === statusFilter;
-		return matchSearch && matchStatus;
+		const matchPeriod =
+			statsPeriod === "all" ||
+			(statsPeriod === "today" ? j.date === TODAY : j.date >= statsFrom);
+		return matchSearch && matchStatus && matchPeriod;
 	});
+
+	const totalPages = Math.max(1, Math.ceil(displayJobs.length / PAGE_SIZE));
+	const safePage = Math.min(page, totalPages);
+	const pagedJobs = displayJobs.slice(
+		(safePage - 1) * PAGE_SIZE,
+		safePage * PAGE_SIZE,
+	);
 
 	const todayJobs = myJobs.filter((j) => j.date === TODAY);
 	const hasEmergency = todayJobs.some((j) => j.priority === "Emergency");
@@ -131,42 +145,59 @@ export function DashboardPage() {
 				<>
 					<div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
 						<p className="text-xs text-neutral-500">
-							{statsPeriod === "week"
-								? "This Week"
-								: statsPeriod === "month"
-									? "This Month"
-									: statsPeriod === "year"
-										? "This Year"
-										: "All Time"}
+							{statsPeriod === "today"
+								? "Today"
+								: statsPeriod === "week"
+									? "This Week"
+									: statsPeriod === "month"
+										? "This Month"
+										: statsPeriod === "year"
+											? "This Year"
+											: "All Time"}
 						</p>
 						<div className="flex rounded-lg border border-neutral-700 overflow-hidden text-xs">
-							{(["week", "month", "year", "all"] as const).map(
-								(p) => (
-									<button
-										key={p}
-										onClick={() => setStatsPeriod(p)}
-										className={`px-2.5 py-1.5 transition-colors cursor-pointer ${
-											statsPeriod === p
-												? "bg-neutral-700 text-neutral-100"
-												: "bg-neutral-800 text-neutral-500 hover:text-neutral-300"
-										}`}
-									>
-										{p === "week"
+							{(
+								[
+									"today",
+									"week",
+									"month",
+									"year",
+									"all",
+								] as const
+							).map((p) => (
+								<button
+									key={p}
+									onClick={() => {
+										setStatsPeriod(p);
+										setPage(1);
+									}}
+									className={`px-2.5 py-1.5 transition-colors cursor-pointer ${
+										statsPeriod === p
+											? "bg-neutral-700 text-neutral-100"
+											: "bg-neutral-800 text-neutral-500 hover:text-neutral-300"
+									}`}
+								>
+									{p === "today"
+										? "Today"
+										: p === "week"
 											? "Week"
 											: p === "month"
 												? "Month"
 												: p === "year"
 													? "Year"
 													: "All"}
-									</button>
-								),
-							)}
+								</button>
+							))}
 						</div>
 					</div>
 					<div className="mb-5 flex gap-2.5 flex-wrap">
 						{STATUSES.map((s) => {
 							const count = baseJobs.filter(
-								(j) => j.status === s && j.date >= statsFrom,
+								(j) =>
+									j.status === s &&
+									(statsPeriod === "today"
+										? j.date === TODAY
+										: j.date >= statsFrom),
 							).length;
 							const sc = STATUS_COLORS[s];
 							return (
@@ -200,13 +231,19 @@ export function DashboardPage() {
 					type="text"
 					placeholder="Search jobs, customers, addresses…"
 					value={search}
-					onChange={(e) => setSearch(e.target.value)}
+					onChange={(e) => {
+						setSearch(e.target.value);
+						setPage(1);
+					}}
 					className="flex-1 min-w-48 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600"
 				/>
 				{isMaster && (
 					<select
 						value={engFilter}
-						onChange={(e) => setEngFilter(e.target.value)}
+						onChange={(e) => {
+							setEngFilter(e.target.value);
+							setPage(1);
+						}}
 						className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-300 outline-none"
 					>
 						<option value="all">All Engineers</option>
@@ -244,10 +281,42 @@ export function DashboardPage() {
 							: "No jobs assigned."}
 					</p>
 				)}
-				{displayJobs.map((job) => (
+				{pagedJobs.map((job) => (
 					<JobCard key={job.id} job={job} />
 				))}
 			</div>
+
+			{/* Pagination */}
+			{totalPages > 1 && (
+				<div className="mt-5 flex items-center justify-between gap-3">
+					<p className="text-xs text-neutral-600">
+						Showing {(safePage - 1) * PAGE_SIZE + 1}–
+						{Math.min(safePage * PAGE_SIZE, displayJobs.length)} of{" "}
+						{displayJobs.length}
+					</p>
+					<div className="flex gap-1">
+						<button
+							onClick={() => setPage((p) => Math.max(1, p - 1))}
+							disabled={safePage === 1}
+							className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm text-neutral-400 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed hover:text-neutral-200 transition-colors"
+						>
+							‹ Prev
+						</button>
+						<span className="flex items-center px-3 text-xs text-neutral-600">
+							{safePage} / {totalPages}
+						</span>
+						<button
+							onClick={() =>
+								setPage((p) => Math.min(totalPages, p + 1))
+							}
+							disabled={safePage === totalPages}
+							className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm text-neutral-400 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed hover:text-neutral-200 transition-colors"
+						>
+							Next ›
+						</button>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

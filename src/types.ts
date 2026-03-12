@@ -24,6 +24,7 @@ export interface Job {
 	id: string;
 	ref: string;
 	customer: string;
+	phone: string;
 	address: string;
 	type: string;
 	description: string;
@@ -64,6 +65,7 @@ export interface Business {
 
 export interface NewJobForm {
 	customer: string;
+	phone: string;
 	address: string;
 	type: string;
 	description: string;
