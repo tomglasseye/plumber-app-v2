@@ -26,7 +26,7 @@ export function LoginPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4 font-serif">
+		<div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4 font-sans">
 			<div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-8">
 				{/* Logo */}
 				<div className="flex items-center gap-3 mb-1">
