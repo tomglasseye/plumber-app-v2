@@ -69,7 +69,7 @@ interface AppCtx {
 		date: string,
 	) => void;
 	customers: Customer[];
-	createCustomer: (c: Omit<Customer, "id">) => void;
+	createCustomer: (c: Omit<Customer, "id">) => string;
 	updateCustomer: (c: Customer) => void;
 	deleteCustomer: (id: string) => void;
 }
@@ -717,7 +717,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		dbSave(supabase.from("repeat_tasks").delete().eq("id", id));
 	}
 
-	function createCustomer(c: Omit<Customer, "id">) {
+	function createCustomer(c: Omit<Customer, "id">): string {
 		const id = crypto.randomUUID();
 		const full: Customer = { ...c, id };
 		setCustomers((prev) =>
@@ -735,6 +735,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				xero_contact_id: c.xeroContactId ?? null,
 			}),
 		);
+		return id;
 	}
 
 	function updateCustomer(c: Customer) {

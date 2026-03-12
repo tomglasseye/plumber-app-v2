@@ -16,11 +16,12 @@ const EMPTY: NewJobForm = {
 };
 
 export function NewJobPage() {
-	const { createJob, business, users, customers } = useApp();
+	const { createJob, createCustomer, business, users, customers } = useApp();
 	const navigate = useNavigate();
 	const [form, setForm] = useState<NewJobForm>(EMPTY);
 	const [custSearch, setCustSearch] = useState("");
 	const [showSuggestions, setShowSuggestions] = useState(false);
+	const [saveAsContact, setSaveAsContact] = useState(false);
 	const custRef = useRef<HTMLDivElement>(null);
 
 	function f(key: keyof NewJobForm, value: string) {
@@ -32,6 +33,7 @@ export function NewJobPage() {
 		f("customer", value);
 		// Clear customerId when typing freely
 		setForm((prev) => ({ ...prev, customerId: undefined }));
+		setSaveAsContact(false);
 		setShowSuggestions(value.length > 0);
 	}
 
@@ -49,8 +51,11 @@ export function NewJobPage() {
 			address: c.address || prev.address,
 			customerId: c.id,
 		}));
+		setSaveAsContact(false);
 		setShowSuggestions(false);
 	}
+
+	const isUnlinked = form.customer.length > 0 && !form.customerId;
 
 	const suggestions =
 		custSearch.length > 0
@@ -62,13 +67,25 @@ export function NewJobPage() {
 	function handleSubmit() {
 		if (
 			!form.customer ||
+			!form.phone ||
 			!form.address ||
 			!form.type ||
 			!form.date ||
 			!form.assignedTo
 		)
 			return;
-		createJob(form);
+		let jobForm = form;
+		if (saveAsContact && !form.customerId) {
+			const custId = createCustomer({
+				name: form.customer,
+				email: "",
+				phone: form.phone,
+				address: form.address,
+				notes: "",
+			});
+			jobForm = { ...form, customerId: custId };
+		}
+		createJob(jobForm);
 		navigate("/");
 	}
 
@@ -131,12 +148,27 @@ export function NewJobPage() {
 							Linked to contact
 						</span>
 					)}
+					{isUnlinked && (
+						<label className="flex items-center gap-2 mt-0.5 cursor-pointer">
+							<input
+								type="checkbox"
+								checked={saveAsContact}
+								onChange={(e) =>
+									setSaveAsContact(e.target.checked)
+								}
+								className="accent-orange-500"
+							/>
+							<span className="text-[10px] text-amber-500">
+								Save as new contact
+							</span>
+						</label>
+					)}
 				</div>
 
 				{(
 					[
 						{
-							label: "Phone Number",
+							label: "Phone Number *",
 							key: "phone",
 							type: "tel",
 							ph: "e.g. 07700 900123",
@@ -229,6 +261,7 @@ export function NewJobPage() {
 					onClick={handleSubmit}
 					disabled={
 						!form.customer ||
+						!form.phone ||
 						!form.address ||
 						!form.type ||
 						!form.date ||

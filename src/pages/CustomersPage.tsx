@@ -56,7 +56,7 @@ export function CustomersPage() {
 	}
 
 	function handleSave() {
-		if (!form.name || !form.email) return;
+		if (!form.name || !form.email || !form.phone || !form.address) return;
 		if (editId) {
 			updateCustomer({ ...form, id: editId });
 		} else {
@@ -148,7 +148,7 @@ export function CustomersPage() {
 								</div>
 								<div>
 									<label className="mb-1 block text-xs uppercase tracking-wider text-neutral-600">
-										Phone
+										Phone *
 									</label>
 									<input
 										type="tel"
@@ -162,7 +162,7 @@ export function CustomersPage() {
 								</div>
 								<div>
 									<label className="mb-1 block text-xs uppercase tracking-wider text-neutral-600">
-										Default Address
+										Default Address *
 									</label>
 									<input
 										type="text"
@@ -206,7 +206,12 @@ export function CustomersPage() {
 							<div className="mt-5 flex gap-3">
 								<button
 									onClick={handleSave}
-									disabled={!form.name || !form.email}
+									disabled={
+										!form.name ||
+										!form.email ||
+										!form.phone ||
+										!form.address
+									}
 									className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
 									style={{
 										backgroundColor: business.accentColor,
