@@ -335,14 +335,63 @@ This starts Vite and the Netlify Functions server together at `http://localhost:
 
 ## 6. Xero considerations
 
-| Topic              | Detail                                                                                                                                                                |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contacts           | Xero creates a new Contact for each unique customer name. Optionally pull existing Xero contacts into the "customer" field when creating a job — use `GET /Contacts`. |
-| Line items         | The labour rate (£65/hr in the example) should be a configurable field in Account Settings.                                                                           |
-| Materials cost     | Currently the materials text field is free text. To invoice materials properly, add a materials cost field (`£`) to the job sheet.                                    |
-| Tax                | `OUTPUT2` = 20% UK VAT. If the business is not VAT registered, use `NONE`. Make this a setting.                                                                       |
-| Invoices vs Quotes | If you want to preview before invoicing, create as `DRAFT` — user can review in Xero before approving.                                                                |
-| Xero sandbox       | Xero provides a demo company for testing — you won't need a real Xero account until go-live.                                                                          |
+### Contacts — must exist before invoicing
+
+Xero will auto-create a Contact if you pass `Contact: { Name: "..." }` and no match exists. However this causes **duplicates** if the name doesn't match exactly (e.g. "John Smith" vs "J. Smith" vs "john smith").
+
+The invoice function should:
+
+1. Search first: `GET /Contacts?where=Name=="${customer}"`
+2. If found, use the returned `ContactID` in the invoice payload
+3. If not found, create the contact explicitly with `POST /Contacts` then use the new ID
+
+This avoids orphan contacts building up in the client's Xero org.
+
+### Account codes — must match the client's chart of accounts
+
+The code currently hardcodes `AccountCode: "200"` (revenue) and `TaxType: "OUTPUT2"` (20% VAT). These **will be different per Xero org** — "200" is the Xero demo company default but real businesses may use different codes.
+
+Add these configurable fields to `businesses` (and the Account Settings page):
+
+| Field                | DB column           | Default   | Notes                                            |
+| -------------------- | ------------------- | --------- | ------------------------------------------------ |
+| Revenue account code | `xero_account_code` | `200`     | Must match client's Xero chart of accounts       |
+| Tax type             | `xero_tax_type`     | `OUTPUT2` | `OUTPUT2` = 20% VAT, `NONE` = not VAT registered |
+| Hourly labour rate   | `xero_hourly_rate`  | `65.00`   | Used for the labour line item calculation        |
+| Invoice due days     | `xero_due_days`     | `30`      | Days from invoice date to due date               |
+
+The SQL migration to add these would be:
+
+```sql
+alter table businesses
+  add column xero_account_code text default '200',
+  add column xero_tax_type     text default 'OUTPUT2',
+  add column xero_hourly_rate  numeric(8,2) default 65.00,
+  add column xero_due_days     integer default 30;
+```
+
+### Token refresh — 30-minute expiry
+
+Xero access tokens expire after 30 minutes. The `getValidToken()` function in `xero-create-invoice.ts` handles this automatically — it checks `xero_token_expires_at` before every call and refreshes if needed. The refresh token itself is long-lived but can be revoked if the user disconnects from the Xero app.
+
+### tenantId — unique per Xero organisation
+
+Every API request must include the `Xero-Tenant-Id` header. This is captured during the OAuth callback and stored per business in `businesses.xero_tenant_id`. Since each PipeLine client connects their own Xero org, each business row holds its own tenantId.
+
+### Materials cost
+
+The materials field is currently free text. To invoice materials properly, either:
+
+- Add a `materials_cost` numeric field to `jobs` so the HQ can enter a £ amount, or
+- Let it go through as a £0 line item and have the client fill in the cost in Xero before approving the draft
+
+### Other notes
+
+| Topic              | Detail                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| Invoices vs Quotes | Create as `DRAFT` — user reviews in Xero before approving. Safest approach.           |
+| Xero sandbox       | Xero provides a demo company for testing — no real Xero account needed until go-live. |
+| `offline_access`   | Include this scope in the OAuth request to get a refresh token (already in the code). |
 
 ---
 
