@@ -8,7 +8,7 @@ const LS_LOCKOUT_KEY = "login_lockout_until";
 const LS_ATTEMPTS_KEY = "login_attempts";
 
 export function LoginPage() {
-	const { login, resetPassword, business } = useApp();
+	const { login, resetPassword } = useApp();
 	const navigate = useNavigate();
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
@@ -90,18 +90,13 @@ export function LoginPage() {
 			<div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-8">
 				{/* Logo */}
 				<div className="flex items-center gap-3 mb-1">
-					<div
-						className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white flex-shrink-0"
-						style={{ backgroundColor: business.accentColor }}
-					>
-						{business.logoInitials}
+					<div className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white flex-shrink-0 bg-orange-500">
+						🔧
 					</div>
-					<span className="text-xl text-neutral-100">
-						{business.name}
-					</span>
+					<span className="text-xl text-neutral-100">PipeLine</span>
 				</div>
 				<p className="text-sm text-neutral-600 mb-6">
-					Team Job Sheet System
+					Job management for trades teams
 				</p>
 
 				<div className="mb-4">
@@ -158,8 +153,7 @@ export function LoginPage() {
 								}
 							}}
 							disabled={busy}
-							className="w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-							style={{ backgroundColor: business.accentColor }}
+							className="w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
 						>
 							{busy ? "Sending…" : "Send Reset Link"}
 						</button>
@@ -179,8 +173,7 @@ export function LoginPage() {
 						<button
 							onClick={handleLogin}
 							disabled={busy || isLockedOut}
-							className="w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-							style={{ backgroundColor: business.accentColor }}
+							className="w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
 						>
 							{isLockedOut
 								? `Locked — ${formatRemaining(remaining)}`
