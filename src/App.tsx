@@ -17,6 +17,7 @@ import { JobDetailPage } from "./pages/JobDetailPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MyDayPage } from "./pages/MyDayPage";
 import { NewJobPage } from "./pages/NewJobPage";
+import { RepeatTasksPage, RepeatTaskDetailPage } from "./pages/RepeatTasksPage";
 import { TeamPage } from "./pages/TeamPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -121,7 +122,7 @@ export default function App() {
 					<NotificationBell
 						notifications={myNotifs}
 						onClear={clearNotifs}
-						onNavigate={(jobId) => navigate(`/job/${jobId}`)}
+						onNavigate={(path) => navigate(path)}
 					/>
 				</header>
 
@@ -130,7 +131,7 @@ export default function App() {
 					<NotificationBell
 						notifications={myNotifs}
 						onClear={clearNotifs}
-						onNavigate={(jobId) => navigate(`/job/${jobId}`)}
+						onNavigate={(path) => navigate(path)}
 					/>
 				</div>
 
@@ -175,6 +176,26 @@ export default function App() {
 								<RequireAuth>
 									<RequireMaster>
 										<NewJobPage />
+									</RequireMaster>
+								</RequireAuth>
+							}
+						/>
+						<Route
+							path="/repeat-tasks"
+							element={
+								<RequireAuth>
+									<RequireMaster>
+										<RepeatTasksPage />
+									</RequireMaster>
+								</RequireAuth>
+							}
+						/>
+						<Route
+							path="/repeat-tasks/:id"
+							element={
+								<RequireAuth>
+									<RequireMaster>
+										<RepeatTaskDetailPage />
 									</RequireMaster>
 								</RequireAuth>
 							}

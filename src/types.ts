@@ -46,6 +46,7 @@ export interface Notification {
 	read: boolean;
 	for: "master" | string;
 	jobId?: string;
+	repeatTaskId?: string;
 }
 
 export interface Business {
@@ -69,4 +70,16 @@ export interface NewJobForm {
 	assignedTo: string;
 	date: string;
 	priority: Priority;
+}
+
+export type RepeatFrequency = "annually" | "biannually" | "quarterly";
+
+export interface RepeatTask {
+	id: string;
+	customer: string;
+	address: string;
+	type: string;
+	description: string;
+	frequency: RepeatFrequency;
+	nextDueDate: string;
 }

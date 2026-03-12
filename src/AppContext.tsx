@@ -14,10 +14,13 @@ import type {
 	NewJobForm,
 	Notification,
 	Priority,
+	RepeatFrequency,
+	RepeatTask,
 	Role,
 	Status,
 	User,
 } from "./types";
+import { TODAY } from "./data";
 
 interface AppCtx {
 	loading: boolean;
@@ -55,6 +58,15 @@ interface AppCtx {
 	dismissPush: () => void;
 	saveError: string | null;
 	dismissSaveError: () => void;
+	repeatTasks: RepeatTask[];
+	createRepeatTask: (task: Omit<RepeatTask, "id" | "nextDueDate">) => void;
+	updateRepeatTask: (task: RepeatTask) => void;
+	deleteRepeatTask: (id: string) => void;
+	scheduleRepeatJob: (
+		taskId: string,
+		assignedTo: string,
+		date: string,
+	) => void;
 }
 
 const Ctx = createContext<AppCtx>(null!);
@@ -133,6 +145,19 @@ function mapBusiness(r: any): Business {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapRepeatTask(r: any): RepeatTask {
+	return {
+		id: r.id,
+		customer: r.customer,
+		address: r.address,
+		type: r.type,
+		description: r.description ?? "",
+		frequency: r.frequency as RepeatFrequency,
+		nextDueDate: r.next_due_date,
+	};
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapNotification(r: any): Notification {
 	return {
 		id: r.id,
@@ -145,6 +170,7 @@ function mapNotification(r: any): Notification {
 		read: r.read ?? false,
 		for: r.for_role === "master" ? "master" : r.for_user,
 		jobId: r.job_id ?? undefined,
+		repeatTaskId: r.repeat_task_id ?? undefined,
 	};
 }
 
@@ -158,6 +184,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	const [pushBanner, setPushBanner] = useState<Notification | null>(null);
 	const [theme, setTheme] = useState<"dark" | "light">("dark");
 	const [saveError, setSaveError] = useState<string | null>(null);
+	const [repeatTasks, setRepeatTasks] = useState<RepeatTask[]>([]);
 	const notifCounter = useRef(1000);
 
 	const isMaster = currentUser?.role === "master";
@@ -299,6 +326,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		if (profilesRes.data) setUsers(profilesRes.data.map(mapProfile));
 		if (notifsRes.data)
 			setNotifications(notifsRes.data.map(mapNotification));
+
+		// Load repeat tasks for master users
+		if (profile.role === "master") {
+			const { data: rtData } = await supabase
+				.from("repeat_tasks")
+				.select("*")
+				.eq("business_id", profile.business_id)
+				.order("next_due_date", { ascending: true });
+			if (rtData) {
+				const mapped = rtData.map(mapRepeatTask);
+				setRepeatTasks(mapped);
+				// Fire notifications for tasks due today or overdue
+				for (const t of mapped) {
+					if (t.nextDueDate <= TODAY) {
+						addNotification({
+							icon: "🔁",
+							message: `Reminder: ${t.type} due for ${t.customer} at ${t.address}`,
+							for: "master",
+							repeatTaskId: t.id,
+						});
+					}
+				}
+			}
+		}
 		return profile.role as Role;
 	}
 
@@ -321,6 +372,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setUsers([]);
 		setJobs([]);
 		setNotifications([]);
+		setRepeatTasks([]);
 	}
 
 	function addNotification(n: Omit<Notification, "id" | "time" | "read">) {
@@ -346,6 +398,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			read: false,
 		};
 		if (n.jobId) row.job_id = n.jobId;
+		if (n.repeatTaskId) row.repeat_task_id = n.repeatTaskId;
 		if (n.for === "master") {
 			row.for_role = "master";
 		} else {
@@ -565,6 +618,86 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		return error?.message ?? null;
 	}
 
+	function createRepeatTask(task: Omit<RepeatTask, "id" | "nextDueDate">) {
+		const id = crypto.randomUUID();
+		// Compute first due date from today based on frequency
+		const start = new Date(TODAY + "T00:00:00");
+		if (task.frequency === "annually")
+			start.setFullYear(start.getFullYear() + 1);
+		else if (task.frequency === "biannually")
+			start.setMonth(start.getMonth() + 6);
+		else start.setMonth(start.getMonth() + 3);
+		const nextDueDate = start.toISOString().slice(0, 10);
+		const full: RepeatTask = { ...task, id, nextDueDate };
+		setRepeatTasks((prev) => [...prev, full]);
+		dbSave(
+			supabase.from("repeat_tasks").insert({
+				id,
+				business_id: business.id,
+				customer: task.customer,
+				address: task.address,
+				type: task.type,
+				description: task.description,
+				frequency: task.frequency,
+				next_due_date: nextDueDate,
+			}),
+		);
+	}
+
+	function updateRepeatTask(task: RepeatTask) {
+		setRepeatTasks((prev) =>
+			prev.map((t) => (t.id === task.id ? task : t)),
+		);
+		dbSave(
+			supabase
+				.from("repeat_tasks")
+				.update({
+					customer: task.customer,
+					address: task.address,
+					type: task.type,
+					description: task.description,
+					frequency: task.frequency,
+					next_due_date: task.nextDueDate,
+				})
+				.eq("id", task.id),
+		);
+	}
+
+	function deleteRepeatTask(id: string) {
+		setRepeatTasks((prev) => prev.filter((t) => t.id !== id));
+		dbSave(supabase.from("repeat_tasks").delete().eq("id", id));
+	}
+
+	function scheduleRepeatJob(
+		taskId: string,
+		assignedTo: string,
+		date: string,
+	) {
+		const task = repeatTasks.find((t) => t.id === taskId);
+		if (!task) return;
+		createJob({
+			customer: task.customer,
+			address: task.address,
+			type: task.type,
+			description: task.description,
+			assignedTo,
+			date,
+			priority: "Normal",
+		});
+		// Advance the next due date (keep the reminder alive)
+		const next = new Date(task.nextDueDate + "T00:00:00");
+		if (task.frequency === "annually")
+			next.setFullYear(next.getFullYear() + 1);
+		else if (task.frequency === "biannually")
+			next.setMonth(next.getMonth() + 6);
+		else next.setMonth(next.getMonth() + 3);
+		const updated: RepeatTask = {
+			...task,
+			nextDueDate: next.toISOString().slice(0, 10),
+		};
+		updateRepeatTask(updated);
+	}
+
 	return (
 		<Ctx.Provider
 			value={{
@@ -596,6 +729,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				dismissPush: () => setPushBanner(null),
 				saveError,
 				dismissSaveError: () => setSaveError(null),
+				repeatTasks,
+				createRepeatTask,
+				updateRepeatTask,
+				deleteRepeatTask,
+				scheduleRepeatJob,
 			}}
 		>
 			{children}
