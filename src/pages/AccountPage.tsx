@@ -1,12 +1,236 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
 import { ACCENT_OPTIONS } from "../data";
-import type { Business } from "../types";
+import type { Business, Job, RepeatTask, User } from "../types";
+
+/* ── Excel XML helpers (multi-tab, Google Sheets compatible) ── */
+
+function escapeXML(val: string): string {
+	return val
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
+}
+
+function xmlRow(cells: string[]): string {
+	return (
+		"<Row>" +
+		cells
+			.map(
+				(c) =>
+					`<Cell><Data ss:Type="String">${escapeXML(c)}</Data></Cell>`,
+			)
+			.join("") +
+		"</Row>"
+	);
+}
+
+function buildWorkbook(
+	jobs: Job[],
+	reminders: RepeatTask[],
+	users: User[],
+): string {
+	const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
+
+	const jobHeader = [
+		"Ref",
+		"Customer",
+		"Address",
+		"Type",
+		"Description",
+		"Assigned To",
+		"Status",
+		"Priority",
+		"Date",
+		"Materials",
+		"Notes",
+		"Time Spent (hrs)",
+		"Ready to Invoice",
+	];
+	const jobRows = jobs.map((j) =>
+		xmlRow([
+			j.ref,
+			j.customer,
+			j.address,
+			j.type,
+			j.description,
+			userMap[j.assignedTo] || j.assignedTo,
+			j.status,
+			j.priority,
+			j.date,
+			j.materials,
+			j.notes,
+			String(j.timeSpent),
+			j.readyToInvoice ? "Yes" : "No",
+		]),
+	);
+
+	const remHeader = [
+		"Customer",
+		"Address",
+		"Type",
+		"Description",
+		"Frequency",
+		"Next Due Date",
+	];
+	const remRows = reminders.map((t) =>
+		xmlRow([
+			t.customer,
+			t.address,
+			t.type,
+			t.description,
+			t.frequency,
+			t.nextDueDate,
+		]),
+	);
+
+	return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles><Style ss:ID="hdr"><Font ss:Bold="1"/></Style></Styles>
+<Worksheet ss:Name="Jobs"><Table>${xmlRow(jobHeader).replace("<Row>", '<Row ss:StyleID="hdr">')}${jobRows.join("")}</Table></Worksheet>
+<Worksheet ss:Name="Reminders"><Table>${xmlRow(remHeader).replace("<Row>", '<Row ss:StyleID="hdr">')}${remRows.join("")}</Table></Worksheet>
+</Workbook>`;
+}
+
+function downloadXML(xml: string, filename: string) {
+	const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = filename;
+	a.click();
+	URL.revokeObjectURL(url);
+}
+
+/* ── Export Panel ─────────────────────────────────────────────── */
+
+function ExportPanel({
+	jobs,
+	repeatTasks,
+	users,
+	accent,
+}: {
+	jobs: Job[];
+	repeatTasks: RepeatTask[];
+	users: User[];
+	accent: string;
+}) {
+	const today = new Date().toISOString().slice(0, 10);
+	const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000)
+		.toISOString()
+		.slice(0, 10);
+
+	const [from, setFrom] = useState(thirtyDaysAgo);
+	const [to, setTo] = useState(today);
+	const [exported, setExported] = useState(false);
+
+	const filteredJobs = jobs.filter((j) => j.date >= from && j.date <= to);
+	const filteredReminders = repeatTasks.filter(
+		(t) => t.nextDueDate >= from && t.nextDueDate <= to,
+	);
+
+	const totalRows = filteredJobs.length + filteredReminders.length;
+
+	function handleExport() {
+		const xml = buildWorkbook(filteredJobs, filteredReminders, users);
+		downloadXML(xml, `export_${from}_to_${to}.xls`);
+		setExported(true);
+		setTimeout(() => setExported(false), 2000);
+	}
+
+	const inputClass =
+		"w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-neutral-500";
+
+	return (
+		<div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+			{/* Date range */}
+			<div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+				<h4 className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
+					Date Range
+				</h4>
+				<div className="space-y-3">
+					<div>
+						<label className="mb-1 block text-xs uppercase tracking-wider text-neutral-600">
+							From
+						</label>
+						<input
+							type="date"
+							value={from}
+							onChange={(e) => setFrom(e.target.value)}
+							className={inputClass}
+						/>
+					</div>
+					<div>
+						<label className="mb-1 block text-xs uppercase tracking-wider text-neutral-600">
+							To
+						</label>
+						<input
+							type="date"
+							value={to}
+							onChange={(e) => setTo(e.target.value)}
+							className={inputClass}
+						/>
+					</div>
+				</div>
+				<p className="mt-4 text-xs text-neutral-600">
+					Exports as a spreadsheet with Jobs and Reminders on separate
+					tabs — import directly into Google Sheets.
+				</p>
+			</div>
+
+			{/* Summary & export */}
+			<div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+				<h4 className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
+					Export Summary
+				</h4>
+				<div className="space-y-2 mb-5">
+					<div className="flex justify-between text-sm">
+						<span className="text-neutral-500">Jobs</span>
+						<span className="text-neutral-300">
+							{filteredJobs.length}
+						</span>
+					</div>
+					<div className="flex justify-between text-sm">
+						<span className="text-neutral-500">Reminders</span>
+						<span className="text-neutral-300">
+							{filteredReminders.length}
+						</span>
+					</div>
+					<div className="border-t border-neutral-800 pt-2 flex justify-between text-sm font-medium">
+						<span className="text-neutral-400">Total rows</span>
+						<span className="text-neutral-200">{totalRows}</span>
+					</div>
+				</div>
+				<button
+					onClick={handleExport}
+					disabled={totalRows === 0}
+					className="w-full rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-all disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+					style={{
+						background: exported ? "#16a34a" : accent,
+					}}
+				>
+					{exported ? "✓ Downloaded" : "Export Spreadsheet"}
+				</button>
+			</div>
+		</div>
+	);
+}
 
 export function AccountPage() {
-	const { business, saveBusiness, theme, toggleTheme } = useApp();
+	const {
+		business,
+		saveBusiness,
+		theme,
+		toggleTheme,
+		jobs,
+		repeatTasks,
+		users,
+	} = useApp();
 	const [form, setForm] = useState<Business>(business);
-	const [tab, setTab] = useState<"business" | "xero">("business");
+	const [tab, setTab] = useState<"business" | "xero" | "export">("business");
 	const [saved, setSaved] = useState(false);
 
 	function f(key: keyof Business, value: string | boolean) {
@@ -20,12 +244,13 @@ export function AccountPage() {
 	}
 
 	const tabs: {
-		id: "business" | "xero";
+		id: "business" | "xero" | "export";
 		icon: string;
 		label: string;
 	}[] = [
 		{ id: "business", icon: "🏢", label: "Business" },
 		{ id: "xero", icon: "📊", label: "Xero" },
+		{ id: "export", icon: "📥", label: "Export" },
 	];
 
 	return (
@@ -224,6 +449,16 @@ export function AccountPage() {
 						</p>
 					</div>
 				</div>
+			)}
+
+			{/* Export tab */}
+			{tab === "export" && (
+				<ExportPanel
+					jobs={jobs}
+					repeatTasks={repeatTasks}
+					users={users}
+					accent={form.accentColor}
+				/>
 			)}
 
 			{/* Xero tab */}
