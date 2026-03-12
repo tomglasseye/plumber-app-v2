@@ -1,6 +1,8 @@
 # Progressive Web App — Offline Support
 
-This document covers converting the app into a PWA so engineers can use it offline — vital for sites with poor signal, basements, and rural jobs.
+> **Status:** `vite-plugin-pwa` is installed and configured with a basic manifest and `registerType: 'autoUpdate'`. The app is technically a PWA but is missing proper app icons (using `vite.svg` placeholder), Workbox caching strategies, and an offline data queue. See the checklist at the bottom for remaining work.
+
+This document covers converting the app into a full offline-capable PWA so engineers can use it on sites with poor signal.
 
 ---
 
@@ -34,79 +36,84 @@ npm install -D vite-plugin-pwa
 ## 2. Update vite.config.ts
 
 ```ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
-import { VitePWA } from 'vite-plugin-pwa';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/*.png'],
-      manifest: {
-        name: 'DPH Plumbing Jobs',
-        short_name: 'DPH Jobs',
-        description: 'Job sheet management for DPH Plumbing',
-        theme_color: '#0d0d0d',
-        background_color: '#0d0d0d',
-        display: 'standalone',
-        orientation: 'portrait',
-        start_url: '/',
-        icons: [
-          {
-            src: '/icons/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: '/icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-          {
-            src: '/icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-        ],
-      },
-      workbox: {
-        // Pre-cache the app shell automatically
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        // Runtime cache strategy for API calls
-        runtimeCaching: [
-          {
-            // Cache Supabase REST API responses
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api',
-              expiration: {
-                maxAgeSeconds: 60 * 60 * 24, // 24 hours
-              },
-              networkTimeoutSeconds: 5,
-            },
-          },
-          {
-            // Cache Supabase Storage (job photos)
-            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\//,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'job-photos',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
-              },
-            },
-          },
-        ],
-      },
-    }),
-  ],
+	plugins: [
+		react(),
+		tailwindcss(),
+		VitePWA({
+			registerType: "autoUpdate",
+			includeAssets: [
+				"favicon.ico",
+				"apple-touch-icon.png",
+				"icons/*.png",
+			],
+			manifest: {
+				name: "DPH Plumbing Jobs",
+				short_name: "DPH Jobs",
+				description: "Job sheet management for DPH Plumbing",
+				theme_color: "#0d0d0d",
+				background_color: "#0d0d0d",
+				display: "standalone",
+				orientation: "portrait",
+				start_url: "/",
+				icons: [
+					{
+						src: "/icons/icon-192.png",
+						sizes: "192x192",
+						type: "image/png",
+					},
+					{
+						src: "/icons/icon-512.png",
+						sizes: "512x512",
+						type: "image/png",
+					},
+					{
+						src: "/icons/icon-512.png",
+						sizes: "512x512",
+						type: "image/png",
+						purpose: "maskable",
+					},
+				],
+			},
+			workbox: {
+				// Pre-cache the app shell automatically
+				globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+				// Runtime cache strategy for API calls
+				runtimeCaching: [
+					{
+						// Cache Supabase REST API responses
+						urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
+						handler: "NetworkFirst",
+						options: {
+							cacheName: "supabase-api",
+							expiration: {
+								maxAgeSeconds: 60 * 60 * 24, // 24 hours
+							},
+							networkTimeoutSeconds: 5,
+						},
+					},
+					{
+						// Cache Supabase Storage (job photos)
+						urlPattern:
+							/^https:\/\/.*\.supabase\.co\/storage\/v1\//,
+						handler: "CacheFirst",
+						options: {
+							cacheName: "job-photos",
+							expiration: {
+								maxEntries: 200,
+								maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+							},
+						},
+					},
+				],
+			},
+		}),
+	],
 });
 ```
 
@@ -116,10 +123,10 @@ export default defineConfig({
 
 Create a `public/icons/` folder and add two PNG icons:
 
-| File | Size | Usage |
-|---|---|---|
-| `icon-192.png` | 192 × 192 | Android home screen |
-| `icon-512.png` | 512 × 512 | Android splash screen, iOS |
+| File                   | Size      | Usage                          |
+| ---------------------- | --------- | ------------------------------ |
+| `icon-192.png`         | 192 × 192 | Android home screen            |
+| `icon-512.png`         | 512 × 512 | Android splash screen, iOS     |
 | `apple-touch-icon.png` | 180 × 180 | iOS home screen (copy of icon) |
 
 You can generate these quickly at [realfavicongenerator.net](https://realfavicongenerator.net) or [maskable.app](https://maskable.app/editor).
@@ -135,16 +142,16 @@ The DPH logo should be a simple design — orange square with "DPH" in white —
 If you want to show an "App updated — reload" prompt, add to `main.tsx`:
 
 ```ts
-import { registerSW } from 'virtual:pwa-register';
+import { registerSW } from "virtual:pwa-register";
 
 registerSW({
-  onNeedRefresh() {
-    // Show a UI prompt asking user to reload
-    if (confirm('App updated. Reload now?')) window.location.reload();
-  },
-  onOfflineReady() {
-    console.log('App ready for offline use');
-  },
+	onNeedRefresh() {
+		// Show a UI prompt asking user to reload
+		if (confirm("App updated. Reload now?")) window.location.reload();
+	},
+	onOfflineReady() {
+		console.log("App ready for offline use");
+	},
 });
 ```
 
@@ -165,17 +172,17 @@ When the engineer signs in, proactively cache their jobs for today and tomorrow 
 ```ts
 // In AppContext.tsx, after successful login
 async function warmCache(userId: string) {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+	const tomorrow = new Date();
+	tomorrow.setDate(tomorrow.getDate() + 1);
+	const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
-  await supabase
-    .from('jobs')
-    .select('*, profiles(*)')
-    .eq('assigned_to', userId)
-    .gte('date', TODAY)
-    .lte('date', tomorrowStr);
-  // Supabase Workbox handler caches the response automatically
+	await supabase
+		.from("jobs")
+		.select("*, profiles(*)")
+		.eq("assigned_to", userId)
+		.gte("date", TODAY)
+		.lte("date", tomorrowStr);
+	// Supabase Workbox handler caches the response automatically
 }
 ```
 
@@ -209,18 +216,18 @@ Alternatively, implement a simple queue in `localStorage`:
 ```ts
 // When offline, queue the update
 function queueOfflineUpdate(jobId: string, fields: Partial<Job>) {
-  const queue = JSON.parse(localStorage.getItem('offline-queue') ?? '[]');
-  queue.push({ jobId, fields, timestamp: Date.now() });
-  localStorage.setItem('offline-queue', JSON.stringify(queue));
+	const queue = JSON.parse(localStorage.getItem("offline-queue") ?? "[]");
+	queue.push({ jobId, fields, timestamp: Date.now() });
+	localStorage.setItem("offline-queue", JSON.stringify(queue));
 }
 
 // On reconnect, flush the queue
-window.addEventListener('online', async () => {
-  const queue = JSON.parse(localStorage.getItem('offline-queue') ?? '[]');
-  for (const item of queue) {
-    await supabase.from('jobs').update(item.fields).eq('id', item.jobId);
-  }
-  localStorage.removeItem('offline-queue');
+window.addEventListener("online", async () => {
+	const queue = JSON.parse(localStorage.getItem("offline-queue") ?? "[]");
+	for (const item of queue) {
+		await supabase.from("jobs").update(item.fields).eq("id", item.jobId);
+	}
+	localStorage.removeItem("offline-queue");
 });
 ```
 
@@ -234,10 +241,13 @@ iOS Safari has supported PWAs, service workers, and push notifications since iOS
 - Add to `index.html` `<head>`:
 
 ```html
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="DPH Jobs">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta
+	name="apple-mobile-web-app-status-bar-style"
+	content="black-translucent"
+/>
+<meta name="apple-mobile-web-app-title" content="DPH Jobs" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 ```
 
 The engineer must **Add to Home Screen** from Safari's share menu for the app to run in standalone mode and receive push notifications on iOS.
@@ -251,18 +261,18 @@ On Android, Chrome shows an automatic install prompt when PWA criteria are met. 
 ```ts
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e as BeforeInstallPromptEvent;
-  // Show your custom "Add to home screen" button
+window.addEventListener("beforeinstallprompt", (e) => {
+	e.preventDefault();
+	deferredPrompt = e as BeforeInstallPromptEvent;
+	// Show your custom "Add to home screen" button
 });
 
 // When user clicks your button:
 async function promptInstall() {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  deferredPrompt = null;
+	if (!deferredPrompt) return;
+	deferredPrompt.prompt();
+	const { outcome } = await deferredPrompt.userChoice;
+	deferredPrompt = null;
 }
 ```
 
@@ -271,6 +281,7 @@ async function promptInstall() {
 ## 8. Testing offline mode
 
 In Chrome DevTools:
+
 1. Application tab → Service Workers — check the service worker is registered
 2. Network tab → throttling → Offline
 3. Refresh the page — the app should load from cache
@@ -280,12 +291,14 @@ In Chrome DevTools:
 
 ## Checklist
 
-- [ ] Install `vite-plugin-pwa`
-- [ ] Update `vite.config.ts` with PWA config
-- [ ] Create `public/icons/` with 192, 512, and apple-touch-icon PNGs
+- [x] Install `vite-plugin-pwa`
+- [x] Update `vite.config.ts` with PWA config (basic manifest + autoUpdate)
+- [ ] Create `public/icons/` with 192, 512, and apple-touch-icon PNGs (currently using `vite.svg` placeholder)
+- [ ] Update manifest in `vite.config.ts` with proper icon references
+- [ ] Add Workbox runtime caching strategies for Supabase API and Storage
 - [ ] Add apple meta tags to `index.html`
-- [ ] Add `vite-env.d.ts` type reference
+- [ ] Add `vite-env.d.ts` type reference for `virtual:pwa-register`
 - [ ] Test service worker registration in DevTools
-- [ ] Implement offline mutation queue (post-Supabase)
+- [ ] Implement offline mutation queue
 - [ ] Test "Add to Home Screen" on Android and iOS
 - [ ] Confirm cached jobs load correctly with no network

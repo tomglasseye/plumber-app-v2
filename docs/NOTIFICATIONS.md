@@ -1,6 +1,8 @@
 # Notifications
 
-The app currently has a **simulated notification system** in-memory (the `pushBanner` state in `AppContext.tsx`). This document covers replacing it with real-time in-app notifications via Supabase Realtime and actual browser push notifications via the Web Push API.
+> **Status:** In-app real-time notifications are **fully working** via Supabase Realtime — the `notifications` table streams inserts over WebSocket, `NotificationBell.tsx` shows the unread badge, and `PushBanner.tsx` displays a drop-in banner on new events. **Web Push notifications** (native OS alerts when the app is closed) are **not yet implemented** — see Part 2 below.
+
+This document covers the two notification layers: in-app (done) and Web Push (to build).
 
 ---
 
@@ -369,14 +371,15 @@ Asking for notification permission too early is one of the top reasons users den
 
 ## Checklist
 
-**In-app (Supabase Realtime)**
+**In-app (Supabase Realtime) — DONE**
 
-- [ ] Enable Realtime on the `notifications` table in Supabase dashboard (Table → Realtime → Enable)
-- [ ] Replace simulated notifications in `AppContext.tsx` with Supabase channel subscription
-- [ ] Fetch unread notifications on login
-- [ ] Mark as read on bell dismiss
+- [x] Enable Realtime on the `notifications` table in Supabase dashboard
+- [x] Supabase Realtime channel subscription in `AppContext.tsx`
+- [x] Fetch unread notifications on login
+- [x] Mark as read on bell dismiss
+- [x] Push banner component (`PushBanner.tsx`) for live on-screen alerts
 
-**Push (Web Push API)**
+**Push (Web Push API) — NOT STARTED**
 
 - [ ] Generate VAPID keys and add to Netlify env
 - [ ] Add push handler to service worker (`sw.js`)

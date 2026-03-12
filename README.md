@@ -1,6 +1,8 @@
-# DPH Plumbing — Job Sheet App
+# Plumber App v2 — Job Sheet System
 
-A web-based job management system for a small plumbing team. Built for the field — engineers access it on their phones, HQ manages jobs from the office.
+A web-based job management system for small trade teams. Engineers access it on their phones, HQ manages jobs from the office. Built with React, Supabase, and Tailwind — deployed to Netlify.
+
+**Live backend** — Supabase PostgreSQL with real-time notifications, email/password auth, and row-level security. Not a prototype.
 
 ## Quick start
 
@@ -10,68 +12,60 @@ npm run dev        # http://localhost:5173
 npm run build      # production build → dist/
 ```
 
-Demo logins (prototype — no real authentication yet):
+Requires a `.env.local` file with Supabase credentials:
 
-| Email                  | Role               |
-| ---------------------- | ------------------ |
-| dave@dphplumbing.co.uk | HQ / Administrator |
-| tom@dphplumbing.co.uk  | Engineer           |
-| sam@dphplumbing.co.uk  | Engineer           |
-| lee@dphplumbing.co.uk  | Engineer           |
+```env
+VITE_SUPABASE_URL=https://xxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+See [docs/SUPABASE.md](docs/SUPABASE.md) for full setup instructions.
 
 ---
 
-## What's built (prototype stage)
+## Stack
 
-All data is **in-memory** — refreshing the page resets everything. The UI is fully functional for demonstration and stakeholder sign-off before the real backend is connected.
+| Layer           | Technology                                   |
+| --------------- | -------------------------------------------- |
+| Frontend        | React 19 + TypeScript 5.9                    |
+| Build tool      | Vite 7                                       |
+| Styling         | Tailwind CSS v4                              |
+| Routing         | React Router v7                              |
+| Database + Auth | Supabase (PostgreSQL + Auth + Realtime)      |
+| Hosting         | Netlify                                      |
+| PWA             | vite-plugin-pwa (basic manifest, no offline) |
 
-### Stack
+---
 
-| Layer              | Technology                                                       |
-| ------------------ | ---------------------------------------------------------------- |
-| Frontend framework | React 18 + TypeScript                                            |
-| Build tool         | Vite 7                                                           |
-| Styling            | Tailwind CSS v4                                                  |
-| Routing            | React Router v6                                                  |
-| Hosting            | Netlify                                                          |
-| Database           | **Not yet — see [docs/SUPABASE.md](docs/SUPABASE.md)**           |
-| Auth               | **Not yet — see [docs/SUPABASE.md](docs/SUPABASE.md)**           |
-| Push notifications | **Not yet — see [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md)** |
-| Offline / PWA      | **Not yet — see [docs/PWA.md](docs/PWA.md)**                     |
-| Xero API           | **Not yet — see [docs/XERO.md](docs/XERO.md)**                   |
+## Features
 
-### Features
+### HQ / Administrator
 
-**HQ / Administrator**
+- **Dashboard** — all jobs with live stats, search, status/engineer filters, period toggle (Today/Week/Month/Year/All), pagination (25/page)
+- **Create job** — customer, phone, address, type, date, engineer, priority, description
+- **Job detail** — edit all fields, change status/priority, notes, materials, time spent
+- **Final Complete workflow** — engineer marks done → HQ reviews → HQ clicks Final Complete → Xero button unlocks
+- **Team management** — view workloads, edit profiles (name, phone, home address, avatar, accent colour, role), change passwords
+- **Repeat tasks** — recurring jobs (annually/biannually/quarterly) with due dates and one-click scheduling
+- **Calendar** — month + week views, colour-coded by engineer, filter by engineer, capped at 3-per-day with "+N more" overflow
+- **Account settings** — company name, address, VAT, logo initials, accent colour, dark/light theme
+- **Data export** — Excel XML download with Jobs + Reminders sheets, filterable by date range
+- **Real-time notifications** — Supabase Realtime subscription, unread badge, push banner
 
-- Dashboard with all jobs, live status stats, clickable status filters
-- Job search — filter by customer, address, type, or job ref
-- Create new job sheets — customer, address, type, date, assigned engineer, priority, description
-- Assign jobs to engineers with priority levels (Emergency / High / Normal / Low)
-- Update job status and priority from the job detail view
-- Team overview — each engineer's workload at a glance, click through to any job
-- **Final Complete approval workflow** — engineer marks done → HQ reviews → HQ clicks Final Complete → Xero button unlocks
-- Xero stub — "Send to Xero" button present, ready to wire up
-- Account Settings — company name, address, VAT, logo initials, accent colour (live preview), Xero tab, team tab
-- Two-way in-app notifications with unread badge and push banner simulation
+### Engineers
 
-**Engineers**
+- **My Day** — today's jobs sorted by priority, GPS location for route start, Google Maps navigation (individual + full multi-stop route)
+- **Completed jobs** stay on the list but are excluded from the route, shown with ✓ badge and reduced opacity
+- **Job detail** — update status, add notes, log materials, log time spent, clickable phone number to call client
+- **Calendar** — same month/week view scoped to own jobs
 
-- Dashboard showing only their own assigned jobs with search and status filter
-- Today's jobs banner linking to My Day when jobs are scheduled
-- **My Day** — today's jobs sorted by priority with a visual route strip
-    - Individual Navigate buttons (opens Google Maps driving directions)
-    - "Open full route in Google Maps" multi-stop link built from home address through all jobs
-- Job detail — update status, add site notes, log materials used, log time spent
-- **Photo upload** — add site photos directly from the phone camera, thumbnail grid with remove; stored as base64 in prototype, Supabase Storage in production
+### Both roles
 
-**Both roles**
-
-- Calendar view — monthly grid, colour-coded by engineer, filter by engineer, month navigation
-- Notification bell — unread count, message history, clear all
-- Simulated push banner — drops in from top of screen on status/priority changes
-- Responsive layout — desktop sidebar, mobile hamburger menu with slide-over
-- Multi-client ready — business profile structure in place for per-tenant isolation
+- Password reset via email (Supabase Auth)
+- Login lockout after 5 failed attempts (15 min, persisted to localStorage)
+- Dark/light theme toggle
+- Responsive layout — desktop sidebar, mobile hamburger menu
+- Error boundary with recovery
 
 ---
 
@@ -80,62 +74,96 @@ All data is **in-memory** — refreshing the page resets everything. The UI is f
 ```
 plumber-app-v2/
 ├── netlify.toml              # SPA redirect rule for React Router
-├── vite.config.ts            # Tailwind CSS v4 Vite plugin
+├── vite.config.ts            # Vite + Tailwind + PWA plugin config
 ├── src/
+│   ├── supabase.ts           # Supabase client initialisation
 │   ├── types.ts              # TypeScript interfaces (Job, User, Business, etc.)
 │   ├── data.ts               # Seed data, constants, colour maps, helpers
-│   ├── AppContext.tsx         # Global state and all business logic
+│   ├── AppContext.tsx         # Global state, all CRUD, Supabase operations
 │   ├── App.tsx               # Router shell, auth guards, layout wrapper
 │   ├── index.css             # Tailwind import
 │   ├── main.tsx              # Entry — BrowserRouter + AppProvider
 │   ├── components/
-│   │   ├── Sidebar.tsx
-│   │   ├── JobCard.tsx
+│   │   ├── Sidebar.tsx       # Desktop sidebar + mobile hamburger
+│   │   ├── JobCard.tsx       # Reusable job card component
 │   │   ├── NotificationBell.tsx
-│   │   └── PushBanner.tsx
+│   │   ├── PushBanner.tsx
+│   │   └── ErrorBoundary.tsx
 │   └── pages/
-│       ├── LoginPage.tsx
-│       ├── DashboardPage.tsx
-│       ├── JobDetailPage.tsx
-│       ├── NewJobPage.tsx
-│       ├── MyDayPage.tsx
-│       ├── CalendarPage.tsx
-│       ├── TeamPage.tsx
-│       └── AccountPage.tsx
+│       ├── LoginPage.tsx     # Auth + password reset + lockout
+│       ├── DashboardPage.tsx # Job list, stats, filters, pagination
+│       ├── JobDetailPage.tsx # View/edit single job
+│       ├── NewJobPage.tsx    # Create job form
+│       ├── MyDayPage.tsx     # Engineer daily route view
+│       ├── CalendarPage.tsx  # Month/week calendar
+│       ├── TeamPage.tsx      # Team overview + profile editing
+│       ├── AccountPage.tsx   # Business settings + export
+│       └── RepeatTasksPage.tsx # Recurring job management
+├── supabase/
+│   ├── 1_schema.sql          # Initial schema + RLS + triggers
+│   ├── 2_seed.sql            # Seed data (1 business, 4 users, 6 jobs)
+│   ├── 3_migration.sql       # accent_color on profiles, job_id on notifications
+│   ├── 4_migration.sql       # sort_order on jobs
+│   ├── 5_migration.sql       # is_master() helper + profile update RLS
+│   ├── 6_migration.sql       # repeat_tasks table + repeat_task_id on notifications
+│   └── 7_migration.sql       # phone column on jobs
 └── docs/
-    ├── SUPABASE.md            # Database schema + auth setup
+    ├── SUPABASE.md            # Database, auth, URL config, SMTP
     ├── PWA.md                 # Service worker + offline caching
     ├── NOTIFICATIONS.md       # Supabase Realtime + Web Push
     └── XERO.md                # Xero OAuth + invoice API
+├── netlify/
+│   └── functions/
+│       └── admin-update-password.ts  # Server-side admin ops (service role key)
 ```
+
+---
+
+## Database migrations
+
+Run these in order in the Supabase SQL Editor when setting up a new instance:
+
+1. `1_schema.sql` — tables, RLS policies, triggers, helper functions
+2. `2_seed.sql` — demo business + users (password: `Plumber1!`)
+3. `3_migration.sql` → `7_migration.sql` — incremental schema changes
+
+See full details in [docs/SUPABASE.md](docs/SUPABASE.md).
 
 ---
 
 ## Deployment — Netlify
 
-The `netlify.toml` at the root handles the SPA redirect so React Router URLs work correctly on Netlify.
+1. Push to GitHub
+2. [netlify.com](https://netlify.com) → Add new site → Import from Git
+3. Build command: `npm run build`, publish directory: `dist`
+4. Add environment variables in Netlify → Site settings → Environment variables:
+    - `VITE_SUPABASE_URL`
+    - `VITE_SUPABASE_ANON_KEY`
+    - `SUPABASE_URL` (same URL, without VITE\_ prefix — for Netlify Functions)
+    - `SUPABASE_ANON_KEY` (same anon key — for Netlify Functions)
+    - `SUPABASE_SERVICE_ROLE_KEY` (service role key — server-side only, never in client bundle)
+5. Configure Supabase → Authentication → URL Configuration:
+    - **Site URL**: `https://your-app.netlify.app`
+    - **Redirect URLs**: `https://your-app.netlify.app`, `http://localhost:5173`
 
-**Steps:**
+See [docs/SUPABASE.md](docs/SUPABASE.md#6-authentication-setup) for details on password reset redirect setup.
 
-1. Push this folder to a GitHub repository
-2. Log in to [netlify.com](https://netlify.com) → Add new site → Import from Git
-3. Connect your repo — build command: `npm run build`, publish directory: `dist`
-4. Click Deploy
+---
 
-Once Supabase is connected, add your environment variables in Netlify → Site settings → Environment variables:
+## Multi-client deployment
 
-```
-VITE_SUPABASE_URL=https://xxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
+The database schema supports **multi-client** via `business_id` on every table with RLS isolation. Two deployment models:
+
+- **Shared instance** — one Supabase + one Netlify, multiple businesses. Add rows to `businesses` and create user accounts per client.
+- **Separate instances** — one Supabase + one Netlify per client. Clone the repo, configure new env vars, run migrations.
 
 ---
 
 ## Still to build
 
-| Priority | Feature                               | Detail                                         |
-| -------- | ------------------------------------- | ---------------------------------------------- |
-| 1        | Database + authentication             | [docs/SUPABASE.md](docs/SUPABASE.md)           |
-| 2        | Progressive Web App (offline support) | [docs/PWA.md](docs/PWA.md)                     |
-| 3        | Real-time notifications + Web Push    | [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md) |
-| 4        | Xero API integration                  | [docs/XERO.md](docs/XERO.md)                   |
+| Priority | Feature                       | Detail                                         |
+| -------- | ----------------------------- | ---------------------------------------------- |
+| 1        | PWA offline support           | [docs/PWA.md](docs/PWA.md)                     |
+| 2        | Web Push notifications        | [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md) |
+| 3        | Xero API integration          | [docs/XERO.md](docs/XERO.md)                   |
+| 4        | Job photos (Supabase Storage) | Replace base64 with Storage bucket uploads     |

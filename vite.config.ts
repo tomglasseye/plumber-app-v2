@@ -27,6 +27,34 @@ export default defineConfig({
 					},
 				],
 			},
+			workbox: {
+				globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+				runtimeCaching: [
+					{
+						urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
+						handler: "NetworkFirst",
+						options: {
+							cacheName: "supabase-api",
+							expiration: {
+								maxAgeSeconds: 60 * 60 * 24,
+							},
+							networkTimeoutSeconds: 5,
+						},
+					},
+					{
+						urlPattern:
+							/^https:\/\/.*\.supabase\.co\/storage\/v1\//,
+						handler: "CacheFirst",
+						options: {
+							cacheName: "supabase-storage",
+							expiration: {
+								maxEntries: 200,
+								maxAgeSeconds: 60 * 60 * 24 * 7,
+							},
+						},
+					},
+				],
+			},
 		}),
 	],
 });

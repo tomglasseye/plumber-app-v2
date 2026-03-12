@@ -1,8 +1,10 @@
 # Xero Integration
 
+> **Status:** Entirely future work. The "Send to Xero" button exists on the job detail page but is a stub — it doesn't call any API. The `netlify/functions/` directory has not been created yet. Requires a Xero developer account and Netlify Functions to implement.
+
 This document covers connecting the app to Xero so completed, HQ-approved jobs can be pushed as draft invoices with a single click.
 
-This is the **final phase** of the build — the app must be working with Supabase auth and real job data before Xero makes sense.
+This is the **final phase** of the build — the app should be stable with Supabase auth, real job data, and PWA support before tackling Xero.
 
 ---
 

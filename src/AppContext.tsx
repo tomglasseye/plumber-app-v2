@@ -6,7 +6,7 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
-import { supabase, supabaseAdmin } from "./supabase";
+import { supabase } from "./supabase";
 import { fmtTime, genRef, INITIAL_BUSINESS } from "./data";
 import type {
 	Business,
@@ -591,14 +591,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			const { error } = await supabase.auth.updateUser({ password });
 			return error?.message ?? null;
 		}
-		if (!supabaseAdmin) {
-			return "Admin key not configured (VITE_SUPABASE_SERVICE_KEY missing).";
+		// Master resetting another user's password — calls Netlify Function
+		const {
+			data: { session },
+		} = await supabase.auth.getSession();
+		if (!session) return "Not authenticated";
+		try {
+			const res = await fetch(
+				"/.netlify/functions/admin-update-password",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${session.access_token}`,
+					},
+					body: JSON.stringify({ userId, password }),
+				},
+			);
+			const body = await res.json();
+			return res.ok ? null : (body.error ?? "Failed to update password");
+		} catch {
+			return "Network error — could not reach server";
 		}
-		const { error } = await supabaseAdmin.auth.admin.updateUserById(
-			userId,
-			{ password },
-		);
-		return error?.message ?? null;
 	}
 
 	function clearNotifs() {
