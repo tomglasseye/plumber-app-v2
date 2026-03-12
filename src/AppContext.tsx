@@ -22,7 +22,7 @@ import type {
 interface AppCtx {
 	loading: boolean;
 	currentUser: User | null;
-	login: (email: string, password: string) => Promise<boolean>;
+	login: (email: string, password: string) => Promise<Role | null>;
 	logout: () => void;
 	resetPassword: (email: string) => Promise<string | null>;
 	business: Business;
@@ -250,13 +250,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		});
 	}
 
-	async function loadUserData(userId: string) {
+	async function loadUserData(userId: string): Promise<Role | null> {
 		const { data: profile } = await supabase
 			.from("profiles")
 			.select("*")
 			.eq("id", userId)
 			.single();
-		if (!profile) return;
+		if (!profile) return null;
 
 		const user = mapProfile(profile);
 		setCurrentUser(user);
@@ -299,16 +299,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		if (profilesRes.data) setUsers(profilesRes.data.map(mapProfile));
 		if (notifsRes.data)
 			setNotifications(notifsRes.data.map(mapNotification));
+		return profile.role as Role;
 	}
 
-	async function login(email: string, password: string): Promise<boolean> {
+	async function login(
+		email: string,
+		password: string,
+	): Promise<Role | null> {
 		const { data, error } = await supabase.auth.signInWithPassword({
 			email,
 			password,
 		});
-		if (error || !data.user) return false;
-		await loadUserData(data.user.id);
-		return true;
+		if (error || !data.user) return null;
+		return loadUserData(data.user.id);
 	}
 
 	function logout() {

@@ -19,9 +19,9 @@ export function LoginPage() {
 		}
 		setBusy(true);
 		setError("");
-		const ok = await login(email, password);
+		const role = await login(email, password);
 		setBusy(false);
-		if (ok) navigate("/");
+		if (role) navigate(role === "engineer" ? "/my-day" : "/");
 		else setError("Invalid email or password.");
 	}
 
