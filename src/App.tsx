@@ -19,6 +19,7 @@ import { MyDayPage } from "./pages/MyDayPage";
 import { NewJobPage } from "./pages/NewJobPage";
 import { RepeatTasksPage, RepeatTaskDetailPage } from "./pages/RepeatTasksPage";
 import { TeamPage } from "./pages/TeamPage";
+import { CustomersPage } from "./pages/CustomersPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
 	const { currentUser } = useApp();
@@ -196,6 +197,16 @@ export default function App() {
 								<RequireAuth>
 									<RequireMaster>
 										<RepeatTaskDetailPage />
+									</RequireMaster>
+								</RequireAuth>
+							}
+						/>
+						<Route
+							path="/customers"
+							element={
+								<RequireAuth>
+									<RequireMaster>
+										<CustomersPage />
 									</RequireMaster>
 								</RequireAuth>
 							}

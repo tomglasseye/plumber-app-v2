@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
 import { PRIORITIES } from "../data";
@@ -16,13 +16,48 @@ const EMPTY: NewJobForm = {
 };
 
 export function NewJobPage() {
-	const { createJob, business, users } = useApp();
+	const { createJob, business, users, customers } = useApp();
 	const navigate = useNavigate();
 	const [form, setForm] = useState<NewJobForm>(EMPTY);
+	const [custSearch, setCustSearch] = useState("");
+	const [showSuggestions, setShowSuggestions] = useState(false);
+	const custRef = useRef<HTMLDivElement>(null);
 
 	function f(key: keyof NewJobForm, value: string) {
 		setForm((prev) => ({ ...prev, [key]: value }));
 	}
+
+	function handleCustomerInput(value: string) {
+		setCustSearch(value);
+		f("customer", value);
+		// Clear customerId when typing freely
+		setForm((prev) => ({ ...prev, customerId: undefined }));
+		setShowSuggestions(value.length > 0);
+	}
+
+	function selectCustomer(c: {
+		id: string;
+		name: string;
+		phone: string;
+		address: string;
+	}) {
+		setCustSearch(c.name);
+		setForm((prev) => ({
+			...prev,
+			customer: c.name,
+			phone: c.phone || prev.phone,
+			address: c.address || prev.address,
+			customerId: c.id,
+		}));
+		setShowSuggestions(false);
+	}
+
+	const suggestions =
+		custSearch.length > 0
+			? customers.filter((c) =>
+					c.name.toLowerCase().includes(custSearch.toLowerCase()),
+				)
+			: [];
 
 	function handleSubmit() {
 		if (
@@ -52,14 +87,54 @@ export function NewJobPage() {
 			</h1>
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				{/* Customer autocomplete */}
+				<div className="flex flex-col gap-1.5 relative" ref={custRef}>
+					<label className="text-xs uppercase tracking-wider text-neutral-600">
+						Customer Name *
+					</label>
+					<input
+						type="text"
+						placeholder="e.g. Mr & Mrs Smith"
+						value={custSearch || form.customer}
+						onChange={(e) => handleCustomerInput(e.target.value)}
+						onFocus={() =>
+							custSearch.length > 0 && setShowSuggestions(true)
+						}
+						onBlur={() =>
+							setTimeout(() => setShowSuggestions(false), 150)
+						}
+						className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600"
+					/>
+					{showSuggestions && suggestions.length > 0 && (
+						<div className="absolute top-full left-0 right-0 z-20 mt-1 max-h-48 overflow-y-auto rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
+							{suggestions.map((c) => (
+								<button
+									key={c.id}
+									type="button"
+									onMouseDown={() => selectCustomer(c)}
+									className="w-full text-left px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-700 transition-colors border-0 bg-transparent cursor-pointer"
+								>
+									<span className="font-medium">
+										{c.name}
+									</span>
+									{c.email && (
+										<span className="ml-2 text-xs text-neutral-500">
+											{c.email}
+										</span>
+									)}
+								</button>
+							))}
+						</div>
+					)}
+					{form.customerId && (
+						<span className="text-[10px] text-green-500">
+							Linked to contact
+						</span>
+					)}
+				</div>
+
 				{(
 					[
-						{
-							label: "Customer Name *",
-							key: "customer",
-							type: "text",
-							ph: "e.g. Mr & Mrs Smith",
-						},
 						{
 							label: "Phone Number",
 							key: "phone",

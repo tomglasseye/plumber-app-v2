@@ -10,6 +10,7 @@ import { supabase } from "./supabase";
 import { fmtTime, genRef, INITIAL_BUSINESS } from "./data";
 import type {
 	Business,
+	Customer,
 	Job,
 	NewJobForm,
 	Notification,
@@ -67,6 +68,10 @@ interface AppCtx {
 		assignedTo: string,
 		date: string,
 	) => void;
+	customers: Customer[];
+	createCustomer: (c: Omit<Customer, "id">) => void;
+	updateCustomer: (c: Customer) => void;
+	deleteCustomer: (id: string) => void;
 }
 
 const Ctx = createContext<AppCtx>(null!);
@@ -105,6 +110,7 @@ function mapJob(r: any): Job {
 		timeSpent: r.time_spent ?? 0,
 		readyToInvoice: r.ready_to_invoice ?? false,
 		sortOrder: r.sort_order ?? 0,
+		customerId: r.customer_id ?? undefined,
 	};
 }
 
@@ -155,6 +161,20 @@ function mapRepeatTask(r: any): RepeatTask {
 		description: r.description ?? "",
 		frequency: r.frequency as RepeatFrequency,
 		nextDueDate: r.next_due_date,
+		customerId: r.customer_id ?? undefined,
+	};
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapCustomer(r: any): Customer {
+	return {
+		id: r.id,
+		name: r.name,
+		email: r.email,
+		phone: r.phone ?? "",
+		address: r.address ?? "",
+		notes: r.notes ?? "",
+		xeroContactId: r.xero_contact_id ?? undefined,
 	};
 }
 
@@ -186,6 +206,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	const [theme, setTheme] = useState<"dark" | "light">("dark");
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [repeatTasks, setRepeatTasks] = useState<RepeatTask[]>([]);
+	const [customers, setCustomers] = useState<Customer[]>([]);
 	const notifCounter = useRef(1000);
 
 	const isMaster = currentUser?.role === "master";
@@ -330,11 +351,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 		// Load repeat tasks for master users
 		if (profile.role === "master") {
-			const { data: rtData } = await supabase
-				.from("repeat_tasks")
-				.select("*")
-				.eq("business_id", profile.business_id)
-				.order("next_due_date", { ascending: true });
+			const [{ data: rtData }, { data: custData }] = await Promise.all([
+				supabase
+					.from("repeat_tasks")
+					.select("*")
+					.eq("business_id", profile.business_id)
+					.order("next_due_date", { ascending: true }),
+				supabase
+					.from("customers")
+					.select("*")
+					.eq("business_id", profile.business_id)
+					.order("name", { ascending: true }),
+			]);
 			if (rtData) {
 				const mapped = rtData.map(mapRepeatTask);
 				setRepeatTasks(mapped);
@@ -350,6 +378,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					}
 				}
 			}
+			if (custData) setCustomers(custData.map(mapCustomer));
 		}
 		return profile.role as Role;
 	}
@@ -374,6 +403,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setJobs([]);
 		setNotifications([]);
 		setRepeatTasks([]);
+		setCustomers([]);
 	}
 
 	function addNotification(n: Omit<Notification, "id" | "time" | "read">) {
@@ -522,6 +552,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				status: "Scheduled",
 				priority: form.priority,
 				date: form.date,
+				customer_id: form.customerId ?? null,
 			}),
 		);
 		addNotification({
@@ -656,6 +687,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				description: task.description,
 				frequency: task.frequency,
 				next_due_date: nextDueDate,
+				customer_id: task.customerId ?? null,
 			}),
 		);
 	}
@@ -674,6 +706,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					description: task.description,
 					frequency: task.frequency,
 					next_due_date: task.nextDueDate,
+					customer_id: task.customerId ?? null,
 				})
 				.eq("id", task.id),
 		);
@@ -684,6 +717,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		dbSave(supabase.from("repeat_tasks").delete().eq("id", id));
 	}
 
+	function createCustomer(c: Omit<Customer, "id">) {
+		const id = crypto.randomUUID();
+		const full: Customer = { ...c, id };
+		setCustomers((prev) =>
+			[...prev, full].sort((a, b) => a.name.localeCompare(b.name)),
+		);
+		dbSave(
+			supabase.from("customers").insert({
+				id,
+				business_id: business.id,
+				name: c.name,
+				email: c.email,
+				phone: c.phone,
+				address: c.address,
+				notes: c.notes,
+				xero_contact_id: c.xeroContactId ?? null,
+			}),
+		);
+	}
+
+	function updateCustomer(c: Customer) {
+		setCustomers((prev) =>
+			prev
+				.map((x) => (x.id === c.id ? c : x))
+				.sort((a, b) => a.name.localeCompare(b.name)),
+		);
+		dbSave(
+			supabase
+				.from("customers")
+				.update({
+					name: c.name,
+					email: c.email,
+					phone: c.phone,
+					address: c.address,
+					notes: c.notes,
+					xero_contact_id: c.xeroContactId ?? null,
+				})
+				.eq("id", c.id),
+		);
+	}
+
+	function deleteCustomer(id: string) {
+		setCustomers((prev) => prev.filter((c) => c.id !== id));
+		dbSave(supabase.from("customers").delete().eq("id", id));
+	}
+
 	function scheduleRepeatJob(
 		taskId: string,
 		assignedTo: string,
@@ -691,15 +770,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	) {
 		const task = repeatTasks.find((t) => t.id === taskId);
 		if (!task) return;
+		const cust = task.customerId
+			? customers.find((c) => c.id === task.customerId)
+			: undefined;
 		createJob({
 			customer: task.customer,
-			phone: "",
+			phone: cust?.phone ?? "",
 			address: task.address,
 			type: task.type,
 			description: task.description,
 			assignedTo,
 			date,
 			priority: "Normal",
+			customerId: task.customerId,
 		});
 		// Advance the next due date (keep the reminder alive)
 		const next = new Date(task.nextDueDate + "T00:00:00");
@@ -751,6 +834,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				updateRepeatTask,
 				deleteRepeatTask,
 				scheduleRepeatJob,
+				customers,
+				createCustomer,
+				updateCustomer,
+				deleteCustomer,
 			}}
 		>
 			{children}

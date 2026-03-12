@@ -18,9 +18,13 @@ export function JobDetailPage() {
 		finalComplete,
 		addNotification,
 		business,
+		customers,
 	} = useApp();
 
 	const job = jobs.find((j) => j.id === id);
+	const linkedCustomer = job?.customerId
+		? customers.find((c) => c.id === job.customerId)
+		: undefined;
 
 	// Local draft — initialised from job, only persisted on Save
 	const [draftCustomer, setDraftCustomer] = useState(job?.customer ?? "");
@@ -164,6 +168,14 @@ export function JobDetailPage() {
 					<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
 						{draftCustomer || job.customer}
 					</h1>
+					{linkedCustomer && (
+						<button
+							onClick={() => navigate("/customers")}
+							className="mt-0.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors border-0 bg-transparent p-0 cursor-pointer"
+						>
+							View contact →
+						</button>
+					)}
 					<p
 						className="mt-0.5 text-sm"
 						style={{ color: business.accentColor }}

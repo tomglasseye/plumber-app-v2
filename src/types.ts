@@ -37,6 +37,17 @@ export interface Job {
 	timeSpent: number;
 	readyToInvoice: boolean;
 	sortOrder?: number;
+	customerId?: string;
+}
+
+export interface Customer {
+	id: string;
+	name: string;
+	email: string;
+	phone: string;
+	address: string;
+	notes: string;
+	xeroContactId?: string;
 }
 
 export interface Notification {
@@ -72,6 +83,7 @@ export interface NewJobForm {
 	assignedTo: string;
 	date: string;
 	priority: Priority;
+	customerId?: string;
 }
 
 export type RepeatFrequency = "annually" | "biannually" | "quarterly";
@@ -84,4 +96,5 @@ export interface RepeatTask {
 	description: string;
 	frequency: RepeatFrequency;
 	nextDueDate: string;
+	customerId?: string;
 }
