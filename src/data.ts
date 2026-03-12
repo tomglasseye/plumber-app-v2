@@ -267,8 +267,13 @@ export const INITIAL_JOBS: Job[] = [
 	},
 ];
 
-export function genRef(jobs: Job[]): string {
-	return `DPH-${String(jobs.length + 1).padStart(3, "0")}`;
+export function genRef(jobs: Job[], prefix: string): string {
+	let max = 0;
+	for (const j of jobs) {
+		const m = j.ref.match(/-(\d+)$/);
+		if (m) max = Math.max(max, parseInt(m[1], 10));
+	}
+	return `${prefix}-${String(max + 1).padStart(3, "0")}`;
 }
 
 export function getUser(id: string): User | undefined {

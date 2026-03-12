@@ -495,7 +495,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	function createJob(form: NewJobForm) {
-		const ref = genRef(jobs);
+		const ref = genRef(jobs, business.logoInitials);
 		const newJob: Job = {
 			...form,
 			id: crypto.randomUUID(),
