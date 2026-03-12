@@ -268,7 +268,7 @@ export function CalendarPage() {
 										);
 									})}
 									{cell.jobs.length > 3 && (
-										<div className="pl-1 text-[10px] text-neutral-600">
+										<div className="pl-1 text-[10px] text-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer font-medium">
 											+{cell.jobs.length - 3} more
 										</div>
 									)}
@@ -321,7 +321,7 @@ export function CalendarPage() {
 											No jobs
 										</p>
 									)}
-									{dayJobs.map((j) => {
+									{dayJobs.slice(0, 3).map((j) => {
 										const sc = STATUS_COLORS[j.status];
 										const pc = PRIORITY_COLORS[j.priority];
 										const uc = userColor(
@@ -387,6 +387,14 @@ export function CalendarPage() {
 											</div>
 										);
 									})}
+									{dayJobs.length > 3 && (
+										<button
+											onClick={() => setSelectedDay(ds)}
+											className="mt-0.5 w-full rounded-lg border border-neutral-700 bg-neutral-800/60 py-1 text-[10px] text-neutral-400 hover:text-neutral-200 hover:border-neutral-600 cursor-pointer transition-colors"
+										>
+											+{dayJobs.length - 3} more
+										</button>
+									)}
 								</div>
 							</div>
 						);
