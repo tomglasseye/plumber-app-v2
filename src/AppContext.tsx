@@ -679,6 +679,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		if (!task) return;
 		createJob({
 			customer: task.customer,
+			phone: "",
 			address: task.address,
 			type: task.type,
 			description: task.description,
