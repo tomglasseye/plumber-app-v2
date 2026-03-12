@@ -20,8 +20,8 @@ This document covers everything needed to replace the in-memory prototype data w
 1. Go to [supabase.com](https://supabase.com) and create a free account
 2. Create a new project — give it a name (e.g. `dph-plumbing`), set a database password, pick the closest region (e.g. EU West)
 3. Once provisioned, go to **Project Settings → API** and copy:
-   - `Project URL` → `VITE_SUPABASE_URL`
-   - `anon public` key → `VITE_SUPABASE_ANON_KEY`
+    - `Project URL` → `VITE_SUPABASE_URL`
+    - `anon public` key → `VITE_SUPABASE_ANON_KEY`
 4. Create a `.env.local` file in the project root:
 
 ```env
@@ -42,11 +42,11 @@ npm install @supabase/supabase-js
 Create `src/supabase.ts`:
 
 ```ts
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+	import.meta.env.VITE_SUPABASE_URL,
+	import.meta.env.VITE_SUPABASE_ANON_KEY,
 );
 ```
 
@@ -294,13 +294,13 @@ In the app, replace the base64 photo approach in `JobDetailPage.tsx` with:
 // Upload
 const file = e.target.files[0];
 const path = `${businessId}/${jobId}/${Date.now()}-${file.name}`;
-await supabase.storage.from('job-photos').upload(path, file);
-await supabase.from('job_photos').insert({ job_id: jobId, storage_path: path });
+await supabase.storage.from("job-photos").upload(path, file);
+await supabase.from("job_photos").insert({ job_id: jobId, storage_path: path });
 
 // Display (get a signed URL valid for 1 hour)
 const { data } = await supabase.storage
-  .from('job-photos')
-  .createSignedUrl(photo.storage_path, 3600);
+	.from("job-photos")
+	.createSignedUrl(photo.storage_path, 3600);
 ```
 
 ---
@@ -310,28 +310,54 @@ const { data } = await supabase.storage
 Supabase Auth handles email/password sign-in out of the box.
 
 **In the Supabase dashboard → Authentication → Providers:**
+
 - Email: enabled (email confirmations optional — disable for internal tools)
+
+### URL Configuration (required for password reset)
+
+Go to **Supabase dashboard → Authentication → URL Configuration** and set:
+
+| Field             | Value                                              |
+| ----------------- | -------------------------------------------------- |
+| **Site URL**      | `https://your-app.netlify.app` (your deployed URL) |
+| **Redirect URLs** | `https://your-app.netlify.app`                     |
+
+This is needed so that when a user clicks the password reset link in their email, Supabase knows where to send them back to after verifying the token. Without it, the reset link either fails or lands on a blank Supabase page.
+
+For local development, also add `http://localhost:5173` to the **Redirect URLs** list (you can have multiple).
+
+### Password reset email flow
+
+The app's "Forgot password?" link calls `supabase.auth.resetPasswordForEmail(email)`. Supabase then:
+
+1. Sends a password reset email to the user
+2. When they click the link, verifies the token and redirects them back to your **Site URL**
+3. The app detects the `#access_token` hash in the URL and lets the user set a new password
+
+> **Note:** Supabase's built-in email sender is rate-limited to ~4 emails/hour on the free tier. For production, configure a real SMTP provider under **Authentication → SMTP Settings** (SendGrid, Postmark, Mailgun, or any SMTP server).
 
 **In the app**, replace the mock `login` function in `AppContext.tsx`:
 
 ```ts
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 // Sign in
 const { data, error } = await supabase.auth.signInWithPassword({
-  email,
-  password,
+	email,
+	password,
 });
 
 // Sign out
 await supabase.auth.signOut();
 
 // Get current session on app load
-const { data: { session } } = await supabase.auth.getSession();
+const {
+	data: { session },
+} = await supabase.auth.getSession();
 
 // Listen for auth changes
 supabase.auth.onAuthStateChange((_event, session) => {
-  setCurrentUser(session?.user ?? null);
+	setCurrentUser(session?.user ?? null);
 });
 ```
 
@@ -339,22 +365,22 @@ After sign-in, fetch the user's profile to get their role and business:
 
 ```ts
 const { data: profile } = await supabase
-  .from('profiles')
-  .select('*, businesses(*)')
-  .eq('id', session.user.id)
-  .single();
+	.from("profiles")
+	.select("*, businesses(*)")
+	.eq("id", session.user.id)
+	.single();
 ```
 
 ---
 
 ## 7. Replacing mock data queries
 
-| Current (prototype) | Replace with |
-|---|---|
-| `useState(INITIAL_JOBS)` | `supabase.from('jobs').select('*, profiles(*)').eq('business_id', businessId)` |
-| `setJobs(...)` on status change | `supabase.from('jobs').update({ status }).eq('id', jobId)` |
-| `setJobs(...)` on new job | `supabase.from('jobs').insert({...}).select().single()` |
-| `setBusiness(...)` | `supabase.from('businesses').update({...}).eq('id', businessId)` |
+| Current (prototype)             | Replace with                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| `useState(INITIAL_JOBS)`        | `supabase.from('jobs').select('*, profiles(*)').eq('business_id', businessId)` |
+| `setJobs(...)` on status change | `supabase.from('jobs').update({ status }).eq('id', jobId)`                     |
+| `setJobs(...)` on new job       | `supabase.from('jobs').insert({...}).select().single()`                        |
+| `setBusiness(...)`              | `supabase.from('businesses').update({...}).eq('id', businessId)`               |
 
 Use React Query or SWR to manage loading/error states when data comes from Supabase.
 

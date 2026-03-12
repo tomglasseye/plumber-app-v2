@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
+
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_SECONDS = 15 * 60;
+const LS_LOCKOUT_KEY = "login_lockout_until";
+const LS_ATTEMPTS_KEY = "login_attempts";
 
 export function LoginPage() {
 	const { login, resetPassword, business } = useApp();
@@ -11,8 +16,46 @@ export function LoginPage() {
 	const [info, setInfo] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [showReset, setShowReset] = useState(false);
+	const [attempts, setAttempts] = useState(() => {
+		return parseInt(localStorage.getItem(LS_ATTEMPTS_KEY) ?? "0", 10);
+	});
+	const [lockoutUntil, setLockoutUntil] = useState<number | null>(() => {
+		const stored = localStorage.getItem(LS_LOCKOUT_KEY);
+		if (!stored) return null;
+		const ts = parseInt(stored, 10);
+		return ts > Date.now() ? ts : null;
+	});
+	const [remaining, setRemaining] = useState(0);
+
+	useEffect(() => {
+		if (!lockoutUntil) return;
+		const tick = () => {
+			const secs = Math.ceil((lockoutUntil - Date.now()) / 1000);
+			if (secs <= 0) {
+				setLockoutUntil(null);
+				setAttempts(0);
+				setRemaining(0);
+				localStorage.removeItem(LS_LOCKOUT_KEY);
+				localStorage.removeItem(LS_ATTEMPTS_KEY);
+			} else {
+				setRemaining(secs);
+			}
+		};
+		tick();
+		const id = setInterval(tick, 1000);
+		return () => clearInterval(id);
+	}, [lockoutUntil]);
+
+	const isLockedOut = lockoutUntil !== null && Date.now() < lockoutUntil;
+
+	function formatRemaining(secs: number) {
+		const m = Math.floor(secs / 60);
+		const s = secs % 60;
+		return m > 0 ? `${m}m ${s}s` : `${s}s`;
+	}
 
 	async function handleLogin() {
+		if (isLockedOut) return;
 		if (!email || !password) {
 			setError("Please enter your email and password.");
 			return;
@@ -21,8 +64,25 @@ export function LoginPage() {
 		setError("");
 		const role = await login(email, password);
 		setBusy(false);
-		if (role) navigate(role === "engineer" ? "/my-day" : "/");
-		else setError("Invalid email or password.");
+		if (role) {
+			navigate(role === "engineer" ? "/my-day" : "/");
+		} else {
+			const next = attempts + 1;
+			setAttempts(next);
+			localStorage.setItem(LS_ATTEMPTS_KEY, String(next));
+			if (next >= MAX_ATTEMPTS) {
+				const until = Date.now() + LOCKOUT_SECONDS * 1000;
+				setLockoutUntil(until);
+				localStorage.setItem(LS_LOCKOUT_KEY, String(until));
+				setError(
+					`Too many failed attempts. Try again in ${formatRemaining(LOCKOUT_SECONDS)}.`,
+				);
+			} else {
+				setError(
+					`Invalid email or password. ${MAX_ATTEMPTS - next} attempt${MAX_ATTEMPTS - next !== 1 ? "s" : ""} remaining.`,
+				);
+			}
+		}
 	}
 
 	return (
@@ -54,7 +114,8 @@ export function LoginPage() {
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600"
+						disabled={isLockedOut}
+						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600 disabled:opacity-40"
 					/>
 				</div>
 
@@ -68,7 +129,8 @@ export function LoginPage() {
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 						onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600"
+						disabled={isLockedOut}
+						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600 disabled:opacity-40"
 					/>
 				</div>
 
@@ -116,11 +178,15 @@ export function LoginPage() {
 					<>
 						<button
 							onClick={handleLogin}
-							disabled={busy}
+							disabled={busy || isLockedOut}
 							className="w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
 							style={{ backgroundColor: business.accentColor }}
 						>
-							{busy ? "Signing in…" : "Sign In"}
+							{isLockedOut
+								? `Locked — ${formatRemaining(remaining)}`
+								: busy
+									? "Signing in…"
+									: "Sign In"}
 						</button>
 						<button
 							onClick={() => {
