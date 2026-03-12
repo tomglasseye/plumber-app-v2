@@ -347,6 +347,36 @@ The invoice function should:
 
 This avoids orphan contacts building up in the client's Xero org.
 
+### Name mismatch when a `xero_contact_id` is already stored
+
+When a customer already has a `xero_contact_id` saved in PipeLine, the push flow should **not blindly use it**. If the name in the app differs from the name on that contact in Xero (e.g. due to a rename in Xero, a manual typo in the stored ID, or a tenant switch), the invoice will silently land against the wrong person — Xero resolves by ID only and ignores the name you supply.
+
+**Validate before pushing:**
+
+```ts
+// In xero-create-invoice.ts — before building the invoice payload
+const contactRes = await xero.GET(`/Contacts/${customer.xeroContactId}`);
+const xeroContact = contactRes?.Contacts?.[0];
+
+if (!xeroContact) {
+	// ID is stale or belongs to a different tenant — fall through to name search
+} else {
+	const xeroName = xeroContact.Name.toLowerCase().trim();
+	const appName = customer.name.toLowerCase().trim();
+	if (xeroName !== appName) {
+		// Return a warning payload — let the UI ask the master to confirm
+		return {
+			warning: `Name mismatch: PipeLine has "${customer.name}", Xero contact is "${xeroContact.Name}". Proceed or update the contact?`,
+			xeroName: xeroContact.Name,
+		};
+	}
+}
+```
+
+The front-end should surface this as a blocking confirmation before the invoice is raised. This also covers the case where someone typed a wrong `xero_contact_id` manually.
+
+**Additional risk — tenant switch:** If a business disconnects and reconnects Xero to a _different organisation_, all stored `xero_contact_id` values become invalid or point to different people. This should trigger a bulk-clear of `xero_contact_id` on all customers for that business when the OAuth callback detects a changed `xero_tenant_id`.
+
 ### Account codes — must match the client's chart of accounts
 
 The code currently hardcodes `AccountCode: "200"` (revenue) and `TaxType: "OUTPUT2"` (20% VAT). These **will be different per Xero org** — "200" is the Xero demo company default but real businesses may use different codes.
