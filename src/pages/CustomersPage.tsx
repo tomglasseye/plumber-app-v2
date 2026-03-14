@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
 import type { Customer } from "../types";
+import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 
 const EMPTY: Omit<Customer, "id"> = {
 	name: "",
@@ -71,6 +72,10 @@ export function CustomersPage() {
 		deleteCustomer(id);
 		setConfirmDelete(null);
 	}
+
+	const customerToDelete = confirmDelete
+		? customers.find((c) => c.id === confirmDelete)
+		: null;
 
 	function f(key: keyof Omit<Customer, "id">, value: string) {
 		setForm((prev) => ({ ...prev, [key]: value }));
@@ -268,14 +273,18 @@ export function CustomersPage() {
 							</div>
 
 							{/* Info */}
-							<div className="flex-1 min-w-0">
+							<div className="flex-1 min-w-0 overflow-hidden">
 								<p className="text-sm font-medium text-neutral-200 truncate">
 									{c.name}
 								</p>
 								<p className="text-xs text-neutral-500 truncate">
 									{c.email}
-									{c.phone && ` · ${c.phone}`}
-									{c.address && ` · ${c.address}`}
+									<span className="hidden sm:inline">
+										{c.phone && ` · ${c.phone}`}
+									</span>
+									<span className="hidden md:inline">
+										{c.address && ` · ${c.address}`}
+									</span>
 								</p>
 							</div>
 
@@ -286,32 +295,33 @@ export function CustomersPage() {
 							</span>
 
 							{/* Actions */}
-							<div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+							<div className="flex gap-1 flex-shrink-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-opacity">
 								<button
 									onClick={() => openEdit(c)}
 									className="rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 hover:border-neutral-600 transition-colors cursor-pointer"
 								>
 									Edit
 								</button>
-								{confirmDelete === c.id ? (
-									<button
-										onClick={() => handleDelete(c.id)}
-										className="rounded-lg border border-red-800 bg-red-950 px-2.5 py-1.5 text-xs text-red-400 hover:text-red-200 transition-colors cursor-pointer"
-									>
-										Confirm
-									</button>
-								) : (
-									<button
-										onClick={() => setConfirmDelete(c.id)}
-										className="rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1.5 text-xs text-neutral-400 hover:text-red-400 hover:border-red-800 transition-colors cursor-pointer"
-									>
-										Delete
-									</button>
-								)}
+								<button
+									onClick={() => setConfirmDelete(c.id)}
+									className="rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1.5 text-xs text-neutral-400 hover:text-red-400 hover:border-red-800 transition-colors cursor-pointer"
+								>
+									Delete
+								</button>
 							</div>
 						</div>
 					))}
 				</div>
+			)}
+
+			{/* Delete confirmation modal */}
+			{confirmDelete && customerToDelete && (
+				<ConfirmDeleteModal
+					title={`Delete ${customerToDelete.name}?`}
+					message="This will permanently remove the customer and cannot be undone."
+					onConfirm={() => handleDelete(confirmDelete)}
+					onCancel={() => setConfirmDelete(null)}
+				/>
 			)}
 		</div>
 	);

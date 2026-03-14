@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useApp } from "../AppContext";
 import type { RepeatFrequency, RepeatTask } from "../types";
 import { TODAY } from "../data";
+import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 
 const FREQ_LABELS: Record<RepeatFrequency, string> = {
 	annually: "Annually",
@@ -306,6 +307,8 @@ export function RepeatTaskDetailPage() {
 	const [assignedTo, setAssignedTo] = useState("");
 	const [date, setDate] = useState(task?.nextDueDate ?? TODAY);
 
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
 	if (!task) {
 		return (
 			<div className="p-5 md:p-7 max-w-3xl">
@@ -338,6 +341,10 @@ export function RepeatTaskDetailPage() {
 	function handleDelete() {
 		deleteRepeatTask(task!.id);
 		navigate("/repeat-tasks");
+	}
+
+	function confirmDelete() {
+		setShowDeleteConfirm(true);
 	}
 
 	const inputCls =
@@ -443,13 +450,22 @@ export function RepeatTaskDetailPage() {
 				{/* Delete reminder */}
 				<div className="border-t border-neutral-800 pt-5 mt-5">
 					<button
-						onClick={handleDelete}
+						onClick={confirmDelete}
 						className="rounded-lg border border-red-800 px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:border-red-700 bg-transparent cursor-pointer"
 					>
 						Delete Reminder
 					</button>
 				</div>
 			</div>
+
+			{showDeleteConfirm && (
+				<ConfirmDeleteModal
+					title="Delete this reminder?"
+					message="This will permanently remove the repeat reminder and cannot be undone."
+					onConfirm={handleDelete}
+					onCancel={() => setShowDeleteConfirm(false)}
+				/>
+			)}
 		</div>
 	);
 }
@@ -469,6 +485,7 @@ function ReminderRow({
 	onDelete: () => void;
 	isOverdue: boolean;
 }) {
+	const [confirmingDelete, setConfirmingDelete] = useState(false);
 	const dueDateFmt = new Date(
 		task.nextDueDate + "T00:00:00",
 	).toLocaleDateString("en-GB", {
@@ -478,61 +495,75 @@ function ReminderRow({
 	});
 
 	return (
-		<div
-			onClick={onView}
-			className={`flex items-center gap-4 rounded-xl border px-4 py-3 cursor-pointer transition-colors ${
-				isOverdue
-					? "border-red-800/50 bg-red-950/30 hover:bg-red-950/50"
-					: "border-neutral-800 bg-neutral-900 hover:bg-neutral-800/60"
-			}`}
-		>
-			<span className="text-lg flex-shrink-0">🔁</span>
-			<div className="flex-1 min-w-0">
-				<p className="text-sm text-neutral-100 font-medium truncate">
-					{task.customer}
-				</p>
-				<p className="text-xs text-neutral-500 truncate">
-					{task.address}
-				</p>
-				<div className="flex items-center gap-3 mt-1 flex-wrap">
-					<span className="text-xs text-neutral-600">
-						{task.type}
-					</span>
-					<span className="text-xs text-neutral-600">
-						{FREQ_LABELS[task.frequency]}
-					</span>
+		<>
+			<div
+				onClick={onView}
+				className={`flex items-center gap-4 rounded-xl border px-4 py-3 cursor-pointer transition-colors ${
+					isOverdue
+						? "border-red-800/50 bg-red-950/30 hover:bg-red-950/50"
+						: "border-neutral-800 bg-neutral-900 hover:bg-neutral-800/60"
+				}`}
+			>
+				<span className="text-lg flex-shrink-0">🔁</span>
+				<div className="flex-1 min-w-0">
+					<p className="text-sm text-neutral-100 font-medium truncate">
+						{task.customer}
+					</p>
+					<p className="text-xs text-neutral-500 truncate">
+						{task.address}
+					</p>
+					<div className="flex items-center gap-3 mt-1 flex-wrap">
+						<span className="text-xs text-neutral-600">
+							{task.type}
+						</span>
+						<span className="text-xs text-neutral-600">
+							{FREQ_LABELS[task.frequency]}
+						</span>
+					</div>
+				</div>
+
+				<div className="text-right flex-shrink-0">
+					<p
+						className={`text-sm font-medium ${
+							isOverdue ? "text-red-400" : "text-neutral-300"
+						}`}
+					>
+						{isOverdue ? "Due now" : `Due ${dueDateFmt}`}
+					</p>
+				</div>
+
+				<div
+					className="flex items-center gap-1 flex-shrink-0"
+					onClick={(e) => e.stopPropagation()}
+				>
+					<button
+						onClick={onEdit}
+						title="Edit"
+						className="rounded-lg px-2 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 bg-transparent border border-neutral-700 cursor-pointer"
+					>
+						Edit
+					</button>
+					<button
+						onClick={() => setConfirmingDelete(true)}
+						title="Delete"
+						className="rounded-lg px-2 py-1.5 text-xs text-red-500 hover:text-red-300 bg-transparent border border-neutral-700 cursor-pointer"
+					>
+						✕
+					</button>
 				</div>
 			</div>
 
-			<div className="text-right flex-shrink-0">
-				<p
-					className={`text-sm font-medium ${
-						isOverdue ? "text-red-400" : "text-neutral-300"
-					}`}
-				>
-					{isOverdue ? "Due now" : `Due ${dueDateFmt}`}
-				</p>
-			</div>
-
-			<div
-				className="flex items-center gap-1 flex-shrink-0"
-				onClick={(e) => e.stopPropagation()}
-			>
-				<button
-					onClick={onEdit}
-					title="Edit"
-					className="rounded-lg px-2 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 bg-transparent border border-neutral-700 cursor-pointer"
-				>
-					Edit
-				</button>
-				<button
-					onClick={onDelete}
-					title="Delete"
-					className="rounded-lg px-2 py-1.5 text-xs text-red-500 hover:text-red-300 bg-transparent border border-neutral-700 cursor-pointer"
-				>
-					✕
-				</button>
-			</div>
-		</div>
+			{confirmingDelete && (
+				<ConfirmDeleteModal
+					title={`Delete reminder for ${task.customer}?`}
+					message="This will permanently remove the repeat reminder and cannot be undone."
+					onConfirm={() => {
+						setConfirmingDelete(false);
+						onDelete();
+					}}
+					onCancel={() => setConfirmingDelete(false)}
+				/>
+			)}
+		</>
 	);
 }
