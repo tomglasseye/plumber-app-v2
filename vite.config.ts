@@ -9,7 +9,7 @@ export default defineConfig({
 		tailwindcss(),
 		VitePWA({
 			registerType: "autoUpdate",
-			includeAssets: ["vite.svg"],
+			includeAssets: ["icon.svg"],
 			manifest: {
 				name: "PipeLine",
 				short_name: "PipeLine",
@@ -17,10 +17,12 @@ export default defineConfig({
 				theme_color: "#0a0a0a",
 				background_color: "#0a0a0a",
 				display: "standalone",
+				orientation: "portrait",
 				start_url: "/",
+				scope: "/",
 				icons: [
 					{
-						src: "vite.svg",
+						src: "icon.svg",
 						sizes: "any",
 						type: "image/svg+xml",
 						purpose: "any maskable",

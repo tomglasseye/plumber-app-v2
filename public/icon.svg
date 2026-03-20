@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
+  <rect width="512" height="512" rx="112" fill="#f97316" fill-opacity="0.12"/>
+  <!-- Pipe horizontal -->
+  <rect x="80" y="228" width="352" height="56" rx="28" fill="#f97316"/>
+  <!-- Pipe elbow top-right -->
+  <rect x="336" y="120" width="56" height="164" rx="28" fill="#f97316"/>
+  <!-- Pipe elbow bottom-left -->
+  <rect x="120" y="228" width="56" height="164" rx="28" fill="#f97316"/>
+  <!-- Cap left -->
+  <rect x="80" y="228" width="40" height="56" rx="8" fill="#fb923c"/>
+  <!-- Cap right -->
+  <rect x="392" y="120" width="40" height="56" rx="8" fill="#fb923c"/>
+</svg>
