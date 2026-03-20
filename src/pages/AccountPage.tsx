@@ -236,12 +236,6 @@ function ExportPanel({
 							{filteredJobs.length}
 						</span>
 					</div>
-					<div className="flex justify-between text-sm">
-						<span className="text-neutral-500">Reminders</span>
-						<span className="text-neutral-300">
-							{filteredReminders.length}
-						</span>
-					</div>
 					<div className="border-t border-neutral-800 pt-2 flex justify-between text-sm font-medium">
 						<span className="text-neutral-400">Total rows</span>
 						<span className="text-neutral-200">{totalRows}</span>

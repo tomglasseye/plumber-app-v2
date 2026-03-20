@@ -178,7 +178,7 @@ export function JobDetailPage() {
 					draftCategoryId || (undefined as unknown as string),
 				);
 			if (draftRepeatFrequency !== job.repeatFrequency)
-				updateJob(job.id, "repeatFrequency", draftRepeatFrequency as unknown as string);
+				updateJob(job.id, "repeatFrequency", draftRepeatFrequency as unknown as RepeatFrequency);
 		}
 		if (draftStatus !== job.status) changeStatus(job.id, draftStatus);
 		if (draftPriority !== job.priority)

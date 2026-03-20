@@ -69,18 +69,13 @@ export function NotificationBell({
 								<div
 									key={n.id}
 									onClick={() => {
-										if (n.repeatTaskId) {
-											onNavigate(
-												`/repeat-tasks/${n.repeatTaskId}`,
-											);
-											setOpen(false);
-										} else if (n.jobId) {
+										if (n.jobId) {
 											onNavigate(`/job/${n.jobId}`);
 											setOpen(false);
 										}
 									}}
 									className={`flex gap-3 px-4 py-3 items-start bg-neutral-800/40 ${
-										n.jobId || n.repeatTaskId
+										n.jobId
 											? "cursor-pointer hover:bg-neutral-700/50 transition-colors"
 											: ""
 									}`}
