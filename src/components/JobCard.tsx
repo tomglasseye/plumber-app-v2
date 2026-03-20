@@ -8,11 +8,12 @@ interface Props {
 }
 
 export function JobCard({ job }: Props) {
-	const { isMaster, users } = useApp();
+	const { isMaster, users, categories } = useApp();
 	const navigate = useNavigate();
 	const sc = STATUS_COLORS[job.status];
 	const pc = PRIORITY_COLORS[job.priority];
 	const eng = users.find((u) => u.id === job.assignedTo);
+	const cat = job.categoryId ? categories.find((c) => c.id === job.categoryId) : null;
 
 	return (
 		<div
@@ -49,9 +50,11 @@ export function JobCard({ job }: Props) {
 			<h3 className="text-base text-neutral-100 font-normal mb-0.5">
 				{job.customer}
 			</h3>
-			<p className="text-sm mb-3" style={{ color: "#f97316" }}>
-				{job.type}
-			</p>
+			{cat && (
+				<p className="text-sm mb-3" style={{ color: cat.color }}>
+					{cat.name}
+				</p>
+			)}
 
 			<div className="flex flex-wrap gap-3 items-center">
 				<span className="text-xs text-neutral-600">

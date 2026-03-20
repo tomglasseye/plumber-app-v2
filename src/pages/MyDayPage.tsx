@@ -11,7 +11,7 @@ import {
 } from "../data";
 
 export function MyDayPage() {
-	const { currentUser, jobs } = useApp();
+	const { currentUser, jobs, categories } = useApp();
 	const navigate = useNavigate();
 	const [activeStop, setActiveStop] = useState<string | null>(null);
 	const [gpsStart, setGpsStart] = useState<string | null>(null);
@@ -258,14 +258,7 @@ export function MyDayPage() {
 													>
 														{job.customer}
 													</p>
-													<p
-														className="text-xs mt-0.5"
-														style={{
-															color: "#f97316",
-														}}
-													>
-														{job.type}
-													</p>
+													{(() => { const cat = categories.find(c => c.id === job.categoryId); return cat ? <p className="text-xs mt-0.5" style={{ color: cat.color }}>{cat.name}</p> : null; })()}
 												</div>
 												<span
 													className={`text-[11px] px-2.5 py-1 rounded-full font-mono flex-shrink-0 ${sc.bg} ${sc.text}`}

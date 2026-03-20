@@ -1,8 +1,30 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useApp } from "../AppContext";
-import { PRIORITIES, PRIORITY_COLORS, STATUSES, STATUS_COLORS } from "../data";
-import type { Priority, Status } from "../types";
+import { CategoryIcon } from "./AccountPage";
+import {
+	PRIORITIES,
+	PRIORITY_COLORS,
+	STATUSES,
+	STATUS_COLORS,
+} from "../data";
+import type { Priority, RepeatFrequency, Status } from "../types";
+
+// Generate 30-min time options 07:00 – 20:00
+function timeOptions() {
+	const opts: { value: string; label: string }[] = [];
+	for (let h = 7; h <= 20; h++) {
+		for (const m of [0, 30]) {
+			const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+			const ampm = h < 12 ? "am" : "pm";
+			const displayH = h > 12 ? h - 12 : h;
+			const label = `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
+			opts.push({ value, label });
+		}
+	}
+	return opts;
+}
+const TIME_OPTS = timeOptions();
 
 export function JobDetailPage() {
 	const { id } = useParams<{ id: string }>();
@@ -19,6 +41,7 @@ export function JobDetailPage() {
 		addNotification,
 		business,
 		customers,
+		categories,
 	} = useApp();
 
 	const job = jobs.find((j) => j.id === id);
@@ -26,11 +49,9 @@ export function JobDetailPage() {
 		? customers.find((c) => c.id === job.customerId)
 		: undefined;
 
-	// Local draft — initialised from job, only persisted on Save
 	const [draftCustomer, setDraftCustomer] = useState(job?.customer ?? "");
 	const [draftAddress, setDraftAddress] = useState(job?.address ?? "");
 	const [draftPhone, setDraftPhone] = useState(job?.phone ?? "");
-	const [draftType, setDraftType] = useState(job?.type ?? "");
 	const [draftDescription, setDraftDescription] = useState(
 		job?.description ?? "",
 	);
@@ -38,6 +59,14 @@ export function JobDetailPage() {
 		job?.assignedTo ?? "",
 	);
 	const [draftDate, setDraftDate] = useState(job?.date ?? "");
+	const [draftEndDate, setDraftEndDate] = useState(job?.endDate ?? "");
+	const [draftStartTime, setDraftStartTime] = useState(
+		job?.startTime ?? "",
+	);
+	const [draftEndTime, setDraftEndTime] = useState(job?.endTime ?? "");
+	const [draftCategoryId, setDraftCategoryId] = useState(
+		job?.categoryId ?? "",
+	);
 	const [draftStatus, setDraftStatus] = useState<Status>(
 		job?.status ?? "Scheduled",
 	);
@@ -45,8 +74,13 @@ export function JobDetailPage() {
 		job?.priority ?? "Normal",
 	);
 	const [draftNotes, setDraftNotes] = useState(job?.notes ?? "");
-	const [draftMaterials, setDraftMaterials] = useState(job?.materials ?? "");
-	const [draftTimeSpent, setDraftTimeSpent] = useState(job?.timeSpent ?? 0);
+	const [draftMaterials, setDraftMaterials] = useState(
+		job?.materials ?? "",
+	);
+	const [draftTimeSpent, setDraftTimeSpent] = useState(
+		job?.timeSpent ?? 0,
+	);
+	const [draftRepeatFrequency, setDraftRepeatFrequency] = useState<RepeatFrequency | undefined>(job?.repeatFrequency);
 	const [saved, setSaved] = useState(false);
 
 	// Re-sync draft if navigating to a different job
@@ -55,15 +89,19 @@ export function JobDetailPage() {
 		setDraftCustomer(job.customer);
 		setDraftAddress(job.address);
 		setDraftPhone(job.phone ?? "");
-		setDraftType(job.type);
-		setDraftDescription(job.description);
+			setDraftDescription(job.description);
 		setDraftAssignedTo(job.assignedTo);
 		setDraftDate(job.date);
+		setDraftEndDate(job.endDate ?? "");
+		setDraftStartTime(job.startTime ?? "");
+		setDraftEndTime(job.endTime ?? "");
+		setDraftCategoryId(job.categoryId ?? "");
 		setDraftStatus(job.status);
 		setDraftPriority(job.priority);
 		setDraftNotes(job.notes);
 		setDraftMaterials(job.materials);
 		setDraftTimeSpent(job.timeSpent);
+		setDraftRepeatFrequency(job.repeatFrequency);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [job?.id]);
 
@@ -73,16 +111,21 @@ export function JobDetailPage() {
 	const pc = PRIORITY_COLORS[draftPriority];
 	const eng = users.find((u) => u.id === draftAssignedTo);
 	const canEdit = isMaster || currentUser?.id === job.assignedTo;
+	const selectedCategory = categories.find((c) => c.id === draftCategoryId);
 
 	const isDirty =
 		(isMaster &&
 			(draftCustomer !== job.customer ||
 				draftAddress !== job.address ||
 				draftPhone !== job.phone ||
-				draftType !== job.type ||
 				draftDescription !== job.description ||
 				draftAssignedTo !== job.assignedTo ||
-				draftDate !== job.date)) ||
+				draftDate !== job.date ||
+				draftEndDate !== (job.endDate ?? "") ||
+				draftStartTime !== (job.startTime ?? "") ||
+				draftEndTime !== (job.endTime ?? "") ||
+				draftCategoryId !== (job.categoryId ?? "") ||
+				draftRepeatFrequency !== job.repeatFrequency)) ||
 		draftStatus !== job.status ||
 		draftPriority !== job.priority ||
 		draftNotes !== job.notes ||
@@ -96,14 +139,13 @@ export function JobDetailPage() {
 				updateJob(job.id, "customer", draftCustomer);
 			if (draftAddress !== job.address)
 				updateJob(job.id, "address", draftAddress);
-			if (draftType !== job.type) updateJob(job.id, "type", draftType);
-			if (draftDescription !== job.description)
+				if (draftDescription !== job.description)
 				updateJob(job.id, "description", draftDescription);
 			if (draftAssignedTo !== job.assignedTo) {
 				updateJob(job.id, "assignedTo", draftAssignedTo);
 				addNotification({
-					icon: "??",
-					message: `Job ${job.ref} has been assigned to you � ${draftCustomer} (${draftType})`,
+					icon: "📋",
+					message: `Job ${job.ref} has been assigned to you — ${draftCustomer}`,
 					for: draftAssignedTo,
 					jobId: job.id,
 				});
@@ -111,6 +153,32 @@ export function JobDetailPage() {
 			if (draftDate !== job.date) updateJob(job.id, "date", draftDate);
 			if (draftPhone !== job.phone)
 				updateJob(job.id, "phone", draftPhone);
+			if (draftEndDate !== (job.endDate ?? ""))
+				updateJob(
+					job.id,
+					"endDate",
+					draftEndDate || (undefined as unknown as string),
+				);
+			if (draftStartTime !== (job.startTime ?? ""))
+				updateJob(
+					job.id,
+					"startTime",
+					draftStartTime || (undefined as unknown as string),
+				);
+			if (draftEndTime !== (job.endTime ?? ""))
+				updateJob(
+					job.id,
+					"endTime",
+					draftEndTime || (undefined as unknown as string),
+				);
+			if (draftCategoryId !== (job.categoryId ?? ""))
+				updateJob(
+					job.id,
+					"categoryId",
+					draftCategoryId || (undefined as unknown as string),
+				);
+			if (draftRepeatFrequency !== job.repeatFrequency)
+				updateJob(job.id, "repeatFrequency", draftRepeatFrequency as unknown as string);
 		}
 		if (draftStatus !== job.status) changeStatus(job.id, draftStatus);
 		if (draftPriority !== job.priority)
@@ -120,7 +188,6 @@ export function JobDetailPage() {
 			updateJob(job.id, "materials", draftMaterials);
 		if (draftTimeSpent !== job.timeSpent)
 			updateJob(job.id, "timeSpent", draftTimeSpent);
-		// Notify master when engineer saves any field update (status changes already notify via changeStatus)
 		if (
 			!isMaster &&
 			(draftNotes !== job.notes ||
@@ -128,7 +195,7 @@ export function JobDetailPage() {
 				draftTimeSpent !== job.timeSpent)
 		) {
 			addNotification({
-				icon: "??",
+				icon: "📝",
 				message: `${currentUser!.name} updated job ${job.ref} (${job.customer})`,
 				for: "master",
 				jobId: job.id,
@@ -137,6 +204,17 @@ export function JobDetailPage() {
 		setSaved(true);
 		setTimeout(() => setSaved(false), 2500);
 	}
+
+	// Engineer: mark job completed early — set end date to today
+	function handleEarlyComplete() {
+		if (!job) return;
+		const today = new Date().toISOString().slice(0, 10);
+		updateJob(job.id, "endDate", today);
+		setDraftEndDate(today);
+	}
+
+	const inputClass =
+		"w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500";
 
 	return (
 		<div className="p-5 md:p-7 max-w-4xl">
@@ -159,6 +237,23 @@ export function JobDetailPage() {
 						>
 							{draftPriority}
 						</span>
+						{/* Category badge */}
+						{selectedCategory && (
+							<span
+								className="flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full"
+								style={{
+									background: selectedCategory.color + "22",
+									color: selectedCategory.color,
+								}}
+							>
+								<CategoryIcon
+									name={selectedCategory.icon}
+									size={11}
+									color={selectedCategory.color}
+								/>
+								{selectedCategory.name}
+							</span>
+						)}
 						{job.readyToInvoice && (
 							<span className="text-xs bg-green-950 text-green-400 px-2.5 py-0.5 rounded-full">
 								✅ Final Complete
@@ -176,12 +271,25 @@ export function JobDetailPage() {
 							View contact →
 						</button>
 					)}
-					<p
-						className="mt-0.5 text-sm"
-						style={{ color: business.accentColor }}
-					>
-						{draftType || job.type}
-					</p>
+					{selectedCategory && (
+						<p
+							className="mt-0.5 text-sm"
+							style={{ color: selectedCategory.color }}
+						>
+							{selectedCategory.name}
+						</p>
+					)}
+					{/* Time display */}
+					{(job.startTime || job.endTime) && (
+						<p className="mt-0.5 text-xs text-neutral-500">
+							🕐{" "}
+							{job.startTime ?? "?"}
+							{job.endTime ? ` – ${job.endTime}` : ""}
+							{job.endDate && job.endDate !== job.date
+								? ` (ends ${new Date(job.endDate + "T00:00:00").toLocaleDateString("en-GB")})`
+								: ""}
+						</p>
+					)}
 					{job.phone && (
 						<a
 							href={`tel:${job.phone}`}
@@ -232,12 +340,11 @@ export function JobDetailPage() {
 										setDraftAddress,
 										"text",
 									],
-									["Phone", draftPhone, setDraftPhone, "tel"],
 									[
-										"Job Type",
-										draftType,
-										setDraftType,
-										"text",
+										"Phone",
+										draftPhone,
+										setDraftPhone,
+										"tel",
 									],
 									[
 										"Description",
@@ -245,7 +352,6 @@ export function JobDetailPage() {
 										setDraftDescription,
 										"text",
 									],
-									["Date", draftDate, setDraftDate, "date"],
 								] as [
 									string,
 									string,
@@ -261,10 +367,167 @@ export function JobDetailPage() {
 										type={type}
 										value={val}
 										onChange={(e) => setter(e.target.value)}
-										className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+										className={inputClass}
 									/>
 								</div>
 							))}
+
+							{/* Dates */}
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
+										Start Date
+									</label>
+									<input
+										type="date"
+										value={draftDate}
+										onChange={(e) =>
+											setDraftDate(e.target.value)
+										}
+										className={inputClass}
+									/>
+								</div>
+								<div>
+									<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
+										End Date
+									</label>
+									<input
+										type="date"
+										value={draftEndDate}
+										onChange={(e) =>
+											setDraftEndDate(e.target.value)
+										}
+										className={inputClass}
+										min={draftDate}
+									/>
+								</div>
+							</div>
+
+							{/* Time slots */}
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
+										Start Time
+									</label>
+									<select
+										value={draftStartTime}
+										onChange={(e) =>
+											setDraftStartTime(e.target.value)
+										}
+										className={inputClass}
+									>
+										<option value="">No time</option>
+										{TIME_OPTS.map((o) => (
+											<option
+												key={o.value}
+												value={o.value}
+											>
+												{o.label}
+											</option>
+										))}
+									</select>
+								</div>
+								<div>
+									<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
+										End Time
+									</label>
+									<select
+										value={draftEndTime}
+										onChange={(e) =>
+											setDraftEndTime(e.target.value)
+										}
+										className={inputClass}
+									>
+										<option value="">No time</option>
+										{TIME_OPTS.filter(
+											(o) =>
+												!draftStartTime ||
+												o.value > draftStartTime,
+										).map((o) => (
+											<option
+												key={o.value}
+												value={o.value}
+											>
+												{o.label}
+											</option>
+										))}
+									</select>
+								</div>
+							</div>
+
+							{/* Category */}
+							{categories.length > 0 && (
+								<div>
+									<label className="mb-2 block text-[10px] uppercase tracking-wider text-neutral-600">
+										Category
+									</label>
+									<div className="flex flex-wrap gap-1.5">
+										<button
+											type="button"
+											onClick={() =>
+												setDraftCategoryId("")
+											}
+											className={`rounded-lg border px-2.5 py-1 text-xs transition-colors cursor-pointer ${!draftCategoryId ? "border-neutral-500 bg-neutral-700 text-neutral-200" : "border-neutral-700 text-neutral-500 hover:border-neutral-600"}`}
+										>
+											None
+										</button>
+										{categories.map((cat) => (
+											<button
+												key={cat.id}
+												type="button"
+												onClick={() =>
+													setDraftCategoryId(cat.id)
+												}
+												className="flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs transition-colors cursor-pointer"
+												style={
+													draftCategoryId === cat.id
+														? {
+																background:
+																	cat.color +
+																	"22",
+																color: cat.color,
+																borderColor:
+																	cat.color,
+															}
+														: {
+																borderColor:
+																	"#404040",
+																color: "#6b7280",
+															}
+												}
+											>
+												<CategoryIcon
+													name={cat.icon}
+													size={11}
+													color={
+														draftCategoryId ===
+														cat.id
+															? cat.color
+															: "#6b7280"
+													}
+												/>
+												{cat.name}
+											</button>
+										))}
+									</div>
+								</div>
+							)}
+
+							{/* Recurring */}
+							<div>
+								<label className="mb-2 block text-[10px] uppercase tracking-wider text-neutral-600">
+									Recurring
+								</label>
+								<div className="flex flex-wrap gap-1.5">
+									{([undefined, "annually", "biannually", "quarterly"] as (RepeatFrequency | undefined)[]).map((freq) => (
+										<button key={freq ?? "none"} type="button" onClick={() => setDraftRepeatFrequency(freq)}
+											className={`rounded-lg border px-2.5 py-1 text-xs transition-colors cursor-pointer ${draftRepeatFrequency === freq ? "border-neutral-500 bg-neutral-700 text-neutral-200" : "border-neutral-700 text-neutral-500 hover:border-neutral-600"}`}>
+											{freq === undefined ? "One-off" : freq === "annually" ? "🔁 Annually" : freq === "biannually" ? "🔁 6 months" : "🔁 Quarterly"}
+										</button>
+									))}
+								</div>
+							</div>
+
 							<div>
 								<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
 									Assigned To
@@ -274,7 +537,7 @@ export function JobDetailPage() {
 									onChange={(e) =>
 										setDraftAssignedTo(e.target.value)
 									}
-									className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+									className={inputClass}
 								>
 									{users
 										.filter((u) => u.role === "engineer")
@@ -300,9 +563,9 @@ export function JobDetailPage() {
 								["Address", job.address],
 								[
 									"Date",
-									new Date(job.date).toLocaleDateString(
-										"en-GB",
-									),
+									new Date(
+										job.date + "T00:00:00",
+									).toLocaleDateString("en-GB"),
 								],
 								["Assigned To", eng?.name ?? "-"],
 								["Description", job.description],
@@ -319,6 +582,19 @@ export function JobDetailPage() {
 									</span>
 								</div>
 							))}
+							{(job.startTime || job.endTime) && (
+								<div className="flex gap-3 mb-2.5">
+									<span className="w-24 flex-shrink-0 text-xs text-neutral-600">
+										Time
+									</span>
+									<span className="flex-1 text-sm text-neutral-300">
+										{job.startTime ?? "?"}
+										{job.endTime
+											? ` – ${job.endTime}`
+											: ""}
+									</span>
+								</div>
+							)}
 							{job.phone && (
 								<div className="mb-3">
 									<a
@@ -366,7 +642,7 @@ export function JobDetailPage() {
 									<button
 										key={p}
 										onClick={() => setDraftPriority(p)}
-										className={`rounded-lg px-3 py-1.5 text-xs transition-colors border ${
+										className={`rounded-lg px-3 py-1.5 text-xs transition-colors border cursor-pointer ${
 											draftPriority === p
 												? `${c.bg} ${c.text} border-current`
 												: "bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600"
@@ -388,7 +664,7 @@ export function JobDetailPage() {
 										<button
 											key={s}
 											onClick={() => setDraftStatus(s)}
-											className={`rounded-lg px-3 py-1.5 text-xs transition-colors border ${
+											className={`rounded-lg px-3 py-1.5 text-xs transition-colors border cursor-pointer ${
 												draftStatus === s
 													? `${c.bg} ${c.text} border-current`
 													: "bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600"
@@ -400,6 +676,23 @@ export function JobDetailPage() {
 								},
 							)}
 						</div>
+
+						{/* Early completion shortcut (non-master only) */}
+						{!isMaster &&
+							job.endDate &&
+							job.endDate > new Date().toISOString().slice(0, 10) && (
+								<div className="mt-4 pt-4 border-t border-neutral-800">
+									<p className="text-xs text-neutral-600 mb-2">
+										Finished early?
+									</p>
+									<button
+										onClick={handleEarlyComplete}
+										className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-300 hover:border-neutral-600 transition-colors cursor-pointer"
+									>
+										Set end date to today
+									</button>
+								</div>
+							)}
 					</div>
 				)}
 
@@ -462,7 +755,7 @@ export function JobDetailPage() {
 						<button
 							onClick={handleSave}
 							disabled={!isDirty}
-							className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-all disabled:opacity-40"
+							className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-all disabled:opacity-40 cursor-pointer"
 							style={{
 								background: saved
 									? "#16a34a"

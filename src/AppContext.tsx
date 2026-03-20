@@ -10,13 +10,15 @@ import { supabase } from "./supabase";
 import { fmtTime, genRef, INITIAL_BUSINESS } from "./data";
 import type {
 	Business,
+	Category,
 	Customer,
+	Holiday,
+	HolidayType,
 	Job,
 	NewJobForm,
 	Notification,
 	Priority,
 	RepeatFrequency,
-	RepeatTask,
 	Role,
 	Status,
 	User,
@@ -42,7 +44,7 @@ interface AppCtx {
 	) => Promise<string | null>;
 	theme: "dark" | "light";
 	toggleTheme: () => void;
-	createJob: (form: NewJobForm) => void;
+	createJob: (form: NewJobForm) => Promise<void>;
 	updateJob: <K extends keyof Job>(
 		id: string,
 		field: K,
@@ -59,19 +61,22 @@ interface AppCtx {
 	dismissPush: () => void;
 	saveError: string | null;
 	dismissSaveError: () => void;
-	repeatTasks: RepeatTask[];
-	createRepeatTask: (task: Omit<RepeatTask, "id" | "nextDueDate">) => void;
-	updateRepeatTask: (task: RepeatTask) => void;
-	deleteRepeatTask: (id: string) => void;
-	scheduleRepeatJob: (
-		taskId: string,
-		assignedTo: string,
-		date: string,
-	) => void;
 	customers: Customer[];
 	createCustomer: (c: Omit<Customer, "id">) => string;
 	updateCustomer: (c: Customer) => void;
 	deleteCustomer: (id: string) => void;
+	// Categories
+	categories: Category[];
+	createCategory: (c: Omit<Category, "id">) => void;
+	updateCategory: (c: Category) => void;
+	deleteCategory: (id: string) => void;
+	// Holidays
+	holidays: Holiday[];
+	createHoliday: (h: Omit<Holiday, "id">) => void;
+	deleteHoliday: (id: string) => void;
+	// Atomic scheduling helpers (single DB call)
+	rescheduleJob: (jobId: string, date: string, startTime?: string, endTime?: string) => void;
+	resizeJobTime: (jobId: string, startTime: string, endTime: string) => void;
 }
 
 const Ctx = createContext<AppCtx>(null!);
@@ -86,6 +91,11 @@ const JOB_COL: Partial<Record<keyof Job, string>> = {
 	timeSpent: "time_spent",
 	readyToInvoice: "ready_to_invoice",
 	sortOrder: "sort_order",
+	categoryId: "category_id",
+	startTime: "start_time",
+	endTime: "end_time",
+	endDate: "end_date",
+	repeatFrequency: "repeat_frequency",
 };
 function jobCol(field: keyof Job): string {
 	return JOB_COL[field] ?? field;
@@ -99,18 +109,22 @@ function mapJob(r: any): Job {
 		customer: r.customer,
 		phone: r.phone ?? "",
 		address: r.address,
-		type: r.type,
 		description: r.description ?? "",
 		assignedTo: r.assigned_to,
 		status: r.status as Status,
 		priority: r.priority as Priority,
 		date: r.date,
+		endDate: r.end_date ?? undefined,
+		startTime: r.start_time ?? undefined,
+		endTime: r.end_time ?? undefined,
+		categoryId: r.category_id ?? undefined,
 		materials: r.materials ?? "",
 		notes: r.notes ?? "",
 		timeSpent: r.time_spent ?? 0,
 		readyToInvoice: r.ready_to_invoice ?? false,
 		sortOrder: r.sort_order ?? 0,
 		customerId: r.customer_id ?? undefined,
+	repeatFrequency: (r.repeat_frequency ?? undefined) as RepeatFrequency | undefined,
 	};
 }
 
@@ -152,20 +166,6 @@ function mapBusiness(r: any): Business {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapRepeatTask(r: any): RepeatTask {
-	return {
-		id: r.id,
-		customer: r.customer,
-		address: r.address,
-		type: r.type,
-		description: r.description ?? "",
-		frequency: r.frequency as RepeatFrequency,
-		nextDueDate: r.next_due_date,
-		customerId: r.customer_id ?? undefined,
-	};
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapCustomer(r: any): Customer {
 	return {
 		id: r.id,
@@ -191,7 +191,30 @@ function mapNotification(r: any): Notification {
 		read: r.read ?? false,
 		for: r.for_role === "master" ? "master" : r.for_user,
 		jobId: r.job_id ?? undefined,
-		repeatTaskId: r.repeat_task_id ?? undefined,
+		};
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapCategory(r: any): Category {
+	return {
+		id: r.id,
+		name: r.name,
+		icon: r.icon ?? "Wrench",
+		color: r.color ?? "#f97316",
+		sortOrder: r.sort_order ?? 0,
+	};
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapHoliday(r: any): Holiday {
+	return {
+		id: r.id,
+		profileId: r.profile_id,
+		date: r.date,
+		endDate: r.end_date ?? undefined,
+		halfDay: r.half_day ?? false,
+		label: r.label ?? "Holiday",
+		type: (r.type ?? "holiday") as HolidayType,
 	};
 }
 
@@ -205,8 +228,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	const [pushBanner, setPushBanner] = useState<Notification | null>(null);
 	const [theme, setTheme] = useState<"dark" | "light">("dark");
 	const [saveError, setSaveError] = useState<string | null>(null);
-	const [repeatTasks, setRepeatTasks] = useState<RepeatTask[]>([]);
 	const [customers, setCustomers] = useState<Customer[]>([]);
+	const [categories, setCategories] = useState<Category[]>([]);
+	const [holidays, setHolidays] = useState<Holiday[]>([]);
 	const notifCounter = useRef(1000);
 
 	const isMaster = currentUser?.role === "master";
@@ -323,61 +347,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			.order("created_at", { ascending: false })
 			.limit(20);
 
-		const [bizRes, jobsRes, profilesRes, notifsRes] = await Promise.all([
-			supabase
-				.from("businesses")
-				.select("*")
-				.eq("id", profile.business_id)
-				.single(),
-			supabase
-				.from("jobs")
-				.select("*")
-				.eq("business_id", profile.business_id)
-				.order("date", { ascending: false }),
-			supabase
-				.from("profiles")
-				.select("*")
-				.eq("business_id", profile.business_id),
-			profile.role === "master"
-				? notifQuery.eq("for_role", "master")
-				: notifQuery.eq("for_user", userId),
-		]);
+		const [bizRes, jobsRes, profilesRes, notifsRes, catsRes, holsRes] =
+			await Promise.all([
+				supabase
+					.from("businesses")
+					.select("*")
+					.eq("id", profile.business_id)
+					.single(),
+				supabase
+					.from("jobs")
+					.select("*")
+					.eq("business_id", profile.business_id)
+					.order("date", { ascending: false }),
+				supabase
+					.from("profiles")
+					.select("*")
+					.eq("business_id", profile.business_id),
+				profile.role === "master"
+					? notifQuery.eq("for_role", "master")
+					: notifQuery.eq("for_user", userId),
+				supabase
+					.from("categories")
+					.select("*")
+					.eq("business_id", profile.business_id)
+					.order("sort_order", { ascending: true }),
+				supabase
+					.from("team_holidays")
+					.select("*")
+					.eq("business_id", profile.business_id)
+					.order("date", { ascending: true }),
+			]);
 
 		if (bizRes.data) setBusiness(mapBusiness(bizRes.data));
 		if (jobsRes.data) setJobs(jobsRes.data.map(mapJob));
 		if (profilesRes.data) setUsers(profilesRes.data.map(mapProfile));
 		if (notifsRes.data)
 			setNotifications(notifsRes.data.map(mapNotification));
+		if (catsRes.data) setCategories(catsRes.data.map(mapCategory));
+		if (holsRes.data) setHolidays(holsRes.data.map(mapHoliday));
 
-		// Load repeat tasks for master users
+		// Load customers for master users
 		if (profile.role === "master") {
-			const [{ data: rtData }, { data: custData }] = await Promise.all([
-				supabase
-					.from("repeat_tasks")
-					.select("*")
-					.eq("business_id", profile.business_id)
-					.order("next_due_date", { ascending: true }),
-				supabase
-					.from("customers")
-					.select("*")
-					.eq("business_id", profile.business_id)
-					.order("name", { ascending: true }),
-			]);
-			if (rtData) {
-				const mapped = rtData.map(mapRepeatTask);
-				setRepeatTasks(mapped);
-				// Fire notifications for tasks due today or overdue
-				for (const t of mapped) {
-					if (t.nextDueDate <= TODAY) {
-						addNotification({
-							icon: "🔁",
-							message: `Reminder: ${t.type} due for ${t.customer} at ${t.address}`,
-							for: "master",
-							repeatTaskId: t.id,
-						});
-					}
-				}
-			}
+			const { data: custData } = await supabase
+				.from("customers")
+				.select("*")
+				.eq("business_id", profile.business_id)
+				.order("name", { ascending: true });
 			if (custData) setCustomers(custData.map(mapCustomer));
 		}
 		return profile.role as Role;
@@ -402,8 +417,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setUsers([]);
 		setJobs([]);
 		setNotifications([]);
-		setRepeatTasks([]);
 		setCustomers([]);
+		setCategories([]);
+		setHolidays([]);
 	}
 
 	function addNotification(n: Omit<Notification, "id" | "time" | "read">) {
@@ -429,8 +445,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			read: false,
 		};
 		if (n.jobId) row.job_id = n.jobId;
-		if (n.repeatTaskId) row.repeat_task_id = n.repeatTaskId;
-		if (n.for === "master") {
+			if (n.for === "master") {
 			row.for_role = "master";
 		} else {
 			row.for_user = n.for;
@@ -522,9 +537,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			for: job.assignedTo,
 			jobId: id,
 		});
+		// Auto-schedule next occurrence for recurring jobs
+		if (job.repeatFrequency) {
+			const next = new Date(job.date + "T00:00:00");
+			if (job.repeatFrequency === "annually") next.setFullYear(next.getFullYear() + 1);
+			else if (job.repeatFrequency === "biannually") next.setMonth(next.getMonth() + 6);
+			else next.setMonth(next.getMonth() + 3);
+			const nextDate = next.toISOString().slice(0, 10);
+			createJob({
+				customer: job.customer,
+				phone: job.phone,
+				address: job.address,
+				description: job.description,
+				assignedTo: job.assignedTo,
+				date: nextDate,
+				priority: job.priority,
+				customerId: job.customerId,
+				categoryId: job.categoryId,
+				repeatFrequency: job.repeatFrequency,
+			});
+		}
 	}
 
-	function createJob(form: NewJobForm) {
+	async function createJob(form: NewJobForm) {
 		const ref = genRef(jobs, business.logoInitials);
 		const newJob: Job = {
 			...form,
@@ -538,26 +573,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			assignedTo: form.assignedTo,
 		};
 		setJobs((prev) => [...prev, newJob]);
-		dbSave(
-			supabase.from("jobs").insert({
-				id: newJob.id,
-				business_id: business.id,
-				ref,
-				customer: form.customer,
-				phone: form.phone ?? "",
-				address: form.address,
-				type: form.type,
-				description: form.description,
-				assigned_to: form.assignedTo,
-				status: "Scheduled",
-				priority: form.priority,
-				date: form.date,
-				customer_id: form.customerId ?? null,
-			}),
-		);
+		// Await the insert so the job exists in DB before the notification FK reference
+		const { error } = await supabase.from("jobs").insert({
+			id: newJob.id,
+			business_id: business.id,
+			ref,
+			customer: form.customer,
+			phone: form.phone ?? "",
+			address: form.address,
+			description: form.description,
+			assigned_to: form.assignedTo,
+			status: "Scheduled",
+			priority: form.priority,
+			date: form.date,
+			end_date: form.endDate ?? null,
+			category_id: form.categoryId ?? null,
+			start_time: form.startTime ?? null,
+			end_time: form.endTime ?? null,
+			customer_id: form.customerId ?? null,
+			repeat_frequency: form.repeatFrequency ?? null,
+		});
+		if (error) {
+			setSaveError(
+				error instanceof Error ? error.message : String((error as { message?: unknown }).message ?? "Save failed"),
+			);
+			return;
+		}
 		addNotification({
 			icon: "📋",
-			message: `New job ${ref} assigned to you — ${form.customer} (${form.type})`,
+			message: `New job ${ref} assigned to you — ${form.customer}`,
 			for: form.assignedTo,
 			jobId: newJob.id,
 		});
@@ -665,58 +709,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		return error?.message ?? null;
 	}
 
-	function createRepeatTask(task: Omit<RepeatTask, "id" | "nextDueDate">) {
-		const id = crypto.randomUUID();
-		// Compute first due date from today based on frequency
-		const start = new Date(TODAY + "T00:00:00");
-		if (task.frequency === "annually")
-			start.setFullYear(start.getFullYear() + 1);
-		else if (task.frequency === "biannually")
-			start.setMonth(start.getMonth() + 6);
-		else start.setMonth(start.getMonth() + 3);
-		const nextDueDate = start.toISOString().slice(0, 10);
-		const full: RepeatTask = { ...task, id, nextDueDate };
-		setRepeatTasks((prev) => [...prev, full]);
-		dbSave(
-			supabase.from("repeat_tasks").insert({
-				id,
-				business_id: business.id,
-				customer: task.customer,
-				address: task.address,
-				type: task.type,
-				description: task.description,
-				frequency: task.frequency,
-				next_due_date: nextDueDate,
-				customer_id: task.customerId ?? null,
-			}),
-		);
-	}
-
-	function updateRepeatTask(task: RepeatTask) {
-		setRepeatTasks((prev) =>
-			prev.map((t) => (t.id === task.id ? task : t)),
-		);
-		dbSave(
-			supabase
-				.from("repeat_tasks")
-				.update({
-					customer: task.customer,
-					address: task.address,
-					type: task.type,
-					description: task.description,
-					frequency: task.frequency,
-					next_due_date: task.nextDueDate,
-					customer_id: task.customerId ?? null,
-				})
-				.eq("id", task.id),
-		);
-	}
-
-	function deleteRepeatTask(id: string) {
-		setRepeatTasks((prev) => prev.filter((t) => t.id !== id));
-		dbSave(supabase.from("repeat_tasks").delete().eq("id", id));
-	}
-
 	function createCustomer(c: Omit<Customer, "id">): string {
 		const id = crypto.randomUUID();
 		const full: Customer = { ...c, id };
@@ -764,39 +756,115 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		dbSave(supabase.from("customers").delete().eq("id", id));
 	}
 
-	function scheduleRepeatJob(
-		taskId: string,
-		assignedTo: string,
+
+	// ── Categories CRUD ──────────────────────────────────────────
+
+	function createCategory(c: Omit<Category, "id">) {
+		const id = crypto.randomUUID();
+		const full: Category = { ...c, id };
+		setCategories((prev) =>
+			[...prev, full].sort((a, b) => a.sortOrder - b.sortOrder),
+		);
+		dbSave(
+			supabase.from("categories").insert({
+				id,
+				business_id: business.id,
+				name: c.name,
+				icon: c.icon,
+				color: c.color,
+				sort_order: c.sortOrder,
+			}),
+		);
+	}
+
+	function updateCategory(c: Category) {
+		setCategories((prev) =>
+			prev
+				.map((x) => (x.id === c.id ? c : x))
+				.sort((a, b) => a.sortOrder - b.sortOrder),
+		);
+		dbSave(
+			supabase
+				.from("categories")
+				.update({
+					name: c.name,
+					icon: c.icon,
+					color: c.color,
+					sort_order: c.sortOrder,
+				})
+				.eq("id", c.id),
+		);
+	}
+
+	function deleteCategory(id: string) {
+		setCategories((prev) => prev.filter((c) => c.id !== id));
+		dbSave(supabase.from("categories").delete().eq("id", id));
+	}
+
+	// ── Holidays CRUD ────────────────────────────────────────────
+
+	function createHoliday(h: Omit<Holiday, "id">) {
+		const id = crypto.randomUUID();
+		const full: Holiday = { ...h, id };
+		setHolidays((prev) =>
+			[...prev, full].sort((a, b) => a.date.localeCompare(b.date)),
+		);
+		dbSave(
+			supabase.from("team_holidays").insert({
+				id,
+				business_id: business.id,
+				profile_id: h.profileId,
+				date: h.date,
+				end_date: h.endDate ?? null,
+				half_day: h.halfDay,
+				label: h.label,
+				type: h.type,
+			}),
+		);
+	}
+
+	// Single-call reschedule (date + times together — avoids 3 separate DB round-trips)
+	function rescheduleJob(
+		jobId: string,
 		date: string,
+		startTime?: string,
+		endTime?: string,
 	) {
-		const task = repeatTasks.find((t) => t.id === taskId);
-		if (!task) return;
-		const cust = task.customerId
-			? customers.find((c) => c.id === task.customerId)
-			: undefined;
-		createJob({
-			customer: task.customer,
-			phone: cust?.phone ?? "",
-			address: task.address,
-			type: task.type,
-			description: task.description,
-			assignedTo,
-			date,
-			priority: "Normal",
-			customerId: task.customerId,
-		});
-		// Advance the next due date (keep the reminder alive)
-		const next = new Date(task.nextDueDate + "T00:00:00");
-		if (task.frequency === "annually")
-			next.setFullYear(next.getFullYear() + 1);
-		else if (task.frequency === "biannually")
-			next.setMonth(next.getMonth() + 6);
-		else next.setMonth(next.getMonth() + 3);
-		const updated: RepeatTask = {
-			...task,
-			nextDueDate: next.toISOString().slice(0, 10),
-		};
-		updateRepeatTask(updated);
+		setJobs((prev) =>
+			prev.map((j) =>
+				j.id === jobId ? { ...j, date, startTime, endTime } : j,
+			),
+		);
+		dbSave(
+			supabase
+				.from("jobs")
+				.update({
+					date,
+					start_time: startTime ?? null,
+					end_time: endTime ?? null,
+				})
+				.eq("id", jobId),
+		);
+	}
+
+	// Single-call resize (start + end time together)
+	function resizeJobTime(jobId: string, startTime: string, endTime: string) {
+		setJobs((prev) =>
+			prev.map((j) =>
+				j.id === jobId ? { ...j, startTime, endTime } : j,
+			),
+		);
+		dbSave(
+			supabase
+				.from("jobs")
+				.update({ start_time: startTime, end_time: endTime })
+				.eq("id", jobId),
+		);
+	}
+
+	function deleteHoliday(id: string) {
+		setHolidays((prev) => prev.filter((h) => h.id !== id));
+		dbSave(supabase.from("team_holidays").delete().eq("id", id));
 	}
 
 	return (
@@ -830,15 +898,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				dismissPush: () => setPushBanner(null),
 				saveError,
 				dismissSaveError: () => setSaveError(null),
-				repeatTasks,
-				createRepeatTask,
-				updateRepeatTask,
-				deleteRepeatTask,
-				scheduleRepeatJob,
 				customers,
 				createCustomer,
 				updateCustomer,
 				deleteCustomer,
+				categories,
+				createCategory,
+				updateCategory,
+				deleteCategory,
+				holidays,
+				createHoliday,
+				deleteHoliday,
+				rescheduleJob,
+				resizeJobTime,
 			}}
 		>
 			{children}

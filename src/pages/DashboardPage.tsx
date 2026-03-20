@@ -12,6 +12,7 @@ export function DashboardPage() {
 	const [statusFilter, setStatusFilter] = useState("All");
 	const [engFilter, setEngFilter] = useState("all");
 	const [page, setPage] = useState(1);
+	const [recurringFilter, setRecurringFilter] = useState(false);
 	const PAGE_SIZE = 25;
 
 	type StatsPeriod = "today" | "week" | "month" | "year" | "all";
@@ -48,13 +49,13 @@ export function DashboardPage() {
 			!search ||
 			j.customer.toLowerCase().includes(search.toLowerCase()) ||
 			j.address.toLowerCase().includes(search.toLowerCase()) ||
-			j.type.toLowerCase().includes(search.toLowerCase()) ||
 			j.ref.toLowerCase().includes(search.toLowerCase());
 		const matchStatus = statusFilter === "All" || j.status === statusFilter;
+		const matchRecurring = !recurringFilter || !!j.repeatFrequency;
 		const matchPeriod =
 			statsPeriod === "all" ||
 			(statsPeriod === "today" ? j.date === TODAY : j.date >= statsFrom);
-		return matchSearch && matchStatus && matchPeriod;
+		return matchSearch && matchStatus && matchPeriod && matchRecurring;
 	});
 
 	const totalPages = Math.max(1, Math.ceil(displayJobs.length / PAGE_SIZE));
@@ -226,7 +227,14 @@ export function DashboardPage() {
 			)}
 
 			{/* Search + filter */}
-			<div className="mb-4 flex gap-3 flex-wrap">
+			<div className="mb-4 flex gap-3 flex-wrap items-center">
+			<button
+				type="button"
+				onClick={() => { setRecurringFilter((v) => !v); setPage(1); }}
+				className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors cursor-pointer ${recurringFilter ? "border-neutral-500 bg-neutral-700 text-neutral-200" : "border-neutral-700 bg-neutral-800 text-neutral-500 hover:border-neutral-600"}`}
+			>
+				🔁 Recurring
+			</button>
 				<input
 					type="text"
 					placeholder="Search jobs, customers, addresses…"

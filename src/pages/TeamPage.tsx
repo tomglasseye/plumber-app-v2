@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
 import { ACCENT_OPTIONS, STATUS_COLORS, TODAY, userColor } from "../data";
-import type { Job, Role, User } from "../types";
+import type { Role, User } from "../types";
 
 interface EditForm {
 	name: string;
@@ -21,9 +21,6 @@ export function TeamPage() {
 		changePassword,
 		isMaster,
 		business,
-		updateJob,
-		addNotification,
-		currentUser,
 	} = useApp();
 	const navigate = useNavigate();
 
@@ -103,12 +100,6 @@ export function TeamPage() {
 		}
 	}
 
-	// Drag-and-drop state for today's job ordering
-	const [dragJobId, setDragJobId] = useState<string | null>(null);
-	const [todayOrders, setTodayOrders] = useState<Record<string, string[]>>(
-		{},
-	);
-
 	function dayLabel(date: string): string {
 		const tomorrow = new Date(TODAY + "T00:00:00");
 		tomorrow.setDate(tomorrow.getDate() + 1);
@@ -120,28 +111,6 @@ export function TeamPage() {
 			day: "numeric",
 			month: "short",
 		});
-	}
-
-	function handleDrop(engId: string, targetId: string, currentIds: string[]) {
-		if (!dragJobId || dragJobId === targetId) return;
-		const from = currentIds.indexOf(dragJobId);
-		const to = currentIds.indexOf(targetId);
-		if (from < 0 || to < 0) return;
-		const next = [...currentIds];
-		next.splice(from, 1);
-		next.splice(to, 0, dragJobId);
-		setTodayOrders((p) => ({ ...p, [engId]: next }));
-		next.forEach((id, i) => updateJob(id, "sortOrder", i + 1));
-		setDragJobId(null);
-		// Notify the engineer their run order has changed
-		const eng = users.find((u) => u.id === engId);
-		if (eng) {
-			addNotification({
-				icon: "🗺",
-				message: `${currentUser?.name ?? "Master"} updated your job run order for today`,
-				for: engId,
-			});
-		}
 	}
 
 	// All users — master first, then engineers alphabetically
@@ -251,9 +220,7 @@ export function TeamPage() {
 							.filter(
 								(j) =>
 									j.date >= TODAY &&
-									!["Completed", "Invoiced"].includes(
-										j.status,
-									),
+									!["Completed", "Invoiced"].includes(j.status),
 							)
 							.sort(
 								(a, b) =>
@@ -262,20 +229,10 @@ export function TeamPage() {
 							);
 
 						// Group by date
-						const byDate: Record<string, Job[]> = {};
+						const byDate: Record<string, typeof upcoming> = {};
 						for (const j of upcoming) {
 							(byDate[j.date] ??= []).push(j);
 						}
-
-						const todayJobsForEng = byDate[TODAY] ?? [];
-						const currentTodayOrder =
-							todayOrders[u.id] ??
-							todayJobsForEng.map((j) => j.id);
-						const orderedToday = currentTodayOrder
-							.map((id) =>
-								todayJobsForEng.find((j) => j.id === id),
-							)
-							.filter(Boolean) as Job[];
 
 						const dateEntries = Object.entries(byDate).sort(
 							([a], [b]) => a.localeCompare(b),
@@ -391,143 +348,52 @@ export function TeamPage() {
 										</p>
 									) : (
 										<div className="space-y-5">
-											{dateEntries.map(
-												([date, dateJobs]) => {
-													const isToday =
-														date === TODAY;
-													const displayJobs = isToday
-														? orderedToday
-														: dateJobs;
-													return (
-														<div key={date}>
-															<p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-2">
-																{dayLabel(date)}
-																{isToday &&
-																	isMaster && (
-																		<span className="normal-case tracking-normal text-neutral-700">
-																			—
-																			drag
-																			to
-																			reorder
+											{dateEntries.map(([date, dateJobs]) => {
+												const isToday = date === TODAY;
+												return (
+													<div key={date}>
+														<p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-2">
+															{dayLabel(date)}
+														</p>
+														<div>
+															{dateJobs.map((j, idx) => {
+																const sc = STATUS_COLORS[j.status];
+																return (
+																	<div
+																		key={j.id}
+																		onClick={() => navigate(`/job/${j.id}`)}
+																		className="flex items-center gap-2 border-t border-neutral-800 py-2 -mx-1 px-1 rounded hover:bg-neutral-800/40 transition-colors cursor-pointer"
+																	>
+																		{isToday && (
+																			<span className="w-4 flex-shrink-0 text-[10px] text-neutral-700 font-mono text-center">
+																				{idx + 1}
+																			</span>
+																		)}
+																		<div
+																			className="h-2 w-2 flex-shrink-0 rounded-full"
+																			style={{ background: ec }}
+																		/>
+																		<span className="hidden sm:block w-14 flex-shrink-0 text-[10px] text-neutral-600">
+																			{j.ref}
 																		</span>
-																	)}
-															</p>
-															<div>
-																{displayJobs.map(
-																	(
-																		j,
-																		idx,
-																	) => {
-																		const sc =
-																			STATUS_COLORS[
-																				j
-																					.status
-																			];
-																		return (
-																			<div
-																				key={
-																					j.id
-																				}
-																				draggable={
-																					isToday &&
-																					isMaster
-																				}
-																				onDragStart={() => {
-																					if (
-																						isToday &&
-																						isMaster
-																					)
-																						setDragJobId(
-																							j.id,
-																						);
-																				}}
-																				onDragOver={(
-																					e,
-																				) => {
-																					if (
-																						isToday &&
-																						isMaster
-																					)
-																						e.preventDefault();
-																				}}
-																				onDrop={(
-																					e,
-																				) => {
-																					e.preventDefault();
-																					if (
-																						isToday &&
-																						isMaster
-																					)
-																						handleDrop(
-																							u.id,
-																							j.id,
-																							currentTodayOrder,
-																						);
-																				}}
-																				onClick={() =>
-																					navigate(
-																						`/job/${j.id}`,
-																					)
-																				}
-																				className={`flex items-center gap-2 border-t border-neutral-800 py-2 -mx-1 px-1 rounded hover:bg-neutral-800/40 transition-colors select-none ${isToday && isMaster ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${dragJobId === j.id ? "opacity-30" : ""}`}
-																			>
-																				{isToday &&
-																					isMaster && (
-																						<svg
-																							className="h-3.5 w-3.5 text-neutral-700 flex-shrink-0"
-																							fill="currentColor"
-																							viewBox="0 0 20 20"
-																						>
-																							<path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z" />
-																						</svg>
-																					)}
-																				{isToday && (
-																					<span className="w-4 flex-shrink-0 text-[10px] text-neutral-700 font-mono text-center">
-																						{idx +
-																							1}
-																					</span>
-																				)}
-																				<div
-																					className="h-2 w-2 flex-shrink-0 rounded-full"
-																					style={{
-																						background:
-																							ec,
-																					}}
-																				/>
-																				<span className="hidden sm:block w-14 flex-shrink-0 text-[10px] text-neutral-600">
-																					{
-																						j.ref
-																					}
-																				</span>
-																				<div className="flex-1 min-w-0">
-																					<span className="block truncate text-sm text-neutral-400">
-																						{
-																							j.customer
-																						}
-																					</span>
-																					<span className="block truncate text-xs text-neutral-600">
-																						📍{" "}
-																						{
-																							j.address
-																						}
-																					</span>
-																				</div>
-																				<span
-																					className={`hidden sm:inline text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-mono ${sc.bg} ${sc.text}`}
-																				>
-																					{
-																						j.status
-																					}
-																				</span>
-																			</div>
-																		);
-																	},
-																)}
-															</div>
+																		<div className="flex-1 min-w-0">
+																			<span className="block truncate text-sm text-neutral-400">
+																				{j.customer}
+																			</span>
+																			<span className="block truncate text-xs text-neutral-600">
+																				📍 {j.address}
+																			</span>
+																		</div>
+																		<span className={`hidden sm:inline text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-mono ${sc.bg} ${sc.text}`}>
+																			{j.status}
+																		</span>
+																	</div>
+																);
+															})}
 														</div>
-													);
-												},
-											)}
+													</div>
+												);
+											})}
 										</div>
 									)}
 								</div>
@@ -670,7 +536,6 @@ export function TeamPage() {
 								</div>
 							</div>
 						</div>
-						{/* end space-y-4 */}
 
 						<div className="mt-6 flex gap-3">
 							<button

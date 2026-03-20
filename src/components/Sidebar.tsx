@@ -104,33 +104,6 @@ export function Sidebar({ onClose }: Props) {
 		...(isMaster
 			? [
 					{
-						to: "/repeat-tasks",
-						label: "Repeat Tasks",
-						icon: (
-							<svg
-								className={S}
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								strokeWidth={1.8}
-							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M4 4v5h5M20 20v-5h-5"
-								/>
-								<path
-									strokeLinecap="round"
-									d="M20.49 9A9 9 0 005.64 5.64L4 4m16 16l-1.64-1.64A9 9 0 013.51 15"
-								/>
-							</svg>
-						),
-					},
-				]
-			: []),
-		...(isMaster
-			? [
-					{
 						to: "/customers",
 						label: "Customers",
 						icon: (

@@ -17,7 +17,6 @@ import { JobDetailPage } from "./pages/JobDetailPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MyDayPage } from "./pages/MyDayPage";
 import { NewJobPage } from "./pages/NewJobPage";
-import { RepeatTasksPage, RepeatTaskDetailPage } from "./pages/RepeatTasksPage";
 import { TeamPage } from "./pages/TeamPage";
 import { CustomersPage } from "./pages/CustomersPage";
 
@@ -177,26 +176,6 @@ export default function App() {
 								<RequireAuth>
 									<RequireMaster>
 										<NewJobPage />
-									</RequireMaster>
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/repeat-tasks"
-							element={
-								<RequireAuth>
-									<RequireMaster>
-										<RepeatTasksPage />
-									</RequireMaster>
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/repeat-tasks/:id"
-							element={
-								<RequireAuth>
-									<RequireMaster>
-										<RepeatTaskDetailPage />
 									</RequireMaster>
 								</RequireAuth>
 							}

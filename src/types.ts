@@ -20,24 +20,48 @@ export interface User {
 	color?: string; // personal accent colour
 }
 
+export interface Category {
+	id: string;
+	name: string;
+	icon: string; // lucide icon name e.g. "Wrench"
+	color: string; // hex color
+	sortOrder: number;
+}
+
+export type HolidayType = "holiday" | "sick" | "training" | "other";
+
+export interface Holiday {
+	id: string;
+	profileId: string;
+	date: string; // ISO date 'YYYY-MM-DD' (start date)
+	endDate?: string; // ISO date 'YYYY-MM-DD' (inclusive end, for multi-day)
+	halfDay: boolean;
+	label: string;
+	type: HolidayType;
+}
+
 export interface Job {
 	id: string;
 	ref: string;
 	customer: string;
 	phone: string;
 	address: string;
-	type: string;
 	description: string;
 	assignedTo: string;
 	status: Status;
 	priority: Priority;
-	date: string;
+	date: string; // ISO date 'YYYY-MM-DD' (start date)
+	endDate?: string; // ISO date — for multi-day or early-completion
+	startTime?: string; // 'HH:MM' e.g. '09:00'
+	endTime?: string; // 'HH:MM' e.g. '10:30'
+	categoryId?: string;
 	materials: string;
 	notes: string;
 	timeSpent: number;
 	readyToInvoice: boolean;
 	sortOrder?: number;
 	customerId?: string;
+	repeatFrequency?: RepeatFrequency;
 }
 
 export interface Customer {
@@ -58,7 +82,6 @@ export interface Notification {
 	read: boolean;
 	for: "master" | string;
 	jobId?: string;
-	repeatTaskId?: string;
 }
 
 export interface Business {
@@ -78,23 +101,16 @@ export interface NewJobForm {
 	customer: string;
 	phone: string;
 	address: string;
-	type: string;
 	description: string;
 	assignedTo: string;
 	date: string;
+	endDate?: string;
 	priority: Priority;
 	customerId?: string;
+	categoryId?: string;
+	startTime?: string;
+	endTime?: string;
+	repeatFrequency?: RepeatFrequency;
 }
 
 export type RepeatFrequency = "annually" | "biannually" | "quarterly";
-
-export interface RepeatTask {
-	id: string;
-	customer: string;
-	address: string;
-	type: string;
-	description: string;
-	frequency: RepeatFrequency;
-	nextDueDate: string;
-	customerId?: string;
-}

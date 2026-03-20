@@ -121,30 +121,37 @@ create trigger on_auth_user_created
 
 ```sql
 create table jobs (
-  id              uuid primary key default gen_random_uuid(),
-  business_id     uuid references businesses(id) on delete cascade not null,
-  ref             text not null,           -- e.g. DPH-007
-  customer        text not null,
-  phone           text default '',         -- added in migration 7
-  address         text not null,
-  type            text not null,
-  description     text default '',
-  assigned_to     uuid references profiles(id),
-  status          text check (status in (
-                    'Scheduled', 'En Route', 'On Site', 'Completed', 'Invoiced'
-                  )) default 'Scheduled',
-  priority        text check (priority in (
-                    'Emergency', 'High', 'Normal', 'Low'
-                  )) default 'Normal',
-  date            date not null,
-  materials       text default '',
-  notes           text default '',
-  time_spent      numeric(5,2) default 0,
-  sort_order      integer default 0,       -- added in migration 4
+  id               uuid primary key default gen_random_uuid(),
+  business_id      uuid references businesses(id) on delete cascade not null,
+  ref              text not null,           -- e.g. DPH-007
+  customer         text not null,
+  phone            text default '',         -- migration 7
+  address          text not null,
+  description      text default '',
+  assigned_to      uuid references profiles(id),
+  status           text check (status in (
+                     'Scheduled', 'En Route', 'On Site', 'Completed', 'Invoiced'
+                   )) default 'Scheduled',
+  priority         text check (priority in (
+                     'Emergency', 'High', 'Normal', 'Low'
+                   )) default 'Normal',
+  date             date not null,
+  end_date         date,                    -- migration 9: inclusive end for multi-day
+  start_time       text,                    -- migration 9: 'HH:MM'
+  end_time         text,                    -- migration 9: 'HH:MM'
+  category_id      uuid references categories(id) on delete set null,  -- migration 9
+  customer_id      uuid references customers(id) on delete set null,   -- migration 8
+  repeat_frequency text check (repeat_frequency in (
+                     'annually', 'biannually', 'quarterly'
+                   )),                      -- migration 12
+  materials        text default '',
+  notes            text default '',
+  time_spent       numeric(5,2) default 0,
+  sort_order       integer default 0,       -- migration 4
   ready_to_invoice boolean default false,
-  xero_invoice_id text,                    -- set once pushed to Xero
-  created_at      timestamptz default now(),
-  updated_at      timestamptz default now()
+  xero_invoice_id  text,                    -- set once pushed to Xero
+  created_at       timestamptz default now(),
+  updated_at       timestamptz default now()
 );
 
 -- Auto-update updated_at
@@ -161,24 +168,61 @@ create trigger jobs_updated_at
   for each row execute function update_updated_at();
 ```
 
-### repeat_tasks (migration 6)
+### customers (migration 8)
 
-Recurring jobs (boiler services, annual checks) that generate reminders when due.
+Contact/customer records that can be linked to jobs.
 
 ```sql
-create table repeat_tasks (
-  id                uuid primary key default gen_random_uuid(),
-  business_id       uuid references businesses(id) on delete cascade not null,
-  customer          text not null,
-  address           text not null,
-  type              text not null default 'Boiler Service',
-  description       text default '',
-  frequency         text check (frequency in ('annually', 'biannually', 'quarterly')) default 'annually',
-  next_due_date     date not null,
-  created_at        timestamptz default now(),
-  updated_at        timestamptz default now()
+create table customers (
+  id              uuid primary key default gen_random_uuid(),
+  business_id     uuid references businesses(id) on delete cascade not null,
+  name            text not null,
+  email           text not null,
+  phone           text default '',
+  address         text default '',
+  notes           text default '',
+  xero_contact_id text,
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now()
 );
 ```
+
+### categories (migration 9)
+
+Job categories with icon and colour, used to tag jobs.
+
+```sql
+create table categories (
+  id          uuid primary key default gen_random_uuid(),
+  business_id uuid references businesses(id) on delete cascade not null,
+  name        text not null,
+  icon        text not null default 'Wrench',  -- Lucide icon name
+  color       text not null default '#f97316',
+  sort_order  integer default 0,
+  created_at  timestamptz default now()
+);
+```
+
+### team_holidays (migration 9)
+
+Leave/absence records for engineers. Shown on the calendar alongside jobs.
+
+```sql
+create table team_holidays (
+  id          uuid primary key default gen_random_uuid(),
+  business_id uuid references businesses(id) on delete cascade not null,
+  profile_id  uuid references profiles(id) on delete cascade not null,
+  date        date not null,                   -- start date
+  end_date    date,                            -- migration 11: inclusive end for multi-day
+  half_day    boolean default false,
+  label       text default 'Holiday',
+  type        text default 'holiday'           -- migration 10
+              check (type in ('holiday', 'sick', 'training', 'other')),
+  created_at  timestamptz default now()
+);
+```
+
+> **repeat_tasks (dropped in migration 12):** The `repeat_tasks` table previously held recurring job reminders as a separate concept. In migration 12 this was unified — `repeat_frequency` is now a column on the `jobs` table directly, and `repeat_tasks` was dropped.
 
 ### job_photos
 
@@ -240,16 +284,18 @@ $$;
 
 ### Key policies (summary)
 
-| Table         | Select                | Insert         | Update                          | Delete       |
-| ------------- | --------------------- | -------------- | ------------------------------- | ------------ |
-| businesses    | Own business          | —              | Masters only                    | —            |
-| profiles      | Own business          | Auto (trigger) | Own profile OR masters for team | —            |
-| jobs          | Own business          | Masters only   | Assigned engineer OR masters    | —            |
-| job_photos    | Own business          | Own business   | —                               | —            |
-| notifications | Own (by user or role) | —              | —                               | —            |
-| repeat_tasks  | Masters only          | Masters only   | Masters only                    | Masters only |
+| Table          | Select                | Insert         | Update                          | Delete       |
+| -------------- | --------------------- | -------------- | ------------------------------- | ------------ |
+| businesses     | Own business          | —              | Masters only                    | —            |
+| profiles       | Own business          | Auto (trigger) | Own profile OR masters for team | —            |
+| jobs           | Own business          | Masters only   | Assigned engineer OR masters    | —            |
+| job_photos     | Own business          | Own business   | —                               | —            |
+| notifications  | Own (by user or role) | —              | —                               | —            |
+| customers      | Own business          | Masters only   | Masters only                    | Masters only |
+| categories     | Own business          | Masters only   | Masters only                    | Masters only |
+| team_holidays  | Own business          | Masters only   | Masters only                    | Masters only |
 
-Full SQL is in `1_schema.sql` (base), `5_migration.sql` (profile updates), and `6_migration.sql` (repeat_tasks).
+Full SQL is in `1_schema.sql` (base), `5_migration.sql` (profile updates), `8_migration.sql` (customers), and `9_migration.sql` (categories, team_holidays).
 
 ---
 
@@ -332,10 +378,15 @@ The app includes client-side brute-force protection:
 
 Run these in the Supabase SQL Editor **after** applying `1_schema.sql` and `2_seed.sql`.
 
-| File              | What it does                                                                                                                       |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `3_migration.sql` | Adds `accent_color` column to `profiles`; adds `job_id` column to `notifications` for click-through navigation                     |
-| `4_migration.sql` | Adds `sort_order` column to `jobs` for master-controlled daily scheduling order                                                    |
-| `5_migration.sql` | Creates `is_master()` helper function; adds RLS policies for users to update their own profile and masters to update team profiles |
-| `6_migration.sql` | Creates `repeat_tasks` table with frequency/due-date; adds `repeat_task_id` to `notifications`; RLS: masters-only CRUD             |
-| `7_migration.sql` | Adds `phone` column to `jobs` for client phone numbers                                                                             |
+| File               | What it does                                                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `3_migration.sql`  | Adds `accent_color` column to `profiles`; adds `job_id` column to `notifications` for click-through navigation                     |
+| `4_migration.sql`  | Adds `sort_order` column to `jobs` for master-controlled daily scheduling order                                                    |
+| `5_migration.sql`  | Creates `is_master()` helper function; adds RLS policies for users to update their own profile and masters to update team profiles |
+| `6_migration.sql`  | Creates `repeat_tasks` table with frequency/due-date; adds `repeat_task_id` to `notifications`; RLS: masters-only CRUD             |
+| `7_migration.sql`  | Adds `phone` column to `jobs` for client phone numbers                                                                             |
+| `8_migration.sql`  | Creates `customers` table (contacts); adds `customer_id` FK to `jobs` and `repeat_tasks`; RLS: members read, masters write         |
+| `9_migration.sql`  | Creates `categories` table; creates `team_holidays` table; adds `category_id`, `start_time`, `end_time`, `end_date` to `jobs`      |
+| `10_migration.sql` | Adds `type` column to `team_holidays` (`holiday`, `sick`, `training`, `other`)                                                     |
+| `11_migration.sql` | Adds `end_date` column to `team_holidays` for multi-day leave entries                                                              |
+| `12_migration.sql` | Drops legacy `jobs.type` column; adds `repeat_frequency` to `jobs`; drops `repeat_tasks` table (recurring moved into jobs)         |
