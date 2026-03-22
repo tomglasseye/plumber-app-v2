@@ -217,7 +217,7 @@ export function JobDetailPage() {
 		"w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500";
 
 	return (
-		<div className="p-5 md:p-7 max-w-4xl">
+		<div className="p-5 md:p-7">
 			<button
 				onClick={() => navigate(-1)}
 				className="mb-5 text-sm text-neutral-600 hover:text-neutral-300 transition-colors border-0 bg-transparent p-0 cursor-pointer block"
@@ -319,8 +319,10 @@ export function JobDetailPage() {
 			</div>
 
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+				{/* Left column: Details + Priority */}
+				<div className="flex flex-col gap-4 h-full">
 				{/* Details */}
-				<div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+				<div className="flex-1 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
 					<h4 className="mb-3 text-[10px] uppercase tracking-widest text-neutral-600">
 						Job Details
 					</h4>
@@ -695,19 +697,21 @@ export function JobDetailPage() {
 							)}
 					</div>
 				)}
+				</div>
 
+				{/* Right column: Notes + Materials */}
+				<div className="flex flex-col gap-4 h-full">
 				{/* Notes */}
-				<div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+				<div className="flex-1 flex flex-col rounded-xl border border-neutral-800 bg-neutral-900 p-5">
 					<h4 className="mb-3 text-[10px] uppercase tracking-widest text-neutral-600">
 						Site Notes
 					</h4>
 					<textarea
-						rows={4}
 						placeholder="Add notes from site…"
 						value={draftNotes}
 						readOnly={!canEdit}
 						onChange={(e) => setDraftNotes(e.target.value)}
-						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 resize-y placeholder:text-neutral-600"
+						className="flex-1 w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 resize-none placeholder:text-neutral-600 min-h-0"
 					/>
 				</div>
 
@@ -742,6 +746,7 @@ export function JobDetailPage() {
 							className="w-28 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
 						/>
 					</div>
+				</div>
 				</div>
 
 				{/* Save bar */}

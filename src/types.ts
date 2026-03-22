@@ -18,6 +18,7 @@ export interface User {
 	home: string;
 	phone: string;
 	color?: string; // personal accent colour
+	locked?: boolean;
 }
 
 export interface Category {
@@ -95,6 +96,8 @@ export interface Business {
 	xeroConnected: boolean;
 	xeroEmail: string;
 	logoInitials: string;
+	workDayStart: number; // hour 0-23, e.g. 7
+	workDayEnd: number;   // hour 0-23, e.g. 17
 }
 
 export interface NewJobForm {

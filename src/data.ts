@@ -34,6 +34,8 @@ export const INITIAL_BUSINESS: Business = {
 	xeroConnected: false,
 	xeroEmail: "",
 	logoInitials: "DPH",
+	workDayStart: 7,
+	workDayEnd: 17,
 };
 
 export const USERS: User[] = [
@@ -83,6 +85,19 @@ export const STATUSES: Status[] = [
 	"Invoiced",
 ];
 export const PRIORITIES: Priority[] = ["Emergency", "High", "Normal", "Low"];
+
+export function buildTimeOpts(hourStart: number, hourEnd: number) {
+	const opts: { value: string; label: string }[] = [];
+	for (let h = hourStart; h < hourEnd; h++) {
+		for (const m of [0, 30]) {
+			const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+			const ampm = h < 12 ? "am" : "pm";
+			const dh = h > 12 ? h - 12 : h;
+			opts.push({ value, label: `${dh}:${String(m).padStart(2, "0")} ${ampm}` });
+		}
+	}
+	return opts;
+}
 
 export const PRIORITY_ORDER: Record<Priority, number> = {
 	Emergency: 0,

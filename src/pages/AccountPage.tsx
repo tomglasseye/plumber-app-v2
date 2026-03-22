@@ -522,7 +522,7 @@ export function AccountPage() {
 	>("business");
 	const [saved, setSaved] = useState(false);
 
-	function f(key: keyof Business, value: string | boolean) {
+	function f(key: keyof Business, value: string | boolean | number) {
 		setForm((prev) => ({ ...prev, [key]: value }));
 	}
 
@@ -712,6 +712,44 @@ export function AccountPage() {
 									☀️ Light
 								</button>
 							</div>
+						</div>
+
+						<div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+							<h4 className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
+								Working Hours
+							</h4>
+							<div className="flex items-center gap-3">
+								<div className="flex flex-col gap-1.5 flex-1">
+									<label className="text-xs uppercase tracking-wider text-neutral-600">Start</label>
+									<select
+										value={form.workDayStart}
+										onChange={(e) => f("workDayStart", Number(e.target.value))}
+										className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-neutral-500"
+									>
+										{Array.from({ length: 13 }, (_, i) => i + 6).map((h) => (
+											<option key={h} value={h}>
+												{h < 12 ? `${h}am` : h === 12 ? "12pm" : `${h - 12}pm`}
+											</option>
+										))}
+									</select>
+								</div>
+								<span className="text-neutral-600 text-sm mt-4">→</span>
+								<div className="flex flex-col gap-1.5 flex-1">
+									<label className="text-xs uppercase tracking-wider text-neutral-600">End</label>
+									<select
+										value={form.workDayEnd}
+										onChange={(e) => f("workDayEnd", Number(e.target.value))}
+										className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-neutral-500"
+									>
+										{Array.from({ length: 13 }, (_, i) => i + 12).map((h) => (
+											<option key={h} value={h} disabled={h <= form.workDayStart}>
+												{h === 12 ? "12pm" : h < 12 ? `${h}am` : `${h - 12}pm`}
+											</option>
+										))}
+									</select>
+								</div>
+							</div>
+							<p className="mt-2 text-[10px] text-neutral-700">Controls the calendar time grid and time slot options when creating jobs.</p>
 						</div>
 
 						<button

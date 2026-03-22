@@ -38,6 +38,9 @@ interface AppCtx {
 	myJobs: Job[];
 	isMaster: boolean;
 	saveUser: (user: User) => Promise<void>;
+	lockUser: (id: string) => void;
+	unlockUser: (id: string) => void;
+	deleteUser: (id: string) => void;
 	changePassword: (
 		userId: string,
 		password: string,
@@ -74,8 +77,9 @@ interface AppCtx {
 	holidays: Holiday[];
 	createHoliday: (h: Omit<Holiday, "id">) => void;
 	deleteHoliday: (id: string) => void;
+	updateHoliday: (id: string, changes: Partial<Omit<Holiday, "id">>) => void;
 	// Atomic scheduling helpers (single DB call)
-	rescheduleJob: (jobId: string, date: string, startTime?: string, endTime?: string) => void;
+	rescheduleJob: (jobId: string, date: string, startTime?: string, endTime?: string, assignedTo?: string) => void;
 	resizeJobTime: (jobId: string, startTime: string, endTime: string) => void;
 }
 
@@ -145,6 +149,7 @@ function mapProfile(r: any): User {
 		home: r.home_address ?? "",
 		phone: r.phone ?? "",
 		color: r.accent_color ?? "#f97316",
+		locked: r.locked ?? false,
 	};
 }
 
@@ -162,6 +167,8 @@ function mapBusiness(r: any): Business {
 		xeroEmail: r.xero_email ?? "",
 		logoInitials:
 			r.logo_initials ?? (r.name as string).slice(0, 3).toUpperCase(),
+		workDayStart: r.work_day_start ?? 7,
+		workDayEnd: r.work_day_end ?? 17,
 	};
 }
 
@@ -330,6 +337,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			.eq("id", userId)
 			.single();
 		if (!profile) return null;
+		if (profile.locked) {
+			await supabase.auth.signOut();
+			return null;
+		}
 
 		const user = mapProfile(profile);
 		setCurrentUser(user);
@@ -472,10 +483,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 	function changeStatus(id: string, status: Job["status"]) {
 		const job = jobs.find((j) => j.id === id)!;
+		// When completing a timed job, snap endTime to now if now is after startTime
+		const now = new Date();
+		const nowStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+		const snapEnd =
+			status === "Completed" &&
+			job.startTime &&
+			nowStr > job.startTime
+				? nowStr
+				: undefined;
 		setJobs((prev) =>
-			prev.map((j) => (j.id === id ? { ...j, status } : j)),
+			prev.map((j) =>
+				j.id === id
+					? { ...j, status, ...(snapEnd ? { endTime: snapEnd } : {}) }
+					: j,
+			),
 		);
-		dbSave(supabase.from("jobs").update({ status }).eq("id", id));
+		dbSave(
+			supabase
+				.from("jobs")
+				.update({ status, ...(snapEnd ? { end_time: snapEnd } : {}) })
+				.eq("id", id),
+		);
 		if (!isMaster) {
 			addNotification({
 				icon:
@@ -620,6 +649,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					vat_number: b.vatNumber,
 					accent_color: b.accentColor,
 					logo_initials: b.logoInitials,
+					work_day_start: b.workDayStart,
+					work_day_end: b.workDayEnd,
 				})
 				.eq("id", b.id),
 		);
@@ -647,6 +678,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 						"Save failed");
 			setSaveError(msg);
 		}
+	}
+
+	function lockUser(id: string) {
+		setUsers((prev) =>
+			prev.map((u) => (u.id === id ? { ...u, locked: true } : u)),
+		);
+		supabase.from("profiles").update({ locked: true }).eq("id", id);
+	}
+
+	function unlockUser(id: string) {
+		setUsers((prev) =>
+			prev.map((u) => (u.id === id ? { ...u, locked: false } : u)),
+		);
+		supabase.from("profiles").update({ locked: false }).eq("id", id);
+	}
+
+	function deleteUser(id: string) {
+		setUsers((prev) => prev.filter((u) => u.id !== id));
+		supabase.from("profiles").delete().eq("id", id);
 	}
 
 	function toggleTheme() {
@@ -829,10 +879,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		date: string,
 		startTime?: string,
 		endTime?: string,
+		assignedTo?: string,
 	) {
 		setJobs((prev) =>
 			prev.map((j) =>
-				j.id === jobId ? { ...j, date, startTime, endTime } : j,
+				j.id === jobId
+					? { ...j, date, startTime, endTime, ...(assignedTo ? { assignedTo } : {}) }
+					: j,
 			),
 		);
 		dbSave(
@@ -842,6 +895,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					date,
 					start_time: startTime ?? null,
 					end_time: endTime ?? null,
+					...(assignedTo ? { assigned_to: assignedTo } : {}),
 				})
 				.eq("id", jobId),
 		);
@@ -867,6 +921,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		dbSave(supabase.from("team_holidays").delete().eq("id", id));
 	}
 
+	function updateHoliday(id: string, changes: Partial<Omit<Holiday, "id">>) {
+		setHolidays((prev) =>
+			prev.map((h) => (h.id === id ? { ...h, ...changes } : h)),
+		);
+		const dbChanges: Record<string, unknown> = {};
+		if (changes.profileId !== undefined) dbChanges.profile_id = changes.profileId;
+		if (changes.date !== undefined) dbChanges.date = changes.date;
+		if (changes.endDate !== undefined) dbChanges.end_date = changes.endDate;
+		if (changes.halfDay !== undefined) dbChanges.half_day = changes.halfDay;
+		if (changes.label !== undefined) dbChanges.label = changes.label;
+		if (changes.type !== undefined) dbChanges.type = changes.type;
+		dbSave(supabase.from("team_holidays").update(dbChanges).eq("id", id));
+	}
+
 	return (
 		<Ctx.Provider
 			value={{
@@ -882,6 +950,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				myJobs,
 				isMaster: !!isMaster,
 				saveUser,
+			lockUser,
+			unlockUser,
+			deleteUser,
 				changePassword,
 				theme,
 				toggleTheme,
@@ -909,6 +980,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				holidays,
 				createHoliday,
 				deleteHoliday,
+				updateHoliday,
 				rescheduleJob,
 				resizeJobTime,
 			}}

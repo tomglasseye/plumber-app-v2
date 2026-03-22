@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
 import { CategoryIcon } from "./AccountPage";
-import { PRIORITIES } from "../data";
+import { buildTimeOpts, PRIORITIES } from "../data";
 import type { NewJobForm, RepeatFrequency } from "../types";
 
 const EMPTY: NewJobForm = {
@@ -18,26 +18,13 @@ const EMPTY: NewJobForm = {
 	repeatFrequency: undefined,
 };
 
-// Generate 30-min time slot options from 07:00 to 20:00
-function timeOptions() {
-	const opts: { value: string; label: string }[] = [];
-	for (let h = 7; h <= 20; h++) {
-		for (const m of [0, 30]) {
-			const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-			const ampm = h < 12 ? "am" : h === 12 ? "pm" : "pm";
-			const displayH = h > 12 ? h - 12 : h;
-			const label = `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
-			opts.push({ value, label });
-		}
-	}
-	return opts;
-}
-const TIME_OPTS = timeOptions();
+// TIME_OPTS built dynamically in component from business work hours
 
 export function NewJobPage() {
 	const { createJob, createCustomer, business, users, customers, categories } =
 		useApp();
 	const navigate = useNavigate();
+	const TIME_OPTS = buildTimeOpts(business.workDayStart, business.workDayEnd);
 	const [form, setForm] = useState<NewJobForm>(EMPTY);
 	const [custSearch, setCustSearch] = useState("");
 	const [showSuggestions, setShowSuggestions] = useState(false);
@@ -81,7 +68,7 @@ export function NewJobPage() {
 			if (val) {
 				const [h, m] = val.split(":").map(Number);
 				const endH = h + 1;
-				if (endH <= 20) {
+				if (endH <= business.workDayEnd) {
 					next.endTime = `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 				}
 			}
