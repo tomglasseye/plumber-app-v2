@@ -1700,7 +1700,6 @@ export function CalendarPage() {
 		const ds = calDate.toISOString().slice(0, 10);
 		const dayJobs = byDate[ds] ?? [];
 		const dayHols = visibleHolidaysForDate(ds);
-		const bodyScrollRef2 = useRef<HTMLDivElement>(null);
 		const hdrRef2 = useRef<HTMLDivElement>(null);
 
 		const shownIds =
@@ -1945,7 +1944,7 @@ export function CalendarPage() {
 													borderLeft: `3px solid ${uc}`,
 												}}
 												className={`rounded overflow-hidden select-none ${sc.bg} ${conflict ? "ring-2 ring-red-500" : ""} hover:opacity-90 transition-opacity cursor-grab`}
-												onPointerDown={(e) => onJobPtrDown(e, job.id)}
+												onPointerDown={(e) => { const r = e.currentTarget.getBoundingClientRect(); onJobPtrDown(job.id, e.clientY - r.top, e.clientX, e.clientY); }}
 												onClick={(e) => {
 													e.stopPropagation();
 													setJobPopover({ jobId: job.id, rect: e.currentTarget.getBoundingClientRect() });

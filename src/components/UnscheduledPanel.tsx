@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { STATUS_COLORS, userColor } from "../data";
+import { STATUS_COLORS } from "../data";
 import type { Job } from "../types";
 
 interface Props {
