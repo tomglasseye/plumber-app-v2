@@ -1089,6 +1089,15 @@ export function CalendarPage() {
 	const [showAllDay, setShowAllDay] = useState(true);
 	const [showFilters, setShowFilters] = useState(false);
 
+	// Tips
+	const [showTips, setShowTips] = useState(
+		() => localStorage.getItem("calTipsDismissed") !== "1",
+	);
+	function dismissTips() {
+		localStorage.setItem("calTipsDismissed", "1");
+		setShowTips(false);
+	}
+
 	// Add job panel
 	const [panelOpen, setPanelOpen] = useState(false);
 	const [panelPrefill, setPanelPrefill] = useState<Partial<NewJobForm>>({});
@@ -2472,6 +2481,87 @@ export function CalendarPage() {
 								</button>
 							</div>
 						)}
+					</div>
+				)}
+
+				{/* Starter tips */}
+				{showTips && (
+					<div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+						<div className="flex items-start justify-between gap-3 mb-3">
+							<p className="text-xs font-medium uppercase tracking-wider text-neutral-500">
+								Quick tips
+							</p>
+							<button
+								onClick={dismissTips}
+								className="text-neutral-600 hover:text-neutral-400 transition-colors text-lg leading-none bg-transparent border-0 cursor-pointer flex-shrink-0 -mt-0.5"
+								aria-label="Dismiss tips"
+							>
+								×
+							</button>
+						</div>
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+							{(isMaster
+								? [
+										{
+											icon: "➕",
+											title: "Add a job",
+											body: 'Click "+ New Job" or tap any empty slot on the calendar to schedule a job.',
+										},
+										{
+											icon: "↕️",
+											title: "Drag to reschedule",
+											body: "Hold and drag a job chip to move it to a different time slot or engineer.",
+										},
+										{
+											icon: "⚡",
+											title: "Quick status",
+											body: "Click a job chip to open a popover with quick status-change buttons.",
+										},
+										{
+											icon: "📋",
+											title: "Unscheduled jobs",
+											body: "Jobs with no time slot appear in the panel above — drag them onto the grid.",
+										},
+									]
+								: [
+										{
+											icon: "📅",
+											title: "Your schedule",
+											body: "This calendar shows all jobs assigned to the team. Your jobs are highlighted.",
+										},
+										{
+											icon: "📍",
+											title: "My Day",
+											body: 'Use "My Day" in the sidebar for just your jobs today in one place.',
+										},
+										{
+											icon: "⚡",
+											title: "Update status",
+											body: "Click a job chip to quickly update its status — En Route, On Site, Completed.",
+										},
+										{
+											icon: "🔍",
+											title: "Job details",
+											body: "Click the job title in the popover to open the full job sheet.",
+										},
+									]
+							).map((tip) => (
+								<div
+									key={tip.title}
+									className="flex gap-2.5 rounded-lg border border-neutral-800 bg-neutral-900 p-3"
+								>
+									<span className="text-base flex-shrink-0 mt-0.5">{tip.icon}</span>
+									<div>
+										<p className="text-xs font-medium text-neutral-300 mb-0.5">
+											{tip.title}
+										</p>
+										<p className="text-xs text-neutral-600 leading-relaxed">
+											{tip.body}
+										</p>
+									</div>
+								</div>
+							))}
+						</div>
 					</div>
 				)}
 
