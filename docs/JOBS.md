@@ -45,10 +45,12 @@ Scheduled → En Route → On Site → Completed → Invoiced
 | Status        | Who sets it                          | Triggers notification?         |
 | ------------- | ------------------------------------ | ------------------------------ |
 | **Scheduled** | Created automatically on job create  | Engineer notified on creation  |
-| **En Route**  | Engineer (from their job detail)     | Yes — master notified          |
+| **En Route**  | Engineer (job detail or calendar popover) | Yes — master notified     |
 | **On Site**   | Engineer                             | Yes — master notified          |
 | **Completed** | Engineer                             | Yes — master notified          |
 | **Invoiced**  | Master (after pushing to Xero)       | No                             |
+
+Status can also be changed directly from the **calendar job popover** via quick-tap status pills, without navigating to the job detail page.
 
 ---
 
@@ -67,13 +69,13 @@ Scheduled → En Route → On Site → Completed → Invoiced
 
 Jobs can be created from two places:
 
-### 1. New Job page (`/jobs/new`)
+### 1. New Job page (`/new-job`)
 
 Full-page form at `src/pages/NewJobPage.tsx`. Accessible from the main navigation. Navigates back to the dashboard on submit.
 
 ### 2. Calendar panel
 
-The `AddJobPanel` inside `CalendarPage.tsx`. Opens as a fixed right sidebar (desktop) or bottom-sheet modal (mobile) when clicking any calendar cell or the + New Job button.
+The `AddJobPanel` inside `CalendarPage.tsx`. Opens as a fixed right sidebar (desktop) or bottom-sheet modal (mobile) when clicking any calendar cell or the + New Job button. In Day view, clicking an engineer's column pre-fills the assigned engineer.
 
 Both forms call `createJob(form)` from `AppContext.tsx`, which:
 
@@ -99,9 +101,9 @@ Set an **End Date** on a job to span multiple days:
 
 A job can have a `repeatFrequency` of `annually`, `biannually` (every 6 months), or `quarterly`.
 
-Recurring frequency is stored directly on the job row (`repeat_frequency` column, added in migration 12). It is purely a label for now — the app does **not** auto-generate future jobs. The intent is that when a recurring job is marked complete the master reviews it and creates the next occurrence manually (or automated generation can be added later).
+Recurring frequency is stored directly on the job row (`repeat_frequency` column, added in migration 12). It is a label only — the app does **not** auto-generate future jobs. When a recurring job is marked complete, the master reviews it and creates the next occurrence manually.
 
-> **Migration 12 note:** The old `repeat_tasks` table (a separate recurring reminders system) was dropped in migration 12. Recurring frequency is now part of the standard `jobs` table.
+> **Migration 12 note:** The old `repeat_tasks` table was dropped in migration 12. Recurring frequency is now part of the standard `jobs` table.
 
 ---
 
@@ -109,15 +111,26 @@ Recurring frequency is stored directly on the job row (`repeat_frequency` column
 
 `src/pages/JobDetailPage.tsx` — accessible by clicking any job from the dashboard, calendar, team page, or customer detail.
 
-Fields editable on this page:
+### Layout
 
+The page is full-width and uses a two-column layout on desktop:
+
+| Left column | Right column |
+| ----------- | ------------ |
+| Job Details card (customer, address, phone, description, dates, times, category, recurring, assigned engineer) | Site Notes card (grows to fill height) |
+| Priority + Status card | Materials Used card (with Time Spent field) |
+
+Below both columns, full-width:
+- Save Changes bar (appears when there are unsaved changes)
+- Awaiting HQ Approval banner (master only, when status = Completed and not yet final-complete)
+- Ready to Invoice banner (master only, when `readyToInvoice = true`)
+
+### Fields editable on this page
+
+- Customer, address, phone, description, dates, times, category, recurring, assigned engineer (master only)
 - Status (engineer and master)
 - Priority (master only)
-- Start/end time
-- Materials, notes, time spent
-- Ready to invoice toggle
-
-Photos can be attached (currently stored as base64 — see `docs/SUPABASE.md` section 5 for the planned Supabase Storage upgrade).
+- Site notes, materials used, time spent (engineer and master)
 
 ---
 

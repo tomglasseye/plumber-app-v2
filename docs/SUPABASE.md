@@ -71,17 +71,19 @@ Supports multi-client — each business gets one row. All other tables reference
 
 ```sql
 create table businesses (
-  id          uuid primary key default gen_random_uuid(),
-  name        text not null,
-  phone       text,
-  email       text,
-  address     text,
-  vat_number  text,
-  accent_color text default '#f97316',
-  logo_initials text default 'BIZ',
+  id             uuid primary key default gen_random_uuid(),
+  name           text not null,
+  phone          text,
+  email          text,
+  address        text,
+  vat_number     text,
+  accent_color   text default '#f97316',
+  logo_initials  text default 'BIZ',
   xero_connected boolean default false,
-  xero_email  text,
-  created_at  timestamptz default now()
+  xero_email     text,
+  work_day_start smallint default 7,   -- migration 13: calendar grid start hour (0–23)
+  work_day_end   smallint default 17,  -- migration 13: calendar grid end hour (1–24)
+  created_at     timestamptz default now()
 );
 ```
 
@@ -99,6 +101,7 @@ create table profiles (
   avatar       text,        -- two-letter initials e.g. "TB"
   home_address text,
   accent_color text default '#f97316',   -- added in migration 3
+  locked       boolean not null default false,  -- migration 14: master can lock engineer accounts
   created_at   timestamptz default now()
 );
 
@@ -243,18 +246,19 @@ create table job_photos (
 
 ```sql
 create table notifications (
-  id              uuid primary key default gen_random_uuid(),
-  business_id     uuid references businesses(id) on delete cascade not null,
-  for_user        uuid references profiles(id),
-  for_role        text,
-  icon            text default '🔔',
-  message         text not null,
-  read            boolean default false,
-  job_id          uuid references jobs(id) on delete set null,          -- migration 3
-  repeat_task_id  uuid references repeat_tasks(id) on delete set null,  -- migration 6
-  created_at      timestamptz default now()
+  id          uuid primary key default gen_random_uuid(),
+  business_id uuid references businesses(id) on delete cascade not null,
+  for_user    uuid references profiles(id),
+  for_role    text,
+  icon        text default '🔔',
+  message     text not null,
+  read        boolean default false,
+  job_id      uuid references jobs(id) on delete set null,  -- migration 3
+  created_at  timestamptz default now()
 );
 ```
+
+> **Note:** `repeat_task_id` was present in earlier versions but was removed when the `repeat_tasks` table was dropped in migration 12.
 
 ---
 
@@ -390,3 +394,5 @@ Run these in the Supabase SQL Editor **after** applying `1_schema.sql` and `2_se
 | `10_migration.sql` | Adds `type` column to `team_holidays` (`holiday`, `sick`, `training`, `other`)                                                     |
 | `11_migration.sql` | Adds `end_date` column to `team_holidays` for multi-day leave entries                                                              |
 | `12_migration.sql` | Drops legacy `jobs.type` column; adds `repeat_frequency` to `jobs`; drops `repeat_tasks` table (recurring moved into jobs)         |
+| `13_migration.sql` | Adds `work_day_start` (default 7) and `work_day_end` (default 17) to `businesses` — controls calendar time grid and working hours shading |
+| `14_migration.sql` | Adds `locked boolean not null default false` to `profiles` — masters can lock engineer accounts to prevent login                    |

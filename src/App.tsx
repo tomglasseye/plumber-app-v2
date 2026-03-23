@@ -19,6 +19,7 @@ import { MyDayPage } from "./pages/MyDayPage";
 import { NewJobPage } from "./pages/NewJobPage";
 import { TeamPage } from "./pages/TeamPage";
 import { CustomersPage } from "./pages/CustomersPage";
+import { AboutPage } from "./pages/AboutPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
 	const { currentUser } = useApp();
@@ -59,10 +60,11 @@ export default function App() {
 		);
 	}
 
-	// Public login page
+	// Public routes (no auth required)
 	if (!currentUser) {
 		return (
 			<Routes>
+				<Route path="/about" element={<AboutPage />} />
 				<Route path="*" element={<LoginPage />} />
 			</Routes>
 		);
@@ -138,6 +140,7 @@ export default function App() {
 				<main className="flex-1 overflow-y-auto">
 					<Routes>
 						<Route path="/login" element={<LoginPage />} />
+					<Route path="/about" element={<AboutPage />} />
 						<Route
 							path="/"
 							element={
