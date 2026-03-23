@@ -134,6 +134,7 @@ export function CustomersPage() {
 										onChange={(e) =>
 											f("name", e.target.value)
 										}
+										maxLength={200}
 										className={inputClass}
 									/>
 								</div>
@@ -162,6 +163,7 @@ export function CustomersPage() {
 										onChange={(e) =>
 											f("phone", e.target.value)
 										}
+										maxLength={30}
 										className={inputClass}
 									/>
 								</div>
@@ -176,6 +178,7 @@ export function CustomersPage() {
 										onChange={(e) =>
 											f("address", e.target.value)
 										}
+										maxLength={500}
 										className={inputClass}
 									/>
 								</div>
@@ -190,6 +193,7 @@ export function CustomersPage() {
 										onChange={(e) =>
 											f("notes", e.target.value)
 										}
+										maxLength={2000}
 										className={`${inputClass} resize-y`}
 									/>
 								</div>

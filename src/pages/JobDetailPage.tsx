@@ -711,6 +711,7 @@ export function JobDetailPage() {
 						value={draftNotes}
 						readOnly={!canEdit}
 						onChange={(e) => setDraftNotes(e.target.value)}
+						maxLength={10000}
 						className="flex-1 w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 resize-none placeholder:text-neutral-600 min-h-0"
 					/>
 				</div>
@@ -726,6 +727,7 @@ export function JobDetailPage() {
 						value={draftMaterials}
 						readOnly={!canEdit}
 						onChange={(e) => setDraftMaterials(e.target.value)}
+						maxLength={5000}
 						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 resize-y placeholder:text-neutral-600"
 					/>
 					<div className="mt-3">

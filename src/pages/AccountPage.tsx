@@ -330,6 +330,7 @@ function CategoriesPanel({ accent }: { accent: string }) {
 							setForm((f) => ({ ...f, name: e.target.value }))
 						}
 						placeholder="e.g. Gas Work, Installs, Service…"
+						maxLength={100}
 						className={inputClass}
 						autoFocus
 					/>
@@ -585,26 +586,31 @@ export function AccountPage() {
 										label: "Company Name",
 										key: "name",
 										type: "text",
+										maxLength: 200,
 									},
 									{
 										label: "Phone",
 										key: "phone",
 										type: "text",
+										maxLength: 30,
 									},
 									{
 										label: "Email",
 										key: "email",
 										type: "email",
+										maxLength: 254,
 									},
 									{
 										label: "Address",
 										key: "address",
 										type: "text",
+										maxLength: 500,
 									},
 									{
 										label: "VAT Number",
 										key: "vatNumber",
 										type: "text",
+										maxLength: 30,
 									},
 								] as const
 							).map((field) => (
@@ -618,6 +624,7 @@ export function AccountPage() {
 										onChange={(e) =>
 											f(field.key, e.target.value)
 										}
+										maxLength={field.maxLength}
 										className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-neutral-500"
 									/>
 								</div>

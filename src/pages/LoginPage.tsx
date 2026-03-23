@@ -62,6 +62,22 @@ export function LoginPage() {
 		}
 		setBusy(true);
 		setError("");
+
+		// Server-side IP rate limit check
+		try {
+			const rl = await fetch("/.netlify/functions/login-rate-limit", {
+				method: "POST",
+			});
+			if (rl.status === 429) {
+				const body = await rl.json();
+				setBusy(false);
+				setError(body.message ?? "Too many login attempts. Please try again later.");
+				return;
+			}
+		} catch {
+			// If the function is unreachable (local dev), silently continue
+		}
+
 		const role = await login(email, password);
 		setBusy(false);
 		if (role) {

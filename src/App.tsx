@@ -45,6 +45,8 @@ export default function App() {
 		dismissSaveError,
 		myNotifs,
 		clearNotifs,
+		idleWarning,
+		dismissIdleWarning,
 	} = useApp();
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const { business } = useApp();
@@ -73,6 +75,21 @@ export default function App() {
 	return (
 		<div className="flex min-h-screen bg-neutral-950 font-sans text-neutral-100">
 			<PushBanner push={pushBanner} onDismiss={dismissPush} />
+
+			{/* Idle warning banner */}
+			{idleWarning && (
+				<div className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-between gap-3 bg-amber-900/95 border-b border-amber-700 px-5 py-3 shadow-2xl">
+					<span className="text-sm text-amber-200">
+						You've been inactive for a while. You'll be signed out in 1 minute.
+					</span>
+					<button
+						onClick={dismissIdleWarning}
+						className="rounded-lg bg-amber-700 hover:bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition-colors border-0 cursor-pointer flex-shrink-0"
+					>
+						Stay signed in
+					</button>
+				</div>
+			)}
 
 			{/* Save error toast */}
 			{saveError && (

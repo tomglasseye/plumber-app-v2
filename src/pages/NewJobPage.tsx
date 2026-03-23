@@ -148,6 +148,7 @@ export function NewJobPage() {
 						onBlur={() =>
 							setTimeout(() => setShowSuggestions(false), 150)
 						}
+						maxLength={200}
 						className={inputClass}
 					/>
 					{showSuggestions && suggestions.length > 0 && (
@@ -203,6 +204,7 @@ export function NewJobPage() {
 						placeholder="e.g. 07700 900123"
 						value={form.phone}
 						onChange={(e) => f("phone", e.target.value)}
+						maxLength={30}
 						className={inputClass}
 					/>
 				</div>
@@ -217,6 +219,7 @@ export function NewJobPage() {
 						placeholder="Full property address"
 						value={form.address}
 						onChange={(e) => f("address", e.target.value)}
+						maxLength={500}
 						className={inputClass}
 					/>
 				</div>
@@ -401,6 +404,7 @@ export function NewJobPage() {
 						placeholder="Describe the work required…"
 						value={form.description}
 						onChange={(e) => f("description", e.target.value)}
+						maxLength={5000}
 						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 resize-y placeholder:text-neutral-600"
 					/>
 				</div>
