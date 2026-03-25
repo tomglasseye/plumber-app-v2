@@ -123,7 +123,7 @@ export default function App() {
 			)}
 
 			{/* Main */}
-			<div className="flex-1 md:ml-56 flex flex-col min-h-screen">
+			<div className="flex-1 min-w-0 md:ml-56 flex flex-col min-h-screen">
 				{/* Mobile header */}
 				<header className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900 px-4 py-3 md:hidden sticky top-0 z-30">
 					<button
@@ -154,7 +154,7 @@ export default function App() {
 					/>
 				</div>
 
-				<main className="flex-1 overflow-y-auto">
+				<main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
 					<Routes>
 						<Route path="/login" element={<LoginPage />} />
 					<Route path="/about" element={<AboutPage />} />

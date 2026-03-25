@@ -1,9 +1,12 @@
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CategoryIcon } from "../pages/AccountPage";
 import { STATUS_COLORS } from "../data";
-import type { Job } from "../types";
+import type { Category, Job } from "../types";
 
 interface Props {
 	jobs: Job[];
+	categories: Category[];
 	onSchedule: (jobId: string, date: string, startTime?: string, endTime?: string) => void;
 	accentColor: string;
 	workDayStart: number;
@@ -29,7 +32,8 @@ const PRIORITY_COLORS: Record<string, string> = {
 	Low: "bg-neutral-900 text-neutral-600",
 };
 
-export function UnscheduledPanel({ jobs }: Props) {
+export function UnscheduledPanel({ jobs, categories }: Props) {
+	const navigate = useNavigate();
 	const [expanded, setExpanded] = useState(false);
 	const [locating, setLocating] = useState(false);
 	const [distances, setDistances] = useState<Record<string, number>>({});
@@ -153,6 +157,7 @@ export function UnscheduledPanel({ jobs }: Props) {
 								const priColor = PRIORITY_COLORS[job.priority] ?? PRIORITY_COLORS.Normal;
 								const dist = distances[job.id];
 
+								const cat = categories.find((c) => c.id === job.categoryId);
 								return (
 									<div
 										key={job.id}
@@ -161,11 +166,15 @@ export function UnscheduledPanel({ jobs }: Props) {
 											e.dataTransfer.setData("unscheduledJobId", job.id);
 											e.dataTransfer.effectAllowed = "move";
 										}}
-										className={`flex-shrink-0 w-48 rounded-lg border border-neutral-700 ${sc.bg} p-2.5 cursor-grab select-none hover:border-neutral-600 transition-colors`}
+										onClick={() => navigate(`/job/${job.id}`)}
+										className={`flex-shrink-0 w-48 rounded-lg border border-neutral-700 ${sc.bg} p-2.5 cursor-pointer select-none hover:border-neutral-600 transition-colors`}
 									>
-										<p className={`text-xs font-semibold truncate ${sc.text}`}>
-											{job.customer}
-										</p>
+										<div className="flex items-start justify-between gap-1 mb-0.5">
+											<p className={`text-xs font-semibold truncate ${sc.text}`}>
+												{job.customer}
+											</p>
+											{cat && <CategoryIcon name={cat.icon} size={10} color={cat.color} />}
+										</div>
 										{job.address && (
 											<p className="text-[10px] text-neutral-500 truncate mt-0.5">
 												{job.address}

@@ -1470,9 +1470,17 @@ export function CalendarPage() {
 		const engineer = users.find((u) => u.id === job.assignedTo);
 		const cat = categories.find((c) => c.id === job.categoryId);
 		const sc = STATUS_COLORS[job.status];
-		const spaceRight = window.innerWidth - rect.right;
-		const left = spaceRight >= 296 ? rect.right + 8 : rect.left - 288;
-		const top = Math.min(rect.top, window.innerHeight - 400);
+		const POPOVER_W = 280;
+		const isMobile = window.innerWidth < 640;
+		let left: number, top: number;
+		if (isMobile) {
+			left = Math.max(8, (window.innerWidth - POPOVER_W) / 2);
+			top = Math.max(60, Math.min(rect.top, window.innerHeight - 440));
+		} else {
+			const spaceRight = window.innerWidth - rect.right;
+			left = spaceRight >= POPOVER_W + 16 ? rect.right + 8 : Math.max(8, rect.left - POPOVER_W - 8);
+			top = Math.min(rect.top, window.innerHeight - 400);
+		}
 		return (
 			<>
 				{/* Backdrop */}
@@ -1709,7 +1717,6 @@ export function CalendarPage() {
 		const ds = calDate.toISOString().slice(0, 10);
 		const dayJobs = byDate[ds] ?? [];
 		const dayHols = visibleHolidaysForDate(ds);
-		const hdrRef2 = useRef<HTMLDivElement>(null);
 
 		const shownIds =
 			filterEngineers.length > 0
@@ -1728,16 +1735,27 @@ export function CalendarPage() {
 		const COL_W = 220;
 		const GUTTER_W = 56;
 		const wds = `${String(business.workDayStart).padStart(2, "0")}:00`;
+		const totalW = showList.length * COL_W + GUTTER_W;
 
 		return (
-			<div className="flex flex-col border border-neutral-800 rounded-xl overflow-hidden">
-				{/* Engineer name headers */}
-				<div
-					ref={hdrRef2}
-					className="flex-shrink-0 border-b border-neutral-800 bg-neutral-900/80 sticky top-0 z-10"
-					style={{ overflowX: "hidden", paddingLeft: GUTTER_W, backdropFilter: "blur(8px)" }}
-				>
-					<div className="flex">
+			// Single scroll container handles both axes — no nested overflow-hidden
+			<div
+				ref={gridScrollRef}
+				className="w-full border border-neutral-800 rounded-xl overflow-auto"
+				style={{ maxHeight: "calc(100svh - 220px)", minHeight: 300 }}
+			>
+				{/* Min-width wrapper forces horizontal scroll when needed */}
+				<div style={{ minWidth: totalW }}>
+					{/* Engineer name headers — sticky top */}
+					<div
+						className="flex sticky top-0 z-10 border-b border-neutral-800"
+						style={{ backdropFilter: "blur(8px)", background: "rgba(10,10,10,0.92)" }}
+					>
+						{/* Top-left corner — sticky left so it stays over time gutter */}
+						<div
+							style={{ width: GUTTER_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 6, background: "#0a0a0a" }}
+							className="border-r border-neutral-800"
+						/>
 						{showList.map((eng) => {
 							const uc = userColor(eng.id, users);
 							const engHols = dayHols.filter((h) => h.profileId === eng.id);
@@ -1787,23 +1805,12 @@ export function CalendarPage() {
 							);
 						})}
 					</div>
-				</div>
 
-				{/* Scrollable time grid */}
-				<div
-					ref={gridScrollRef}
-					className="overflow-auto"
-					style={{ maxHeight: "calc(100vh - 340px)", minHeight: 400 }}
-					onScroll={() => {
-						if (hdrRef2.current && gridScrollRef.current) {
-							hdrRef2.current.scrollLeft = gridScrollRef.current.scrollLeft;
-						}
-					}}
-				>
+					{/* Grid body */}
 					<div
 						ref={gridBodyRef}
 						className="flex"
-						style={{ height: TOTAL_HEIGHT, minWidth: showList.length * COL_W + GUTTER_W }}
+						style={{ height: TOTAL_HEIGHT }}
 					>
 						{/* Time gutter — sticky left */}
 						<div
@@ -1919,17 +1926,19 @@ export function CalendarPage() {
 										<div style={{ position: "absolute", top: 4, left: 4, right: 4, zIndex: 3 }}>
 											{untimedJobs.map((j) => {
 												const sc = STATUS_COLORS[j.status];
+												const jcat = categories.find((c) => c.id === j.categoryId);
 												return (
 													<div
 														key={j.id}
-														className={`rounded px-1.5 py-0.5 text-[10px] mb-0.5 truncate cursor-pointer hover:opacity-90 ${sc.bg} ${sc.text}`}
+														className={`rounded px-1.5 py-0.5 text-[10px] mb-0.5 cursor-pointer hover:opacity-90 ${sc.bg} ${sc.text} flex items-center justify-between gap-1`}
 														style={{ borderLeft: `2px solid ${uc}` }}
 														onClick={(e) => {
 															e.stopPropagation();
 															setJobPopover({ jobId: j.id, rect: e.currentTarget.getBoundingClientRect() });
 														}}
 													>
-														{j.customer}
+														<span className="truncate">{j.customer}</span>
+														{jcat && <CategoryIcon name={jcat.icon} size={8} color={jcat.color} />}
 													</div>
 												);
 											})}
@@ -1990,7 +1999,7 @@ export function CalendarPage() {
 	function TimeGridView({ days }: { days: { date: Date; ds: string }[] }) {
 		return (
 			<>
-				<div className="flex flex-col border border-neutral-800 rounded-xl overflow-hidden">
+				<div className="w-full flex flex-col border border-neutral-800 rounded-xl overflow-hidden">
 					{/* Day headers */}
 					<div
 						className="flex flex-shrink-0 border-b border-neutral-800 bg-neutral-900/80 sticky top-0 z-10"
@@ -2170,8 +2179,8 @@ export function CalendarPage() {
 						ref={gridScrollRef}
 						className="overflow-y-auto"
 						style={{
-							maxHeight: "calc(100vh - 340px)",
-							minHeight: 400,
+							maxHeight: "calc(100svh - 280px)",
+							minHeight: 300,
 						}}
 					>
 						<div
@@ -2251,7 +2260,7 @@ export function CalendarPage() {
 
 	return (
 		<>
-			<div className="p-5 md:p-7 flex flex-col gap-4 max-w-[1400px]">
+			<div className="p-5 md:p-7 flex flex-col gap-4 max-w-[1400px] w-full overflow-x-hidden">
 				{/* Header */}
 				<div className="flex items-start justify-between gap-4 flex-wrap">
 					<div>
@@ -2568,6 +2577,7 @@ export function CalendarPage() {
 				{/* Unscheduled jobs panel */}
 				<UnscheduledPanel
 					jobs={isMaster ? jobs : myJobs}
+					categories={categories}
 					onSchedule={rescheduleJob}
 					accentColor={business.accentColor}
 					workDayStart={business.workDayStart}
