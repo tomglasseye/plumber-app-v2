@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find c:UserssmkglDocumentsLocalSitesplumber-app-v2 -name tailwind.config.* -o -name vite.config.*)",
+      "Bash(npx vite:*)"
+    ]
+  }
+}

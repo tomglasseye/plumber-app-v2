@@ -11,6 +11,7 @@ import type {
 	RepeatFrequency,
 } from "../types";
 import { UnscheduledPanel } from "../components/UnscheduledPanel";
+import { useCalendarShortcuts } from "../hooks/useCalendarShortcuts";
 
 // ── Time helpers ─────────────────────────────────────────────────────────────
 
@@ -628,6 +629,7 @@ interface DayColumnProps {
 	workDayStart?: number;
 	workDayEnd?: number;
 	onEditHoliday?: (h: Holiday) => void;
+	dragGhostJob?: Job | null;
 }
 
 function DayColumn({
@@ -647,6 +649,7 @@ function DayColumn({
 	workDayStart = 7,
 	workDayEnd = 17,
 	onEditHoliday,
+	dragGhostJob,
 }: DayColumnProps) {
 	const { users, categories, isMaster } = useApp();
 	const colRef = useRef<HTMLDivElement>(null);
@@ -738,12 +741,28 @@ function DayColumn({
 				)}
 
 			{/* Drag-over ghost */}
-			{isDragOver && dragOverSlot && (
-				<div
-					style={{ top: timeToY(dragOverSlot.time) }}
-					className="absolute left-1 right-1 h-16 rounded bg-orange-500/10 border border-dashed border-orange-500/40 pointer-events-none"
-				/>
-			)}
+			{isDragOver && dragOverSlot && (() => {
+				const dur = dragGhostJob?.startTime && dragGhostJob?.endTime
+					? timeToMinutes(dragGhostJob.endTime) - timeToMinutes(dragGhostJob.startTime)
+					: 60;
+				const h = Math.max(32, (dur / 60) * HOUR_HEIGHT);
+				const sc = dragGhostJob ? STATUS_COLORS[dragGhostJob.status] : null;
+				return (
+					<div
+						style={{ top: timeToY(dragOverSlot.time), height: h }}
+						className={`absolute left-1 right-1 rounded border border-dashed pointer-events-none overflow-hidden ${sc ? `${sc.bg} border-orange-500/40` : "bg-orange-500/10 border-orange-500/40"}`}
+					>
+						{dragGhostJob && (
+							<p className={`text-[10px] font-medium px-2 pt-1 truncate opacity-60 ${sc?.text ?? "text-neutral-400"}`}>
+								{dragGhostJob.customer}
+							</p>
+						)}
+						<p className="text-[9px] font-medium text-neutral-400 px-2 pt-0.5">
+							{formatTime(dragOverSlot.time)} - {formatTime(minutesToTime(timeToMinutes(dragOverSlot.time) + dur))}
+						</p>
+					</div>
+				);
+			})()}
 
 			{/* Working hours shading */}
 			{workDayStart > HOUR_START && (
@@ -849,11 +868,11 @@ function DayColumn({
 							borderLeft: `3px solid ${uc}`,
 							zIndex: isResizing ? 20 : isDraggingThis ? 20 : 1,
 						}}
-						className={`rounded overflow-hidden select-none ${sc.bg} ${conflict ? "ring-2 ring-red-500" : ""} ${isResizing || isDraggingThis ? "opacity-60 shadow-xl ring-1 ring-white/20" : "hover:opacity-90 transition-opacity cursor-grab"}`}
+						className={`rounded overflow-hidden select-none ${sc.bg} ${conflict ? "ring-2 ring-red-500" : ""} ${isDraggingThis ? "opacity-40 scale-[0.97] shadow-xl ring-1 ring-white/20 transition-all duration-150" : isResizing ? "opacity-60 shadow-xl ring-1 ring-white/20" : "hover:opacity-90 transition-opacity cursor-grab"}`}
 					>
 						{/* ── Top resize handle (start time) ── */}
 						<div
-							className="absolute top-0 left-0 right-0 h-2 cursor-n-resize hover:bg-white/10 transition-colors"
+							className="resize-handle absolute top-0 left-0 right-0 h-2.5 cursor-n-resize hover:bg-white/20 transition-colors flex items-center justify-center"
 							style={{ zIndex: 10 }}
 							onPointerDown={(e) => {
 								e.stopPropagation();
@@ -923,7 +942,13 @@ function DayColumn({
 								});
 								resizeRef.current = null;
 							}}
-						/>
+						>
+							<div className="flex gap-0.5 opacity-0 hover:opacity-40 transition-opacity pointer-events-none">
+								<div className="w-0.5 h-0.5 rounded-full bg-white" />
+								<div className="w-0.5 h-0.5 rounded-full bg-white" />
+								<div className="w-0.5 h-0.5 rounded-full bg-white" />
+							</div>
+						</div>
 
 						{/* ── Job content ── */}
 						{conflict && (
@@ -967,9 +992,26 @@ function DayColumn({
 							)}
 						</div>
 
+						{/* ── Resize time tooltip ── */}
+						{isResizing && liveOverrides[job.id] && (
+							<div
+								className="absolute left-1/2 -translate-x-1/2 bg-neutral-900 border border-neutral-600 text-[10px] text-white font-medium px-2 py-0.5 rounded shadow-lg whitespace-nowrap pointer-events-none"
+								style={{
+									zIndex: 25,
+									...(resizeRef.current?.edge === "start"
+										? { top: -24 }
+										: { bottom: -24 }),
+								}}
+							>
+								{formatTime(liveOverrides[job.id].startTime ?? effStart)}
+								{" - "}
+								{formatTime(liveOverrides[job.id].endTime ?? effEnd)}
+							</div>
+						)}
+
 						{/* ── Bottom resize handle (end time) ── */}
 						<div
-							className="absolute bottom-0 left-0 right-0 h-3 cursor-s-resize flex items-end justify-center pb-0.5 hover:bg-white/10 transition-colors"
+							className="resize-handle absolute bottom-0 left-0 right-0 h-3.5 cursor-s-resize flex items-end justify-center pb-0.5 hover:bg-white/20 transition-colors"
 							style={{ zIndex: 10 }}
 							onPointerDown={(e) => {
 								e.stopPropagation();
@@ -1102,6 +1144,34 @@ export function CalendarPage() {
 	const [panelOpen, setPanelOpen] = useState(false);
 	const [panelPrefill, setPanelPrefill] = useState<Partial<NewJobForm>>({});
 
+	// Undo toast state
+	const [undoAction, setUndoAction] = useState<{
+		jobId: string;
+		description: string;
+		prevDate: string;
+		prevStartTime?: string;
+		prevEndTime?: string;
+		prevAssignedTo?: string;
+	} | null>(null);
+	const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	function showUndoToast(action: NonNullable<typeof undoAction>) {
+		if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+		setUndoAction(action);
+		undoTimerRef.current = setTimeout(() => setUndoAction(null), 5000);
+	}
+	function handleUndo() {
+		if (!undoAction) return;
+		rescheduleJob(
+			undoAction.jobId,
+			undoAction.prevDate,
+			undoAction.prevStartTime,
+			undoAction.prevEndTime,
+			undoAction.prevAssignedTo,
+		);
+		if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+		setUndoAction(null);
+	}
+
 	// Drag state — lives in CalendarPage so it survives TimeGridView re-mounts
 	const [dragOverSlot, setDragOverSlot] = useState<{
 		ds: string;
@@ -1118,6 +1188,7 @@ export function CalendarPage() {
 		startX: number;
 		startY: number;
 		hasDragged: boolean;
+		startTime: number;
 		colRects: Array<{
 			ds: string;
 			engineerId?: string;
@@ -1127,6 +1198,7 @@ export function CalendarPage() {
 		}>;
 	} | null>(null);
 	const gridBodyRef = useRef<HTMLDivElement>(null);
+	const dragAutoScrollRef = useRef<{ rafId: number; cursorY: number } | null>(null);
 	// Current time for the time indicator
 	const [nowTime, setNowTime] = useState<string>(() => {
 		const n = new Date();
@@ -1186,6 +1258,7 @@ export function CalendarPage() {
 			startY: clientY,
 			hasDragged: false,
 			colRects,
+			startTime: Date.now(),
 		};
 
 		function onMove(e: MouseEvent) {
@@ -1196,7 +1269,7 @@ export function CalendarPage() {
 			}
 			const dx = Math.abs(e.clientX - pd.startX);
 			const dy = Math.abs(e.clientY - pd.startY);
-			if (dx < 5 && dy < 5) return;
+			if (dx < 8 && dy < 8) return;
 			if (!pd.hasDragged) {
 				pd.hasDragged = true;
 				const job = jobsRef.current.find((j) => j.id === pd.jobId);
@@ -1219,6 +1292,38 @@ export function CalendarPage() {
 				});
 			} else {
 				setDragOverSlot(null);
+			}
+
+			// Auto-scroll when dragging near edges
+			if (pd.hasDragged && gridScrollRef.current) {
+				const rect = gridScrollRef.current.getBoundingClientRect();
+				const EDGE = 60;
+				const distTop = e.clientY - rect.top;
+				const distBottom = rect.bottom - e.clientY;
+				if (distTop < EDGE || distBottom < EDGE) {
+					dragAutoScrollRef.current = { rafId: 0, cursorY: e.clientY };
+					const scrollLoop = () => {
+						const el = gridScrollRef.current;
+						const das = dragAutoScrollRef.current;
+						if (!el || !das) return;
+						const r = el.getBoundingClientRect();
+						const dTop = das.cursorY - r.top;
+						const dBot = r.bottom - das.cursorY;
+						if (dTop < EDGE) {
+							el.scrollTop -= Math.max(1, ((EDGE - dTop) / EDGE) * 8);
+						} else if (dBot < EDGE) {
+							el.scrollTop += Math.max(1, ((EDGE - dBot) / EDGE) * 8);
+						} else {
+							dragAutoScrollRef.current = null;
+							return;
+						}
+						das.rafId = requestAnimationFrame(scrollLoop);
+					};
+					dragAutoScrollRef.current.rafId = requestAnimationFrame(scrollLoop);
+				} else if (dragAutoScrollRef.current) {
+					cancelAnimationFrame(dragAutoScrollRef.current.rafId);
+					dragAutoScrollRef.current = null;
+				}
 			}
 		}
 
@@ -1246,6 +1351,16 @@ export function CalendarPage() {
 						targetCol.engineerId !== job?.assignedTo
 							? targetCol.engineerId
 							: undefined;
+					if (job) {
+						showUndoToast({
+							jobId: pd.jobId,
+							description: `Job moved to ${formatTime(time)}`,
+							prevDate: job.date,
+							prevStartTime: job.startTime,
+							prevEndTime: job.endTime,
+							prevAssignedTo: job.assignedTo,
+						});
+					}
 					rescheduleJob(
 						pd.jobId,
 						targetCol.ds,
@@ -1263,6 +1378,10 @@ export function CalendarPage() {
 		function cleanup() {
 			document.removeEventListener("mousemove", onMove);
 			document.removeEventListener("mouseup", onUp);
+			if (dragAutoScrollRef.current) {
+				cancelAnimationFrame(dragAutoScrollRef.current.rafId);
+				dragAutoScrollRef.current = null;
+			}
 		}
 
 		document.addEventListener("mousemove", onMove);
@@ -1393,9 +1512,26 @@ export function CalendarPage() {
 	const gridScrollRef = useRef<HTMLDivElement>(null);
 	useEffect(() => {
 		if (gridScrollRef.current && (view === "week" || view === "day")) {
-			gridScrollRef.current.scrollTop = (8 - HOUR_START) * HOUR_HEIGHT;
+			const now = new Date();
+			const currentMins = now.getHours() * 60 + now.getMinutes();
+			const scrollTarget = ((currentMins - HOUR_START * 60) / 60) * HOUR_HEIGHT;
+			const viewH = gridScrollRef.current.clientHeight;
+			gridScrollRef.current.scrollTop = Math.max(0, scrollTarget - viewH / 3);
 		}
 	}, [view]);
+
+	const shortcutHandlers = useMemo(() => ({
+		goToday: () => setCalDate(new Date()),
+		setView: setViewPersisted,
+		prevPeriod,
+		nextPeriod,
+		openNewJob: () => openAddPanel({ date: TODAY }),
+		closeOverlay: () => {
+			if (jobPopover) setJobPopover(null);
+			else if (panelOpen) closePanel();
+		},
+	}), [jobPopover, panelOpen]);
+	useCalendarShortcuts(shortcutHandlers);
 
 	function preserveScroll(fn: () => void) {
 		const saved = gridScrollRef.current?.scrollTop ?? 0;
@@ -2226,7 +2362,20 @@ export function CalendarPage() {
 									onJobClick={(id, rect) =>
 										setJobPopover({ jobId: id, rect })
 									}
-									onResizeJob={resizeJobTime}
+									onResizeJob={(jobId, startTime, endTime) => {
+										const job = jobs.find((j) => j.id === jobId);
+										if (job) {
+											showUndoToast({
+												jobId,
+												description: `Job resized to ${formatTime(startTime)} - ${formatTime(endTime)}`,
+												prevDate: job.date,
+												prevStartTime: job.startTime,
+												prevEndTime: job.endTime,
+												prevAssignedTo: job.assignedTo,
+											});
+										}
+										resizeJobTime(jobId, startTime, endTime);
+									}}
 									onJobPtrDown={onJobPtrDown}
 									dragOverSlot={dragOverSlot}
 									ptrDragJobId={ptrGhost?.job.id ?? null}
@@ -2240,6 +2389,7 @@ export function CalendarPage() {
 									workDayStart={business.workDayStart}
 									workDayEnd={business.workDayEnd}
 								onEditHoliday={openEditHoliday}
+									dragGhostJob={ptrGhost?.job ?? null}
 								/>
 							))}
 						</div>
@@ -2614,9 +2764,11 @@ export function CalendarPage() {
 					)}
 
 				{/* Calendar views */}
-				{view === "month" && <MonthView />}
-				{view === "week" && <TimeGridView days={weekDays} />}
-				{view === "day" && <DayView />}
+				<div key={`${view}-${calDate.toISOString().slice(0, 10)}`} className="cal-view-enter">
+					{view === "month" && <MonthView />}
+					{view === "week" && <TimeGridView days={weekDays} />}
+					{view === "day" && <DayView />}
+				</div>
 				
 				{/* Holiday / Leave modal */}
 				{holidayModal && isMaster && (
@@ -2829,13 +2981,17 @@ export function CalendarPage() {
 					const uc = userColor(ptrGhost.job.assignedTo, users);
 					return (
 						<div
-							className={`fixed pointer-events-none z-[9999] rounded shadow-2xl ${sc.bg} opacity-85`}
+							className={`fixed pointer-events-none z-[9999] rounded ${sc.bg}`}
 							style={{
 								left: ptrGhost.x + 8,
 								top: ptrGhost.y + 8,
 								width: 140,
 								minHeight: 44,
 								borderLeft: `3px solid ${uc}`,
+								transform: "scale(1.04) rotate(1deg)",
+								boxShadow: "0 12px 36px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)",
+								opacity: 0.9,
+								transition: "left 60ms ease-out, top 60ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out",
 							}}
 						>
 							<p
@@ -2843,14 +2999,49 @@ export function CalendarPage() {
 							>
 								{ptrGhost.job.customer}
 							</p>
-							{ptrGhost.job.startTime && (
+							{dragOverSlot ? (
+								<p className="text-[9px] font-medium text-white bg-neutral-800 border border-neutral-600 rounded px-1.5 py-0.5 mx-1.5 mb-1 whitespace-nowrap w-fit">
+									{formatTime(dragOverSlot.time)}
+									{" - "}
+									{formatTime(
+										minutesToTime(
+											timeToMinutes(dragOverSlot.time) +
+												(ptrGhost.job.startTime && ptrGhost.job.endTime
+													? timeToMinutes(ptrGhost.job.endTime) - timeToMinutes(ptrGhost.job.startTime)
+													: 60),
+										),
+									)}
+								</p>
+							) : ptrGhost.job.startTime ? (
 								<p className="text-[9px] text-neutral-400 px-2 pb-1">
 									{formatTime(ptrGhost.job.startTime)}
 								</p>
-							)}
+							) : null}
 						</div>
 					);
 				})()}
+			{/* Undo toast */}
+			{undoAction && (
+				<div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9998] bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 shadow-2xl flex items-center gap-3 text-sm text-neutral-200">
+					<span>{undoAction.description}</span>
+					<button
+						onClick={handleUndo}
+						className="text-orange-400 font-medium hover:text-orange-300 transition-colors whitespace-nowrap"
+					>
+						Undo
+					</button>
+					<button
+						onClick={() => {
+							if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+							setUndoAction(null);
+						}}
+						className="text-neutral-500 hover:text-neutral-300 transition-colors ml-1"
+					>
+						✕
+					</button>
+				</div>
+			)}
+
 			{/* Job Popover */}
 			{jobPopover && (
 				<JobPopover
