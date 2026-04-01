@@ -2,7 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
 import { CategoryIcon } from "./AccountPage";
-import { HOLIDAY_TYPE_CONFIG, PRIORITIES, STATUS_COLORS, TODAY, bankHolidayMap, userColor } from "../data";
+import {
+	HOLIDAY_TYPE_CONFIG,
+	PRIORITIES,
+	STATUS_COLORS,
+	TODAY,
+	bankHolidayMap,
+	userColor,
+} from "../data";
 import type {
 	Holiday,
 	HolidayType,
@@ -621,7 +628,10 @@ function DayColumn({
 	// Week-mode overflow: group overlapping jobs into clusters
 	const WEEK_MAX_COLS = 3;
 	const overflowCount = weekMode
-		? Math.max(0, Math.max(...allTimedJobs.map((j) => j.cols), 0) - WEEK_MAX_COLS)
+		? Math.max(
+				0,
+				Math.max(...allTimedJobs.map((j) => j.cols), 0) - WEEK_MAX_COLS,
+			)
 		: 0;
 	const hasOverflow = weekMode && overflowCount > 0;
 
@@ -631,14 +641,24 @@ function DayColumn({
 				.filter((j) => j.col < WEEK_MAX_COLS)
 				.map((j) => ({ ...j, cols: Math.min(j.cols, WEEK_MAX_COLS) }))
 		: allTimedJobs;
-	const hiddenJobCount = hasOverflow ? allTimedJobs.length - timedJobs.length : 0;
+	const hiddenJobCount = hasOverflow
+		? allTimedJobs.length - timedJobs.length
+		: 0;
 	const hiddenEngCount = hasOverflow
-		? new Set(allTimedJobs.filter((j) => j.col >= WEEK_MAX_COLS).map((j) => j.job.assignedTo)).size
+		? new Set(
+				allTimedJobs
+					.filter((j) => j.col >= WEEK_MAX_COLS)
+					.map((j) => j.job.assignedTo),
+			).size
 		: 0;
 
 	// Find the vertical range of the overflow for badge positioning
 	const overflowTop = hasOverflow
-		? Math.min(...allTimedJobs.filter((j) => j.col >= WEEK_MAX_COLS).map((j) => j.top))
+		? Math.min(
+				...allTimedJobs
+					.filter((j) => j.col >= WEEK_MAX_COLS)
+					.map((j) => j.top),
+			)
 		: 0;
 	const isDragOver = dragOverSlot?.ds === ds;
 
@@ -713,39 +733,80 @@ function DayColumn({
 				)}
 
 			{/* Drag-over ghost */}
-			{isDragOver && dragOverSlot && (() => {
-				const dur = dragGhostJob?.startTime && dragGhostJob?.endTime
-					? timeToMinutes(dragGhostJob.endTime) - timeToMinutes(dragGhostJob.startTime)
-					: 60;
-				const h = Math.max(32, (dur / 60) * HOUR_HEIGHT);
-				const sc = dragGhostJob ? STATUS_COLORS[dragGhostJob.status] : null;
-				return (
-					<div
-						style={{ top: timeToY(dragOverSlot.time), height: h }}
-						className={`absolute left-1 right-1 rounded border border-dashed pointer-events-none overflow-hidden ${sc ? `${sc.bg} border-orange-500/40` : "bg-orange-500/10 border-orange-500/40"}`}
-					>
-						{dragGhostJob && (
-							<p className={`text-[10px] font-medium px-2 pt-1 truncate opacity-60 ${sc?.text ?? "text-neutral-400"}`}>
-								{dragGhostJob.customer}
+			{isDragOver &&
+				dragOverSlot &&
+				(() => {
+					const dur =
+						dragGhostJob?.startTime && dragGhostJob?.endTime
+							? timeToMinutes(dragGhostJob.endTime) -
+								timeToMinutes(dragGhostJob.startTime)
+							: 60;
+					const h = Math.max(32, (dur / 60) * HOUR_HEIGHT);
+					const sc = dragGhostJob
+						? STATUS_COLORS[dragGhostJob.status]
+						: null;
+					return (
+						<div
+							style={{
+								top: timeToY(dragOverSlot.time),
+								height: h,
+							}}
+							className={`absolute left-1 right-1 rounded border border-dashed pointer-events-none overflow-hidden ${sc ? `${sc.bg} border-orange-500/40` : "bg-orange-500/10 border-orange-500/40"}`}
+						>
+							{dragGhostJob && (
+								<p
+									className={`text-[10px] font-medium px-2 pt-1 truncate opacity-60 ${sc?.text ?? "text-neutral-400"}`}
+								>
+									{dragGhostJob.customer}
+								</p>
+							)}
+							<p className="text-[9px] font-medium text-neutral-400 px-2 pt-0.5">
+								{formatTime(dragOverSlot.time)} -{" "}
+								{formatTime(
+									minutesToTime(
+										timeToMinutes(dragOverSlot.time) + dur,
+									),
+								)}
 							</p>
-						)}
-						<p className="text-[9px] font-medium text-neutral-400 px-2 pt-0.5">
-							{formatTime(dragOverSlot.time)} - {formatTime(minutesToTime(timeToMinutes(dragOverSlot.time) + dur))}
-						</p>
-					</div>
-				);
-			})()}
+						</div>
+					);
+				})()}
 
 			{/* Working hours shading */}
 			{workDayStart > HOUR_START && (
 				<div
-					style={{ position: "absolute", top: 0, left: 0, right: 0, height: timeToY(`${String(workDayStart).padStart(2,"0")}:00`), zIndex: 0, pointerEvents: "none" }}
+					style={{
+						position: "absolute",
+						top: 0,
+						left: 0,
+						right: 0,
+						height: timeToY(
+							`${String(workDayStart).padStart(2, "0")}:00`,
+						),
+						zIndex: 0,
+						pointerEvents: "none",
+					}}
 					className="bg-neutral-950/50"
 				/>
 			)}
 			{workDayEnd < HOUR_END && (
 				<div
-					style={{ position: "absolute", top: timeToY(`${String(workDayEnd).padStart(2,"0")}:00`), left: 0, right: 0, bottom: 0, height: TOTAL_HEIGHT - timeToY(`${String(workDayEnd).padStart(2,"0")}:00`), zIndex: 0, pointerEvents: "none" }}
+					style={{
+						position: "absolute",
+						top: timeToY(
+							`${String(workDayEnd).padStart(2, "0")}:00`,
+						),
+						left: 0,
+						right: 0,
+						bottom: 0,
+						height:
+							TOTAL_HEIGHT -
+							timeToY(
+								`${String(workDayEnd).padStart(2, "0")}:00`,
+							),
+						zIndex: 0,
+						pointerEvents: "none",
+					}}
 					className="bg-neutral-950/50"
 				/>
 			)}
@@ -764,7 +825,10 @@ function DayColumn({
 				return (
 					<div
 						key={h.id}
-						onClick={(e) => { e.stopPropagation(); if (isMaster && onEditHoliday) onEditHoliday(h); }}
+						onClick={(e) => {
+							e.stopPropagation();
+							if (isMaster && onEditHoliday) onEditHoliday(h);
+						}}
 						style={{
 							position: "absolute",
 							top: blockTop,
@@ -773,7 +837,13 @@ function DayColumn({
 							width: w + "%",
 							zIndex: 0,
 						}}
-						className={cfg.bg + " opacity-25" + (isMaster ? " cursor-pointer hover:opacity-40 transition-opacity" : " pointer-events-none")}
+						className={
+							cfg.bg +
+							" opacity-25" +
+							(isMaster
+								? " cursor-pointer hover:opacity-40 transition-opacity"
+								: " pointer-events-none")
+						}
 					>
 						<div className="px-1 pt-1 flex items-center gap-0.5">
 							<span className="text-[9px] opacity-70">
@@ -975,9 +1045,13 @@ function DayColumn({
 										: { bottom: -24 }),
 								}}
 							>
-								{formatTime(liveOverrides[job.id].startTime ?? effStart)}
+								{formatTime(
+									liveOverrides[job.id].startTime ?? effStart,
+								)}
 								{" - "}
-								{formatTime(liveOverrides[job.id].endTime ?? effEnd)}
+								{formatTime(
+									liveOverrides[job.id].endTime ?? effEnd,
+								)}
 							</div>
 						)}
 
@@ -1194,7 +1268,9 @@ export function CalendarPage() {
 		}>;
 	} | null>(null);
 	const gridBodyRef = useRef<HTMLDivElement>(null);
-	const dragAutoScrollRef = useRef<{ rafId: number; cursorY: number } | null>(null);
+	const dragAutoScrollRef = useRef<{ rafId: number; cursorY: number } | null>(
+		null,
+	);
 	// Current time for the time indicator
 	const [nowTime, setNowTime] = useState<string>(() => {
 		const n = new Date();
@@ -1306,7 +1382,10 @@ export function CalendarPage() {
 				const distTop = e.clientY - rect.top;
 				const distBottom = rect.bottom - e.clientY;
 				if (distTop < EDGE || distBottom < EDGE) {
-					dragAutoScrollRef.current = { rafId: 0, cursorY: e.clientY };
+					dragAutoScrollRef.current = {
+						rafId: 0,
+						cursorY: e.clientY,
+					};
 					const scrollLoop = () => {
 						const el = gridScrollRef.current;
 						const das = dragAutoScrollRef.current;
@@ -1315,16 +1394,23 @@ export function CalendarPage() {
 						const dTop = das.cursorY - r.top;
 						const dBot = r.bottom - das.cursorY;
 						if (dTop < EDGE) {
-							el.scrollTop -= Math.max(1, ((EDGE - dTop) / EDGE) * 8);
+							el.scrollTop -= Math.max(
+								1,
+								((EDGE - dTop) / EDGE) * 8,
+							);
 						} else if (dBot < EDGE) {
-							el.scrollTop += Math.max(1, ((EDGE - dBot) / EDGE) * 8);
+							el.scrollTop += Math.max(
+								1,
+								((EDGE - dBot) / EDGE) * 8,
+							);
 						} else {
 							dragAutoScrollRef.current = null;
 							return;
 						}
 						das.rafId = requestAnimationFrame(scrollLoop);
 					};
-					dragAutoScrollRef.current.rafId = requestAnimationFrame(scrollLoop);
+					dragAutoScrollRef.current.rafId =
+						requestAnimationFrame(scrollLoop);
 				} else if (dragAutoScrollRef.current) {
 					cancelAnimationFrame(dragAutoScrollRef.current.rafId);
 					dragAutoScrollRef.current = null;
@@ -1468,20 +1554,22 @@ export function CalendarPage() {
 
 	const holidaysByDate = useMemo(() => {
 		const m: Record<string, typeof holidays> = {};
-		holidays.filter((h) => h.status === "approved").forEach((h) => {
-			// Expand multi-day holidays across all dates in the range
-			const start = new Date(h.date);
-			const end = h.endDate ? new Date(h.endDate) : start;
-			for (
-				let d = new Date(start);
-				d <= end;
-				d.setDate(d.getDate() + 1)
-			) {
-				const ds = d.toISOString().slice(0, 10);
-				if (!m[ds]) m[ds] = [];
-				m[ds].push(h);
-			}
-		});
+		holidays
+			.filter((h) => h.status === "approved")
+			.forEach((h) => {
+				// Expand multi-day holidays across all dates in the range
+				const start = new Date(h.date);
+				const end = h.endDate ? new Date(h.endDate) : start;
+				for (
+					let d = new Date(start);
+					d <= end;
+					d.setDate(d.getDate() + 1)
+				) {
+					const ds = d.toISOString().slice(0, 10);
+					if (!m[ds]) m[ds] = [];
+					m[ds].push(h);
+				}
+			});
 		return m;
 	}, [holidays]);
 
@@ -1544,23 +1632,30 @@ export function CalendarPage() {
 		if (gridScrollRef.current && (view === "week" || view === "day")) {
 			const now = new Date();
 			const currentMins = now.getHours() * 60 + now.getMinutes();
-			const scrollTarget = ((currentMins - HOUR_START * 60) / 60) * HOUR_HEIGHT;
+			const scrollTarget =
+				((currentMins - HOUR_START * 60) / 60) * HOUR_HEIGHT;
 			const viewH = gridScrollRef.current.clientHeight;
-			gridScrollRef.current.scrollTop = Math.max(0, scrollTarget - viewH / 3);
+			gridScrollRef.current.scrollTop = Math.max(
+				0,
+				scrollTarget - viewH / 3,
+			);
 		}
 	}, [view]);
 
-	const shortcutHandlers = useMemo(() => ({
-		goToday: () => setCalDate(new Date()),
-		setView: setViewPersisted,
-		prevPeriod,
-		nextPeriod,
-		openNewJob: () => openAddPanel({ date: TODAY }),
-		closeOverlay: () => {
-			if (jobPopover) setJobPopover(null);
-			else if (panelOpen) closePanel();
-		},
-	}), [jobPopover, panelOpen]);
+	const shortcutHandlers = useMemo(
+		() => ({
+			goToday: () => setCalDate(new Date()),
+			setView: setViewPersisted,
+			prevPeriod,
+			nextPeriod,
+			openNewJob: () => openAddPanel({ date: TODAY }),
+			closeOverlay: () => {
+				if (jobPopover) setJobPopover(null);
+				else if (panelOpen) closePanel();
+			},
+		}),
+		[jobPopover, panelOpen],
+	);
 	useCalendarShortcuts(shortcutHandlers);
 
 	function preserveScroll(fn: () => void) {
@@ -1594,6 +1689,7 @@ export function CalendarPage() {
 			halfDay: holidayHalf,
 			label: holidayLabel,
 			type: holidayType,
+			status: "pending" as const,
 		};
 		if (holidayModal.editId) {
 			updateHoliday(holidayModal.editId, payload);
@@ -1644,7 +1740,10 @@ export function CalendarPage() {
 			top = Math.max(60, Math.min(rect.top, window.innerHeight - 440));
 		} else {
 			const spaceRight = window.innerWidth - rect.right;
-			left = spaceRight >= POPOVER_W + 16 ? rect.right + 8 : Math.max(8, rect.left - POPOVER_W - 8);
+			left =
+				spaceRight >= POPOVER_W + 16
+					? rect.right + 8
+					: Math.max(8, rect.left - POPOVER_W - 8);
 			top = Math.min(rect.top, window.innerHeight - 400);
 		}
 		return (
@@ -1719,15 +1818,27 @@ export function CalendarPage() {
 						)}
 					</div>
 					<div className="px-4 pb-2">
-						<p className="text-[9px] uppercase tracking-wider text-neutral-600 mb-1.5">Status</p>
+						<p className="text-[9px] uppercase tracking-wider text-neutral-600 mb-1.5">
+							Status
+						</p>
 						<div className="flex flex-wrap gap-1">
-							{(["Scheduled","En Route","On Site","Completed","Invoiced"] as const).map((s) => {
+							{(
+								[
+									"Scheduled",
+									"En Route",
+									"On Site",
+									"Completed",
+									"Invoiced",
+								] as const
+							).map((s) => {
 								const isCurrent = job.status === s;
 								const sc = STATUS_COLORS[s];
 								return (
 									<button
 										key={s}
-										onClick={() => { changeStatus(job.id, s); }}
+										onClick={() => {
+											changeStatus(job.id, s);
+										}}
 										className={`rounded px-2 py-1 text-[10px] font-medium cursor-pointer transition-opacity hover:opacity-80 ${sc.bg} ${sc.text} ${isCurrent ? "ring-1 ring-white/40" : "opacity-60"}`}
 									>
 										{s}
@@ -1820,7 +1931,10 @@ export function CalendarPage() {
 								)}
 							</div>
 							{bankHol && (
-								<p className="text-[9px] text-emerald-400/80 truncate mb-0.5" title={bankHol}>
+								<p
+									className="text-[9px] text-emerald-400/80 truncate mb-0.5"
+									title={bankHol}
+								>
 									🏦 {bankHol}
 								</p>
 							)}
@@ -1873,7 +1987,16 @@ export function CalendarPage() {
 								)}
 								{cell.dayJobs.length > 0 && (
 									<div className="mt-0.5 text-[9px] text-neutral-600">
-										{cell.dayJobs.length} job{cell.dayJobs.length !== 1 ? "s" : ""}·{new Set(cell.dayJobs.map((j) => j.assignedTo)).size} eng
+										{cell.dayJobs.length} job
+										{cell.dayJobs.length !== 1 ? "s" : ""}·
+										{
+											new Set(
+												cell.dayJobs.map(
+													(j) => j.assignedTo,
+												),
+											).size
+										}{" "}
+										eng
 									</div>
 								)}
 							</div>
@@ -1883,7 +2006,6 @@ export function CalendarPage() {
 			</div>
 		);
 	}
-
 
 	// ── Day view (per-engineer columns) ────────────────────────────────
 
@@ -1900,7 +2022,7 @@ export function CalendarPage() {
 							...dayJobs.map((j) => j.assignedTo),
 							...dayHols.map((h) => h.profileId),
 						]),
-				  ];
+					];
 		const showList =
 			shownIds.length > 0
 				? engineers.filter((e) => shownIds.includes(e.id))
@@ -1915,255 +2037,508 @@ export function CalendarPage() {
 
 		return (
 			<>
-			{dayBankHol && (
-				<div className="flex items-center gap-2 rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-3 py-2 mb-3">
-					<span className="text-base">🏦</span>
-					<span className="text-sm text-emerald-400">{dayBankHol}</span>
-					<span className="text-xs text-emerald-600">— UK Bank Holiday</span>
-				</div>
-			)}
-			{/* Single scroll container handles both axes — no nested overflow-hidden */}
-			<div
-				ref={gridScrollRef}
-				className="w-full border border-neutral-800 rounded-xl overflow-auto"
-				style={{ maxHeight: "calc(100svh - 220px)", minHeight: 300 }}
-			>
-				{/* Min-width wrapper forces horizontal scroll when needed */}
-				<div style={{ minWidth: totalW }}>
-					{/* Engineer name headers — sticky top */}
-					<div
-						className="flex sticky top-0 z-10 border-b border-neutral-800"
-						style={{ backdropFilter: "blur(8px)", background: "rgba(10,10,10,0.92)" }}
-					>
-						{/* Top-left corner — sticky left so it stays over time gutter */}
-						<div
-							style={{ width: GUTTER_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 6, background: "#0a0a0a" }}
-							className="border-r border-neutral-800"
-						/>
-						{showList.map((eng) => {
-							const uc = userColor(eng.id, users);
-							const engHols = dayHols.filter((h) => h.profileId === eng.id);
-							const engJobCount = dayJobs.filter((j) => j.assignedTo === eng.id).length;
-							const workMins = (business.workDayEnd - business.workDayStart) * 60;
-							const bookedMins = dayJobs
-								.filter((j) => j.assignedTo === eng.id && j.startTime && j.endTime)
-								.reduce((s, j) => s + timeToMinutes(j.endTime!) - timeToMinutes(j.startTime!), 0);
-							const pct = workMins > 0 ? Math.min(100, Math.round((bookedMins / workMins) * 100)) : 0;
-							const barColor = pct >= 90 ? "bg-red-500" : pct >= 60 ? "bg-amber-500" : "bg-green-500";
-							return (
-								<div
-									key={eng.id}
-									style={{ width: COL_W, flexShrink: 0, borderTop: `3px solid ${uc}` }}
-									className="border-l border-neutral-800 px-3 py-2"
-								>
-									<div className="flex items-center gap-2">
-										<div
-											className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
-											style={{ background: uc }}
-										>
-											{eng.name.charAt(0)}
-										</div>
-										<span className="text-sm font-medium text-neutral-200 truncate">{eng.name}</span>
-									</div>
-									<div className="mt-1 flex items-center gap-2 flex-wrap">
-										{engJobCount > 0 && (
-											<span className="text-[10px] text-neutral-500">
-												{engJobCount} job{engJobCount !== 1 ? "s" : ""}
-											</span>
-										)}
-										{pct > 0 && (
-											<div className="flex items-center gap-1">
-												<div className="w-12 h-1 rounded-full bg-neutral-700">
-													<div className={`h-1 rounded-full ${barColor}`} style={{ width: pct + "%" }} />
-												</div>
-												<span className="text-[9px] text-neutral-600">{Math.round((bookedMins / 60) * 10) / 10}h</span>
-											</div>
-										)}
-										{engHols.map((h) => (
-											<span key={h.id} className={`text-[10px] ${HOLIDAY_TYPE_CONFIG[h.type].text}`}>
-												{HOLIDAY_TYPE_CONFIG[h.type].emoji} {HOLIDAY_TYPE_CONFIG[h.type].label}{h.halfDay ? " (½day)" : ""}
-											</span>
-										))}
-									</div>
-								</div>
-							);
-						})}
+				{dayBankHol && (
+					<div className="flex items-center gap-2 rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-3 py-2 mb-3">
+						<span className="text-base">🏦</span>
+						<span className="text-sm text-emerald-400">
+							{dayBankHol}
+						</span>
+						<span className="text-xs text-emerald-600">
+							— UK Bank Holiday
+						</span>
 					</div>
-
-					{/* Grid body */}
-					<div
-						ref={gridBodyRef}
-						className="flex"
-						style={{ height: TOTAL_HEIGHT }}
-					>
-						{/* Time gutter — sticky left */}
+				)}
+				{/* Single scroll container handles both axes — no nested overflow-hidden */}
+				<div
+					ref={gridScrollRef}
+					className="w-full border border-neutral-800 rounded-xl overflow-auto"
+					style={{
+						maxHeight: "calc(100svh - 220px)",
+						minHeight: 300,
+					}}
+				>
+					{/* Min-width wrapper forces horizontal scroll when needed */}
+					<div style={{ minWidth: totalW }}>
+						{/* Engineer name headers — sticky top */}
 						<div
+							className="flex sticky top-0 z-10 border-b border-neutral-800"
 							style={{
-								width: GUTTER_W,
-								flexShrink: 0,
-								position: "sticky",
-								left: 0,
-								zIndex: 5,
-								background: "#0a0a0a",
-								height: TOTAL_HEIGHT,
+								backdropFilter: "blur(8px)",
+								background: "rgba(10,10,10,0.92)",
 							}}
-							className="border-r border-neutral-800 relative"
 						>
-							{HOURS.map((h, i) => (
-								<div
-									key={h}
-									style={{ position: "absolute", top: i * HOUR_HEIGHT - 8, right: 8 }}
-									className="text-[10px] text-neutral-600 select-none"
-								>
-									{formatHour(h)}
-								</div>
-							))}
-							{/* Current time indicator */}
-							{ds === TODAY && (
-								<div
-									style={{ position: "absolute", top: timeToY(nowTime), left: 0, right: 0, zIndex: 10 }}
-									className="flex items-center pointer-events-none"
-								>
-									<div className="w-2 h-2 rounded-full bg-orange-500 -ml-1 flex-shrink-0" />
-								</div>
-							)}
+							{/* Top-left corner — sticky left so it stays over time gutter */}
+							<div
+								style={{
+									width: GUTTER_W,
+									flexShrink: 0,
+									position: "sticky",
+									left: 0,
+									zIndex: 6,
+									background: "#0a0a0a",
+								}}
+								className="border-r border-neutral-800"
+							/>
+							{showList.map((eng) => {
+								const uc = userColor(eng.id, users);
+								const engHols = dayHols.filter(
+									(h) => h.profileId === eng.id,
+								);
+								const engJobCount = dayJobs.filter(
+									(j) => j.assignedTo === eng.id,
+								).length;
+								const workMins =
+									(business.workDayEnd -
+										business.workDayStart) *
+									60;
+								const bookedMins = dayJobs
+									.filter(
+										(j) =>
+											j.assignedTo === eng.id &&
+											j.startTime &&
+											j.endTime,
+									)
+									.reduce(
+										(s, j) =>
+											s +
+											timeToMinutes(j.endTime!) -
+											timeToMinutes(j.startTime!),
+										0,
+									);
+								const pct =
+									workMins > 0
+										? Math.min(
+												100,
+												Math.round(
+													(bookedMins / workMins) *
+														100,
+												),
+											)
+										: 0;
+								const barColor =
+									pct >= 90
+										? "bg-red-500"
+										: pct >= 60
+											? "bg-amber-500"
+											: "bg-green-500";
+								return (
+									<div
+										key={eng.id}
+										style={{
+											width: COL_W,
+											flexShrink: 0,
+											borderTop: `3px solid ${uc}`,
+										}}
+										className="border-l border-neutral-800 px-3 py-2"
+									>
+										<div className="flex items-center gap-2">
+											<div
+												className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
+												style={{ background: uc }}
+											>
+												{eng.name.charAt(0)}
+											</div>
+											<span className="text-sm font-medium text-neutral-200 truncate">
+												{eng.name}
+											</span>
+										</div>
+										<div className="mt-1 flex items-center gap-2 flex-wrap">
+											{engJobCount > 0 && (
+												<span className="text-[10px] text-neutral-500">
+													{engJobCount} job
+													{engJobCount !== 1
+														? "s"
+														: ""}
+												</span>
+											)}
+											{pct > 0 && (
+												<div className="flex items-center gap-1">
+													<div className="w-12 h-1 rounded-full bg-neutral-700">
+														<div
+															className={`h-1 rounded-full ${barColor}`}
+															style={{
+																width:
+																	pct + "%",
+															}}
+														/>
+													</div>
+													<span className="text-[9px] text-neutral-600">
+														{Math.round(
+															(bookedMins / 60) *
+																10,
+														) / 10}
+														h
+													</span>
+												</div>
+											)}
+											{engHols.map((h) => (
+												<span
+													key={h.id}
+													className={`text-[10px] ${HOLIDAY_TYPE_CONFIG[h.type].text}`}
+												>
+													{
+														HOLIDAY_TYPE_CONFIG[
+															h.type
+														].emoji
+													}{" "}
+													{
+														HOLIDAY_TYPE_CONFIG[
+															h.type
+														].label
+													}
+													{h.halfDay ? " (½day)" : ""}
+												</span>
+											))}
+										</div>
+									</div>
+								);
+							})}
 						</div>
 
-						{/* Per-engineer columns */}
-						{showList.map((eng) => {
-							const uc = userColor(eng.id, users);
-							const engJobs = dayJobs.filter((j) => j.assignedTo === eng.id);
-							const engHols = dayHols.filter((h) => h.profileId === eng.id);
-							const layout = layoutTimedJobs(engJobs);
-							const untimedJobs = engJobs.filter((j) => !j.startTime);
-							return (
-								<div
-									key={eng.id}
-									data-ds={ds}
-									data-engineer-id={eng.id}
-									style={{ width: COL_W, flexShrink: 0, position: "relative", height: TOTAL_HEIGHT, cursor: "crosshair" }}
-									className="border-r border-neutral-800"
-									onClick={(e) => {
-										const rect = e.currentTarget.getBoundingClientRect();
-										const scrollTop = gridScrollRef.current?.scrollTop ?? 0;
-										const time = yToTime(e.clientY - rect.top + scrollTop);
-										openAddPanel({
-											date: ds,
-											assignedTo: eng.id,
-											startTime: time,
-											endTime: minutesToTime(timeToMinutes(time) + 60),
-										});
-									}}
-								>
-									{HOURS.map((h, i) => (
-										<div
-											key={h}
-											style={{ position: "absolute", top: i * HOUR_HEIGHT, left: 0, right: 0 }}
-											className="border-t border-neutral-800/50"
-										/>
-									))}
-									{/* Current time line across column */}
-									{ds === TODAY && (
-										<div
-											style={{ position: "absolute", top: timeToY(nowTime), left: 0, right: 0, height: 1, zIndex: 10 }}
-											className="bg-orange-500/60 pointer-events-none"
-										/>
-									)}
-									{/* Working hours shading */}
-									{business.workDayStart > HOUR_START && (
-										<div style={{ position: "absolute", top: 0, left: 0, right: 0, height: timeToY(wds), zIndex: 0, pointerEvents: "none" }} className="bg-neutral-950/50" />
-									)}
-									{business.workDayEnd < HOUR_END && (
-										<div style={{ position: "absolute", top: timeToY(`${String(business.workDayEnd).padStart(2,"0")}:00`), left: 0, right: 0, height: TOTAL_HEIGHT - timeToY(`${String(business.workDayEnd).padStart(2,"0")}:00`), zIndex: 0, pointerEvents: "none" }} className="bg-neutral-950/50" />
-									)}
-									{engHols.map((h) => {
-										const cfg = HOLIDAY_TYPE_CONFIG[h.type];
-										const blockTop = timeToY(wds);
-										const fullH = (business.workDayEnd - business.workDayStart) * HOUR_HEIGHT;
-										const blockH = h.halfDay ? fullH / 2 : fullH;
-										return (
+						{/* Grid body */}
+						<div
+							ref={gridBodyRef}
+							className="flex"
+							style={{ height: TOTAL_HEIGHT }}
+						>
+							{/* Time gutter — sticky left */}
+							<div
+								style={{
+									width: GUTTER_W,
+									flexShrink: 0,
+									position: "sticky",
+									left: 0,
+									zIndex: 5,
+									background: "#0a0a0a",
+									height: TOTAL_HEIGHT,
+								}}
+								className="border-r border-neutral-800 relative"
+							>
+								{HOURS.map((h, i) => (
+									<div
+										key={h}
+										style={{
+											position: "absolute",
+											top: i * HOUR_HEIGHT - 8,
+											right: 8,
+										}}
+										className="text-[10px] text-neutral-600 select-none"
+									>
+										{formatHour(h)}
+									</div>
+								))}
+								{/* Current time indicator */}
+								{ds === TODAY && (
+									<div
+										style={{
+											position: "absolute",
+											top: timeToY(nowTime),
+											left: 0,
+											right: 0,
+											zIndex: 10,
+										}}
+										className="flex items-center pointer-events-none"
+									>
+										<div className="w-2 h-2 rounded-full bg-orange-500 -ml-1 flex-shrink-0" />
+									</div>
+								)}
+							</div>
+
+							{/* Per-engineer columns */}
+							{showList.map((eng) => {
+								const uc = userColor(eng.id, users);
+								const engJobs = dayJobs.filter(
+									(j) => j.assignedTo === eng.id,
+								);
+								const engHols = dayHols.filter(
+									(h) => h.profileId === eng.id,
+								);
+								const layout = layoutTimedJobs(engJobs);
+								const untimedJobs = engJobs.filter(
+									(j) => !j.startTime,
+								);
+								return (
+									<div
+										key={eng.id}
+										data-ds={ds}
+										data-engineer-id={eng.id}
+										style={{
+											width: COL_W,
+											flexShrink: 0,
+											position: "relative",
+											height: TOTAL_HEIGHT,
+											cursor: "crosshair",
+										}}
+										className="border-r border-neutral-800"
+										onClick={(e) => {
+											const rect =
+												e.currentTarget.getBoundingClientRect();
+											const scrollTop =
+												gridScrollRef.current
+													?.scrollTop ?? 0;
+											const time = yToTime(
+												e.clientY -
+													rect.top +
+													scrollTop,
+											);
+											openAddPanel({
+												date: ds,
+												assignedTo: eng.id,
+												startTime: time,
+												endTime: minutesToTime(
+													timeToMinutes(time) + 60,
+												),
+											});
+										}}
+									>
+										{HOURS.map((h, i) => (
 											<div
-												key={h.id}
-												style={{ position: "absolute", top: blockTop, left: 0, right: 0, height: blockH, zIndex: 1 }}
-												className={`${cfg.bg} opacity-70 flex items-center justify-center`}
-												onClick={(e) => { e.stopPropagation(); if (isMaster) openEditHoliday(h); }}
-											>
-												<span className={`text-xs ${cfg.text}`}>
-													{cfg.emoji} {cfg.label}{h.halfDay ? " (½day)" : ""}
-												</span>
-											</div>
-										);
-									})}
-									{untimedJobs.length > 0 && (
-										<div style={{ position: "absolute", top: 4, left: 4, right: 4, zIndex: 3 }}>
-											{untimedJobs.map((j) => {
-												const sc = STATUS_COLORS[j.status];
-												const jcat = categories.find((c) => c.id === j.categoryId);
-												return (
-													<div
-														key={j.id}
-														className={`rounded px-1.5 py-0.5 text-[10px] mb-0.5 cursor-pointer hover:opacity-90 ${sc.bg} ${sc.text} flex items-center justify-between gap-1`}
-														style={{ borderLeft: `2px solid ${uc}` }}
-														onClick={(e) => {
-															e.stopPropagation();
-															setJobPopover({ jobId: j.id, rect: e.currentTarget.getBoundingClientRect() });
-														}}
-													>
-														<span className="truncate">{j.customer}</span>
-														{jcat && <CategoryIcon name={jcat.icon} size={8} color={jcat.color} />}
-													</div>
-												);
-											})}
-										</div>
-									)}
-									{layout.map(({ job, col, cols, top, height, conflict }) => {
-										const sc = STATUS_COLORS[job.status];
-										const cat = categories.find((c) => c.id === job.categoryId);
-										const w = cols > 0 ? 100 / cols : 100;
-										const l = cols > 0 ? (col / cols) * 100 : 0;
-										return (
-											<div
-												key={job.id}
+												key={h}
 												style={{
 													position: "absolute",
-													top,
-													left: `${l}%`,
-													width: `${w}%`,
-													height,
-													zIndex: 2,
-													borderLeft: `3px solid ${uc}`,
+													top: i * HOUR_HEIGHT,
+													left: 0,
+													right: 0,
 												}}
-												className={`rounded overflow-hidden select-none ${sc.bg} ${conflict ? "ring-2 ring-red-500" : ""} hover:opacity-90 transition-opacity cursor-grab`}
-												onPointerDown={(e) => { const r = e.currentTarget.getBoundingClientRect(); onJobPtrDown(job.id, e.clientY - r.top, e.clientX, e.clientY); }}
-												onClick={(e) => {
-													e.stopPropagation();
-													setJobPopover({ jobId: job.id, rect: e.currentTarget.getBoundingClientRect() });
+												className="border-t border-neutral-800/50"
+											/>
+										))}
+										{/* Current time line across column */}
+										{ds === TODAY && (
+											<div
+												style={{
+													position: "absolute",
+													top: timeToY(nowTime),
+													left: 0,
+													right: 0,
+													height: 1,
+													zIndex: 10,
+												}}
+												className="bg-orange-500/60 pointer-events-none"
+											/>
+										)}
+										{/* Working hours shading */}
+										{business.workDayStart > HOUR_START && (
+											<div
+												style={{
+													position: "absolute",
+													top: 0,
+													left: 0,
+													right: 0,
+													height: timeToY(wds),
+													zIndex: 0,
+													pointerEvents: "none",
+												}}
+												className="bg-neutral-950/50"
+											/>
+										)}
+										{business.workDayEnd < HOUR_END && (
+											<div
+												style={{
+													position: "absolute",
+													top: timeToY(
+														`${String(business.workDayEnd).padStart(2, "0")}:00`,
+													),
+													left: 0,
+													right: 0,
+													height:
+														TOTAL_HEIGHT -
+														timeToY(
+															`${String(business.workDayEnd).padStart(2, "0")}:00`,
+														),
+													zIndex: 0,
+													pointerEvents: "none",
+												}}
+												className="bg-neutral-950/50"
+											/>
+										)}
+										{engHols.map((h) => {
+											const cfg =
+												HOLIDAY_TYPE_CONFIG[h.type];
+											const blockTop = timeToY(wds);
+											const fullH =
+												(business.workDayEnd -
+													business.workDayStart) *
+												HOUR_HEIGHT;
+											const blockH = h.halfDay
+												? fullH / 2
+												: fullH;
+											return (
+												<div
+													key={h.id}
+													style={{
+														position: "absolute",
+														top: blockTop,
+														left: 0,
+														right: 0,
+														height: blockH,
+														zIndex: 1,
+													}}
+													className={`${cfg.bg} opacity-70 flex items-center justify-center`}
+													onClick={(e) => {
+														e.stopPropagation();
+														if (isMaster)
+															openEditHoliday(h);
+													}}
+												>
+													<span
+														className={`text-xs ${cfg.text}`}
+													>
+														{cfg.emoji} {cfg.label}
+														{h.halfDay
+															? " (½day)"
+															: ""}
+													</span>
+												</div>
+											);
+										})}
+										{untimedJobs.length > 0 && (
+											<div
+												style={{
+													position: "absolute",
+													top: 4,
+													left: 4,
+													right: 4,
+													zIndex: 3,
 												}}
 											>
-												<p className={`text-[10px] font-medium px-1.5 pt-1 truncate ${sc.text}`}>
-													{job.customer}
-												</p>
-												{(job.startTime || job.endTime) && (
-													<p className="text-[9px] text-neutral-400 px-1.5 pb-0.5">
-														{job.startTime && formatTime(job.startTime)}
-														{job.endTime && ` – ${formatTime(job.endTime)}`}
-													</p>
-												)}
-												{cat && (
-													<div className="px-1.5">
-														<CategoryIcon name={cat.icon} size={8} color={cat.color} />
-													</div>
-												)}
+												{untimedJobs.map((j) => {
+													const sc =
+														STATUS_COLORS[j.status];
+													const jcat =
+														categories.find(
+															(c) =>
+																c.id ===
+																j.categoryId,
+														);
+													return (
+														<div
+															key={j.id}
+															className={`rounded px-1.5 py-0.5 text-[10px] mb-0.5 cursor-pointer hover:opacity-90 ${sc.bg} ${sc.text} flex items-center justify-between gap-1`}
+															style={{
+																borderLeft: `2px solid ${uc}`,
+															}}
+															onClick={(e) => {
+																e.stopPropagation();
+																setJobPopover({
+																	jobId: j.id,
+																	rect: e.currentTarget.getBoundingClientRect(),
+																});
+															}}
+														>
+															<span className="truncate">
+																{j.customer}
+															</span>
+															{jcat && (
+																<CategoryIcon
+																	name={
+																		jcat.icon
+																	}
+																	size={8}
+																	color={
+																		jcat.color
+																	}
+																/>
+															)}
+														</div>
+													);
+												})}
 											</div>
-										);
-									})}
-								</div>
-							);
-						})}
+										)}
+										{layout.map(
+											({
+												job,
+												col,
+												cols,
+												top,
+												height,
+												conflict,
+											}) => {
+												const sc =
+													STATUS_COLORS[job.status];
+												const cat = categories.find(
+													(c) =>
+														c.id === job.categoryId,
+												);
+												const w =
+													cols > 0 ? 100 / cols : 100;
+												const l =
+													cols > 0
+														? (col / cols) * 100
+														: 0;
+												return (
+													<div
+														key={job.id}
+														style={{
+															position:
+																"absolute",
+															top,
+															left: `${l}%`,
+															width: `${w}%`,
+															height,
+															zIndex: 2,
+															borderLeft: `3px solid ${uc}`,
+														}}
+														className={`rounded overflow-hidden select-none ${sc.bg} ${conflict ? "ring-2 ring-red-500" : ""} hover:opacity-90 transition-opacity cursor-grab`}
+														onPointerDown={(e) => {
+															const r =
+																e.currentTarget.getBoundingClientRect();
+															onJobPtrDown(
+																job.id,
+																e.clientY -
+																	r.top,
+																e.clientX,
+																e.clientY,
+															);
+														}}
+														onClick={(e) => {
+															e.stopPropagation();
+															setJobPopover({
+																jobId: job.id,
+																rect: e.currentTarget.getBoundingClientRect(),
+															});
+														}}
+													>
+														<p
+															className={`text-[10px] font-medium px-1.5 pt-1 truncate ${sc.text}`}
+														>
+															{job.customer}
+														</p>
+														{(job.startTime ||
+															job.endTime) && (
+															<p className="text-[9px] text-neutral-400 px-1.5 pb-0.5">
+																{job.startTime &&
+																	formatTime(
+																		job.startTime,
+																	)}
+																{job.endTime &&
+																	` – ${formatTime(job.endTime)}`}
+															</p>
+														)}
+														{cat && (
+															<div className="px-1.5">
+																<CategoryIcon
+																	name={
+																		cat.icon
+																	}
+																	size={8}
+																	color={
+																		cat.color
+																	}
+																/>
+															</div>
+														)}
+													</div>
+												);
+											},
+										)}
+									</div>
+								);
+							})}
+						</div>
 					</div>
 				</div>
-			</div>
-		</>
+			</>
 		);
 	}
 
@@ -2185,7 +2560,10 @@ export function CalendarPage() {
 								<div
 									key={ds}
 									className={`flex-1 border-r border-neutral-800 px-2 py-2 text-center cursor-pointer hover:bg-neutral-800/50 transition-colors ${isToday ? "bg-orange-950/20" : ""}`}
-									onClick={() => { setCalDate(date); setViewPersisted("day"); }}
+									onClick={() => {
+										setCalDate(date);
+										setViewPersisted("day");
+									}}
 								>
 									<p
 										className={`text-[10px] uppercase tracking-widest ${isToday ? "text-orange-400" : "text-neutral-500"}`}
@@ -2200,7 +2578,10 @@ export function CalendarPage() {
 										{date.getDate()}
 									</div>
 									{bankHols[ds] && (
-										<p className="text-[8px] text-emerald-400/80 truncate leading-tight mt-0.5" title={bankHols[ds]}>
+										<p
+											className="text-[8px] text-emerald-400/80 truncate leading-tight mt-0.5"
+											title={bankHols[ds]}
+										>
 											🏦 {bankHols[ds]}
 										</p>
 									)}
@@ -2289,7 +2670,8 @@ export function CalendarPage() {
 									(j) => !j.startTime,
 								);
 								const MAX_ALLDAY = 3;
-								const alldayOverflow = untimedJobs.length - MAX_ALLDAY;
+								const alldayOverflow =
+									untimedJobs.length - MAX_ALLDAY;
 								return (
 									<div
 										key={ds}
@@ -2298,42 +2680,50 @@ export function CalendarPage() {
 											openAddPanel({ date: ds })
 										}
 									>
-										{untimedJobs.slice(0, MAX_ALLDAY).map((j) => {
-											const sc = STATUS_COLORS[j.status];
-											const uc = userColor(
-												j.assignedTo,
-												users,
-											);
-											const cat = categories.find(
-												(c) => c.id === j.categoryId,
-											);
-											return (
-												<div
-													key={j.id}
-													onClick={(e) => {
-														e.stopPropagation();
-														navigate(
-															`/job/${j.id}`,
-														);
-													}}
-													className={`rounded px-1.5 py-0.5 text-[10px] cursor-pointer ${sc.bg} truncate`}
-													style={{
-														borderLeft: `2px solid ${uc}`,
-													}}
-												>
-													{cat && (
-														<CategoryIcon
-															name={cat.icon}
-															size={8}
-															color={cat.color}
-														/>
-													)}{" "}
-													<span className={sc.text}>
-														{j.customer}
-													</span>
-												</div>
-											);
-										})}
+										{untimedJobs
+											.slice(0, MAX_ALLDAY)
+											.map((j) => {
+												const sc =
+													STATUS_COLORS[j.status];
+												const uc = userColor(
+													j.assignedTo,
+													users,
+												);
+												const cat = categories.find(
+													(c) =>
+														c.id === j.categoryId,
+												);
+												return (
+													<div
+														key={j.id}
+														onClick={(e) => {
+															e.stopPropagation();
+															navigate(
+																`/job/${j.id}`,
+															);
+														}}
+														className={`rounded px-1.5 py-0.5 text-[10px] cursor-pointer ${sc.bg} truncate`}
+														style={{
+															borderLeft: `2px solid ${uc}`,
+														}}
+													>
+														{cat && (
+															<CategoryIcon
+																name={cat.icon}
+																size={8}
+																color={
+																	cat.color
+																}
+															/>
+														)}{" "}
+														<span
+															className={sc.text}
+														>
+															{j.customer}
+														</span>
+													</div>
+												);
+											})}
 										{alldayOverflow > 0 && (
 											<div
 												className="pl-1 text-[10px] text-neutral-500 cursor-pointer hover:text-neutral-300"
@@ -2404,8 +2794,14 @@ export function CalendarPage() {
 									onJobClick={(id, rect) =>
 										setJobPopover({ jobId: id, rect })
 									}
-									onResizeJob={(jobId, startTime, endTime) => {
-										const job = jobs.find((j) => j.id === jobId);
+									onResizeJob={(
+										jobId,
+										startTime,
+										endTime,
+									) => {
+										const job = jobs.find(
+											(j) => j.id === jobId,
+										);
 										if (job) {
 											showUndoToast({
 												jobId,
@@ -2416,7 +2812,11 @@ export function CalendarPage() {
 												prevAssignedTo: job.assignedTo,
 											});
 										}
-										resizeJobTime(jobId, startTime, endTime);
+										resizeJobTime(
+											jobId,
+											startTime,
+											endTime,
+										);
 									}}
 									onJobPtrDown={onJobPtrDown}
 									dragOverSlot={dragOverSlot}
@@ -2426,7 +2826,7 @@ export function CalendarPage() {
 									holidays={visibleHolidaysForDate(ds)}
 									workDayStart={business.workDayStart}
 									workDayEnd={business.workDayEnd}
-								onEditHoliday={openEditHoliday}
+									onEditHoliday={openEditHoliday}
 									dragGhostJob={ptrGhost?.job ?? null}
 									weekMode={true}
 									onNavigateToDay={() => {
@@ -2752,7 +3152,9 @@ export function CalendarPage() {
 									key={tip.title}
 									className="flex gap-2.5 rounded-lg border border-neutral-800 bg-neutral-900 p-3"
 								>
-									<span className="text-base flex-shrink-0 mt-0.5">{tip.icon}</span>
+									<span className="text-base flex-shrink-0 mt-0.5">
+										{tip.icon}
+									</span>
 									<div>
 										<p className="text-xs font-medium text-neutral-300 mb-0.5">
 											{tip.title}
@@ -2808,12 +3210,15 @@ export function CalendarPage() {
 					)}
 
 				{/* Calendar views */}
-				<div key={`${view}-${calDate.toISOString().slice(0, 10)}`} className="cal-view-enter">
+				<div
+					key={`${view}-${calDate.toISOString().slice(0, 10)}`}
+					className="cal-view-enter"
+				>
 					{view === "month" && <MonthView />}
 					{view === "week" && <TimeGridView days={weekDays} />}
 					{view === "day" && <DayView />}
 				</div>
-				
+
 				{/* Holiday / Leave modal */}
 				{holidayModal && isMaster && (
 					<div
@@ -2825,7 +3230,9 @@ export function CalendarPage() {
 							onClick={(e) => e.stopPropagation()}
 						>
 							<h3 className="text-base font-medium text-neutral-100 mb-4">
-								{holidayModal?.editId ? "Edit Leave / Absence" : "Add Leave / Absence"}
+								{holidayModal?.editId
+									? "Edit Leave / Absence"
+									: "Add Leave / Absence"}
 							</h3>
 							<div className="space-y-3">
 								{/* Type selector */}
@@ -2964,7 +3371,12 @@ export function CalendarPage() {
 								</button>
 								{holidayModal?.editId && (
 									<button
-										onClick={() => { deleteHoliday(holidayModal!.editId!); setHolidayModal(null); }}
+										onClick={() => {
+											deleteHoliday(
+												holidayModal!.editId!,
+											);
+											setHolidayModal(null);
+										}}
 										className="rounded-lg border border-red-800 bg-red-950 px-4 py-2.5 text-sm text-red-400 cursor-pointer hover:bg-red-900 transition-colors"
 									>
 										Delete
@@ -3033,9 +3445,11 @@ export function CalendarPage() {
 								minHeight: 44,
 								borderLeft: `3px solid ${uc}`,
 								transform: "scale(1.04) rotate(1deg)",
-								boxShadow: "0 12px 36px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)",
+								boxShadow:
+									"0 12px 36px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)",
 								opacity: 0.9,
-								transition: "left 60ms ease-out, top 60ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out",
+								transition:
+									"left 60ms ease-out, top 60ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out",
 							}}
 						>
 							<p
@@ -3050,8 +3464,16 @@ export function CalendarPage() {
 									{formatTime(
 										minutesToTime(
 											timeToMinutes(dragOverSlot.time) +
-												(ptrGhost.job.startTime && ptrGhost.job.endTime
-													? timeToMinutes(ptrGhost.job.endTime) - timeToMinutes(ptrGhost.job.startTime)
+												(ptrGhost.job.startTime &&
+												ptrGhost.job.endTime
+													? timeToMinutes(
+															ptrGhost.job
+																.endTime,
+														) -
+														timeToMinutes(
+															ptrGhost.job
+																.startTime,
+														)
 													: 60),
 										),
 									)}
@@ -3076,7 +3498,8 @@ export function CalendarPage() {
 					</button>
 					<button
 						onClick={() => {
-							if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+							if (undoTimerRef.current)
+								clearTimeout(undoTimerRef.current);
 							setUndoAction(null);
 						}}
 						className="text-neutral-500 hover:text-neutral-300 transition-colors ml-1"

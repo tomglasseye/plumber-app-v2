@@ -24,7 +24,6 @@ import type {
 	User,
 } from "./types";
 
-
 interface AppCtx {
 	loading: boolean;
 	currentUser: User | null;
@@ -91,7 +90,13 @@ interface AppCtx {
 	approveHoliday: (id: string) => void;
 	declineHoliday: (id: string) => void;
 	// Atomic scheduling helpers (single DB call)
-	rescheduleJob: (jobId: string, date: string, startTime?: string, endTime?: string, assignedTo?: string) => void;
+	rescheduleJob: (
+		jobId: string,
+		date: string,
+		startTime?: string,
+		endTime?: string,
+		assignedTo?: string,
+	) => void;
 	resizeJobTime: (jobId: string, startTime: string, endTime: string) => void;
 }
 
@@ -140,7 +145,9 @@ function mapJob(r: any): Job {
 		readyToInvoice: r.ready_to_invoice ?? false,
 		sortOrder: r.sort_order ?? 0,
 		customerId: r.customer_id ?? undefined,
-	repeatFrequency: (r.repeat_frequency ?? undefined) as RepeatFrequency | undefined,
+		repeatFrequency: (r.repeat_frequency ?? undefined) as
+			| RepeatFrequency
+			| undefined,
 	};
 }
 
@@ -211,7 +218,7 @@ function mapNotification(r: any): Notification {
 		read: r.read ?? false,
 		for: r.for_role === "master" ? "master" : r.for_user,
 		jobId: r.job_id ?? undefined,
-		};
+	};
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -246,7 +253,7 @@ function formatError(error: unknown): string {
 	return "Save failed";
 }
 
-const IDLE_WARN_MS = 29 * 60 * 1000;  // 29 minutes → show warning
+const IDLE_WARN_MS = 29 * 60 * 1000; // 29 minutes → show warning
 const IDLE_LOGOUT_MS = 30 * 60 * 1000; // 30 minutes → sign out
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -328,7 +335,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 		resetIdleRef.current = resetIdle;
 
-		const events = ["mousemove", "keydown", "click", "touchstart", "scroll"];
+		const events = [
+			"mousemove",
+			"keydown",
+			"click",
+			"touchstart",
+			"scroll",
+		];
 		events.forEach((ev) =>
 			window.addEventListener(ev, resetIdle, { passive: true }),
 		);
@@ -400,7 +413,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			setTimeout(() => {
 				factory().then(({ error: e2 }) => {
 					if (e2) {
-						setSaveError("Save failed — your change has been reverted. Please try again.");
+						setSaveError(
+							"Save failed — your change has been reverted. Please try again.",
+						);
 						revert();
 					}
 				});
@@ -532,7 +547,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			read: false,
 		};
 		if (n.jobId) row.job_id = n.jobId;
-			if (n.for === "master") {
+		if (n.for === "master") {
 			row.for_role = "master";
 		} else {
 			row.for_user = n.for;
@@ -558,7 +573,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					.eq("id", id),
 			() =>
 				setJobs((prev) =>
-					prev.map((j) => (j.id === id ? { ...j, [field]: prev_val } : j)),
+					prev.map((j) =>
+						j.id === id ? { ...j, [field]: prev_val } : j,
+					),
 				),
 		);
 	}
@@ -570,9 +587,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		const now = new Date();
 		const nowStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 		const snapEnd =
-			status === "Completed" &&
-			job.startTime &&
-			nowStr > job.startTime
+			status === "Completed" && job.startTime && nowStr > job.startTime
 				? nowStr
 				: undefined;
 		setJobs((prev) =>
@@ -586,11 +601,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			() =>
 				supabase
 					.from("jobs")
-					.update({ status, ...(snapEnd ? { end_time: snapEnd } : {}) })
+					.update({
+						status,
+						...(snapEnd ? { end_time: snapEnd } : {}),
+					})
 					.eq("id", id),
 			() =>
 				setJobs((prev) =>
-					prev.map((j) => (j.id === id ? { ...j, status: prevStatus } : j)),
+					prev.map((j) =>
+						j.id === id ? { ...j, status: prevStatus } : j,
+					),
 				),
 		);
 		if (!isMaster) {
@@ -645,12 +665,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setJobs((prev) =>
 			prev.map((j) => (j.id === id ? { ...j, readyToInvoice: true } : j)),
 		);
-		dbSave(
-			() =>
-				supabase
-					.from("jobs")
-					.update({ ready_to_invoice: true })
-					.eq("id", id),
+		dbSave(() =>
+			supabase
+				.from("jobs")
+				.update({ ready_to_invoice: true })
+				.eq("id", id),
 		);
 		addNotification({
 			icon: "✅",
@@ -667,8 +686,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		// Auto-schedule next occurrence for recurring jobs
 		if (job.repeatFrequency) {
 			const next = new Date(job.date + "T00:00:00");
-			if (job.repeatFrequency === "annually") next.setFullYear(next.getFullYear() + 1);
-			else if (job.repeatFrequency === "biannually") next.setMonth(next.getMonth() + 6);
+			if (job.repeatFrequency === "annually")
+				next.setFullYear(next.getFullYear() + 1);
+			else if (job.repeatFrequency === "biannually")
+				next.setMonth(next.getMonth() + 6);
 			else next.setMonth(next.getMonth() + 3);
 			const nextDate = next.toISOString().slice(0, 10);
 			createJob({
@@ -722,7 +743,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		});
 		if (error) {
 			setSaveError(
-				error instanceof Error ? error.message : String((error as { message?: unknown }).message ?? "Save failed"),
+				error instanceof Error
+					? error.message
+					: String(
+							(error as { message?: unknown }).message ??
+								"Save failed",
+						),
 			);
 			setJobs((prev) => prev.filter((j) => j.id !== newJob.id));
 			return;
@@ -737,22 +763,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 	function saveBusiness(b: Business) {
 		setBusiness(b);
-		dbSave(
-			() =>
-				supabase
-					.from("businesses")
-					.update({
-						name: b.name,
-						phone: b.phone,
-						email: b.email,
-						address: b.address,
-						vat_number: b.vatNumber,
-						accent_color: b.accentColor,
-						logo_initials: b.logoInitials,
-						work_day_start: b.workDayStart,
-						work_day_end: b.workDayEnd,
-					})
-					.eq("id", b.id),
+		dbSave(() =>
+			supabase
+				.from("businesses")
+				.update({
+					name: b.name,
+					phone: b.phone,
+					email: b.email,
+					address: b.address,
+					vat_number: b.vatNumber,
+					accent_color: b.accentColor,
+					logo_initials: b.logoInitials,
+					work_day_start: b.workDayStart,
+					work_day_end: b.workDayEnd,
+				})
+				.eq("id", b.id),
 		);
 		supabase.rpc("log_audit_event", {
 			p_action: "business.settings_updated",
@@ -790,7 +815,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setUsers((prev) =>
 			prev.map((u) => (u.id === id ? { ...u, locked: true } : u)),
 		);
-		dbSave(() => supabase.from("profiles").update({ locked: true }).eq("id", id));
+		dbSave(() =>
+			supabase.from("profiles").update({ locked: true }).eq("id", id),
+		);
 		supabase.rpc("log_audit_event", {
 			p_action: "profile.locked",
 			p_target_type: "profile",
@@ -802,7 +829,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setUsers((prev) =>
 			prev.map((u) => (u.id === id ? { ...u, locked: false } : u)),
 		);
-		dbSave(() => supabase.from("profiles").update({ locked: false }).eq("id", id));
+		dbSave(() =>
+			supabase.from("profiles").update({ locked: false }).eq("id", id),
+		);
 		supabase.rpc("log_audit_event", {
 			p_action: "profile.unlocked",
 			p_target_type: "profile",
@@ -820,7 +849,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				.select("*")
 				.eq("id", id)
 				.single();
-			if (data) setUsers((prev) => [...prev, mapProfile(data)].sort((a, b) => a.name.localeCompare(b.name)));
+			if (data)
+				setUsers((prev) =>
+					[...prev, mapProfile(data)].sort((a, b) =>
+						a.name.localeCompare(b.name),
+					),
+				);
 			setSaveError(formatError(error));
 			return;
 		}
@@ -895,7 +929,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		homeAddress?: string;
 		avatar?: string;
 	}): Promise<string | null> {
-		const { data: { session } } = await supabase.auth.getSession();
+		const {
+			data: { session },
+		} = await supabase.auth.getSession();
 		if (!session) return "Not authenticated";
 		try {
 			const res = await fetch("/.netlify/functions/admin-invite-user", {
@@ -914,15 +950,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				name: body.name,
 				email: body.email,
 				role: params.role,
-				avatar: params.avatar?.trim().toUpperCase().slice(0, 3) ||
-					params.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 3),
+				avatar:
+					params.avatar?.trim().toUpperCase().slice(0, 3) ||
+					params.name
+						.split(" ")
+						.map((n) => n[0])
+						.join("")
+						.toUpperCase()
+						.slice(0, 3),
 				phone: params.phone ?? "",
 				home: params.homeAddress ?? "",
 				color: "#f97316",
 				locked: false,
 				holidayAllowance: 28,
 			};
-			setUsers((prev) => [...prev, newUser].sort((a, b) => a.name.localeCompare(b.name)));
+			setUsers((prev) =>
+				[...prev, newUser].sort((a, b) => a.name.localeCompare(b.name)),
+			);
 			return null;
 		} catch {
 			return "Network error — could not reach server";
@@ -934,19 +978,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		if (currentUser) {
 			const col = isMaster ? "for_role" : "for_user";
 			const val = isMaster ? "master" : currentUser.id;
-			dbSave(
-				() =>
-					supabase
-						.from("notifications")
-						.update({ read: true })
-						.eq(col, val),
+			dbSave(() =>
+				supabase
+					.from("notifications")
+					.update({ read: true })
+					.eq(col, val),
 			);
 		}
-	}
-
-	async function resetPassword(email: string): Promise<string | null> {
-		const { error } = await supabase.auth.resetPasswordForEmail(email);
-		return error?.message ?? null;
 	}
 
 	function createCustomer(c: Omit<Customer, "id">): string {
@@ -955,18 +993,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setCustomers((prev) =>
 			[...prev, full].sort((a, b) => a.name.localeCompare(b.name)),
 		);
-		dbSave(
-			() =>
-				supabase.from("customers").insert({
-					id,
-					business_id: business.id,
-					name: c.name,
-					email: c.email,
-					phone: c.phone,
-					address: c.address,
-					notes: c.notes,
-					xero_contact_id: c.xeroContactId ?? null,
-				}),
+		dbSave(() =>
+			supabase.from("customers").insert({
+				id,
+				business_id: business.id,
+				name: c.name,
+				email: c.email,
+				phone: c.phone,
+				address: c.address,
+				notes: c.notes,
+				xero_contact_id: c.xeroContactId ?? null,
+			}),
 		);
 		return id;
 	}
@@ -977,19 +1014,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				.map((x) => (x.id === c.id ? c : x))
 				.sort((a, b) => a.name.localeCompare(b.name)),
 		);
-		dbSave(
-			() =>
-				supabase
-					.from("customers")
-					.update({
-						name: c.name,
-						email: c.email,
-						phone: c.phone,
-						address: c.address,
-						notes: c.notes,
-						xero_contact_id: c.xeroContactId ?? null,
-					})
-					.eq("id", c.id),
+		dbSave(() =>
+			supabase
+				.from("customers")
+				.update({
+					name: c.name,
+					email: c.email,
+					phone: c.phone,
+					address: c.address,
+					notes: c.notes,
+					xero_contact_id: c.xeroContactId ?? null,
+				})
+				.eq("id", c.id),
 		);
 	}
 
@@ -997,7 +1033,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setCustomers((prev) => prev.filter((c) => c.id !== id));
 		dbSave(() => supabase.from("customers").delete().eq("id", id));
 	}
-
 
 	// ── Categories CRUD ──────────────────────────────────────────
 
@@ -1007,16 +1042,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setCategories((prev) =>
 			[...prev, full].sort((a, b) => a.sortOrder - b.sortOrder),
 		);
-		dbSave(
-			() =>
-				supabase.from("categories").insert({
-					id,
-					business_id: business.id,
-					name: c.name,
-					icon: c.icon,
-					color: c.color,
-					sort_order: c.sortOrder,
-				}),
+		dbSave(() =>
+			supabase.from("categories").insert({
+				id,
+				business_id: business.id,
+				name: c.name,
+				icon: c.icon,
+				color: c.color,
+				sort_order: c.sortOrder,
+			}),
 		);
 	}
 
@@ -1026,17 +1060,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				.map((x) => (x.id === c.id ? c : x))
 				.sort((a, b) => a.sortOrder - b.sortOrder),
 		);
-		dbSave(
-			() =>
-				supabase
-					.from("categories")
-					.update({
-						name: c.name,
-						icon: c.icon,
-						color: c.color,
-						sort_order: c.sortOrder,
-					})
-					.eq("id", c.id),
+		dbSave(() =>
+			supabase
+				.from("categories")
+				.update({
+					name: c.name,
+					icon: c.icon,
+					color: c.color,
+					sort_order: c.sortOrder,
+				})
+				.eq("id", c.id),
 		);
 	}
 
@@ -1054,19 +1087,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setHolidays((prev) =>
 			[...prev, full].sort((a, b) => a.date.localeCompare(b.date)),
 		);
-		dbSave(
-			() =>
-				supabase.from("team_holidays").insert({
-					id,
-					business_id: business.id,
-					profile_id: h.profileId,
-					date: h.date,
-					end_date: h.endDate ?? null,
-					half_day: h.halfDay,
-					label: h.label,
-					type: h.type,
-					status,
-				}),
+		dbSave(() =>
+			supabase.from("team_holidays").insert({
+				id,
+				business_id: business.id,
+				profile_id: h.profileId,
+				date: h.date,
+				end_date: h.endDate ?? null,
+				half_day: h.halfDay,
+				label: h.label,
+				type: h.type,
+				status,
+			}),
 		);
 		// Notify master when engineer submits request
 		if (!isMaster && status === "pending") {
@@ -1081,10 +1113,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 	function approveHoliday(id: string) {
 		setHolidays((prev) =>
-			prev.map((h) => (h.id === id ? { ...h, status: "approved" as const } : h)),
+			prev.map((h) =>
+				h.id === id ? { ...h, status: "approved" as const } : h,
+			),
 		);
 		dbSave(() =>
-			supabase.from("team_holidays").update({ status: "approved" }).eq("id", id),
+			supabase
+				.from("team_holidays")
+				.update({ status: "approved" })
+				.eq("id", id),
 		);
 		const hol = holidays.find((h) => h.id === id);
 		if (hol) {
@@ -1098,10 +1135,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 	function declineHoliday(id: string) {
 		setHolidays((prev) =>
-			prev.map((h) => (h.id === id ? { ...h, status: "declined" as const } : h)),
+			prev.map((h) =>
+				h.id === id ? { ...h, status: "declined" as const } : h,
+			),
 		);
 		dbSave(() =>
-			supabase.from("team_holidays").update({ status: "declined" }).eq("id", id),
+			supabase
+				.from("team_holidays")
+				.update({ status: "declined" })
+				.eq("id", id),
 		);
 		const hol = holidays.find((h) => h.id === id);
 		if (hol) {
@@ -1122,11 +1164,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		assignedTo?: string,
 	) {
 		const job = jobs.find((j) => j.id === jobId);
-		const prev = job ? { date: job.date, startTime: job.startTime, endTime: job.endTime, assignedTo: job.assignedTo } : null;
+		const prev = job
+			? {
+					date: job.date,
+					startTime: job.startTime,
+					endTime: job.endTime,
+					assignedTo: job.assignedTo,
+				}
+			: null;
 		setJobs((prev_jobs) =>
 			prev_jobs.map((j) =>
 				j.id === jobId
-					? { ...j, date, startTime, endTime, ...(assignedTo ? { assignedTo } : {}) }
+					? {
+							...j,
+							date,
+							startTime,
+							endTime,
+							...(assignedTo ? { assignedTo } : {}),
+						}
 					: j,
 			),
 		);
@@ -1146,7 +1201,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					setJobs((pj) =>
 						pj.map((j) =>
 							j.id === jobId
-								? { ...j, date: prev.date, startTime: prev.startTime, endTime: prev.endTime, assignedTo: prev.assignedTo }
+								? {
+										...j,
+										date: prev.date,
+										startTime: prev.startTime,
+										endTime: prev.endTime,
+										assignedTo: prev.assignedTo,
+									}
 								: j,
 						),
 					);
@@ -1191,14 +1252,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			prev.map((h) => (h.id === id ? { ...h, ...changes } : h)),
 		);
 		const dbChanges: Record<string, unknown> = {};
-		if (changes.profileId !== undefined) dbChanges.profile_id = changes.profileId;
+		if (changes.profileId !== undefined)
+			dbChanges.profile_id = changes.profileId;
 		if (changes.date !== undefined) dbChanges.date = changes.date;
 		if (changes.endDate !== undefined) dbChanges.end_date = changes.endDate;
 		if (changes.halfDay !== undefined) dbChanges.half_day = changes.halfDay;
 		if (changes.label !== undefined) dbChanges.label = changes.label;
 		if (changes.type !== undefined) dbChanges.type = changes.type;
 		if (changes.status !== undefined) dbChanges.status = changes.status;
-		dbSave(() => supabase.from("team_holidays").update(dbChanges).eq("id", id));
+		dbSave(() =>
+			supabase.from("team_holidays").update(dbChanges).eq("id", id),
+		);
 	}
 
 	return (
@@ -1215,9 +1279,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				myJobs,
 				isMaster: !!isMaster,
 				saveUser,
-			lockUser,
-			unlockUser,
-			deleteUser,
+				lockUser,
+				unlockUser,
+				deleteUser,
 				changePassword,
 				inviteUser,
 				theme,

@@ -1,4 +1,11 @@
-import type { Business, HolidayType, Job, Priority, Status, User } from "./types";
+import type {
+	Business,
+	HolidayType,
+	Job,
+	Priority,
+	Status,
+	User,
+} from "./types";
 
 export const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -47,6 +54,7 @@ export const USERS: User[] = [
 		avatar: "DH",
 		home: "22 Harbour View, Poole BH15 1NN",
 		phone: "07700 900001",
+		holidayAllowance: 28,
 	},
 	{
 		id: "2",
@@ -56,6 +64,7 @@ export const USERS: User[] = [
 		avatar: "TB",
 		home: "5 Sandbanks Rd, Poole BH14 8BU",
 		phone: "07700 900002",
+		holidayAllowance: 28,
 	},
 	{
 		id: "3",
@@ -65,6 +74,7 @@ export const USERS: User[] = [
 		avatar: "SC",
 		home: "17 Stour Rd, Christchurch BH23 1PL",
 		phone: "07700 900003",
+		holidayAllowance: 28,
 	},
 	{
 		id: "4",
@@ -74,6 +84,7 @@ export const USERS: User[] = [
 		avatar: "LO",
 		home: "8 Ringwood Rd, Bournemouth BH11 8LP",
 		phone: "07700 900004",
+		holidayAllowance: 28,
 	},
 ];
 
@@ -93,7 +104,10 @@ export function buildTimeOpts(hourStart: number, hourEnd: number) {
 			const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 			const ampm = h < 12 ? "am" : "pm";
 			const dh = h > 12 ? h - 12 : h;
-			opts.push({ value, label: `${dh}:${String(m).padStart(2, "0")} ${ampm}` });
+			opts.push({
+				value,
+				label: `${dh}:${String(m).padStart(2, "0")} ${ampm}`,
+			});
 		}
 	}
 	return opts;
@@ -180,10 +194,30 @@ export const HOLIDAY_TYPE_CONFIG: Record<
 	HolidayType,
 	{ label: string; emoji: string; bg: string; text: string }
 > = {
-	holiday: { label: "Holiday", emoji: "🏖️", bg: "bg-blue-950/60", text: "text-blue-300" },
-	sick: { label: "Sick Day", emoji: "🤒", bg: "bg-red-950/60", text: "text-red-300" },
-	training: { label: "Training", emoji: "📚", bg: "bg-green-950/60", text: "text-green-300" },
-	other: { label: "Other", emoji: "📅", bg: "bg-neutral-800", text: "text-neutral-400" },
+	holiday: {
+		label: "Holiday",
+		emoji: "🏖️",
+		bg: "bg-blue-950/60",
+		text: "text-blue-300",
+	},
+	sick: {
+		label: "Sick Day",
+		emoji: "🤒",
+		bg: "bg-red-950/60",
+		text: "text-red-300",
+	},
+	training: {
+		label: "Training",
+		emoji: "📚",
+		bg: "bg-green-950/60",
+		text: "text-green-300",
+	},
+	other: {
+		label: "Other",
+		emoji: "📅",
+		bg: "bg-neutral-800",
+		text: "text-neutral-400",
+	},
 };
 
 // ── UK Bank Holidays ────────────────────────────────────────────────────────
@@ -235,7 +269,10 @@ export function getUKBankHolidays(year: number): BankHoliday[] {
 	const holidays: BankHoliday[] = [];
 
 	// New Year's Day (1 Jan, substituted)
-	holidays.push({ date: fmtDate(substituteDay(new Date(year, 0, 1))), name: "New Year's Day" });
+	holidays.push({
+		date: fmtDate(substituteDay(new Date(year, 0, 1))),
+		name: "New Year's Day",
+	});
 
 	// Good Friday (Easter - 2)
 	const easter = easterSunday(year);
@@ -247,28 +284,48 @@ export function getUKBankHolidays(year: number): BankHoliday[] {
 	// Early May bank holiday (first Monday of May)
 	const may1 = new Date(year, 4, 1);
 	const earlyMayOffset = (8 - may1.getDay()) % 7;
-	holidays.push({ date: fmtDate(new Date(year, 4, 1 + earlyMayOffset)), name: "Early May Bank Holiday" });
+	holidays.push({
+		date: fmtDate(new Date(year, 4, 1 + earlyMayOffset)),
+		name: "Early May Bank Holiday",
+	});
 
 	// Spring bank holiday (last Monday of May)
 	const may31 = new Date(year, 4, 31);
 	const springOffset = (may31.getDay() + 6) % 7;
-	holidays.push({ date: fmtDate(new Date(year, 4, 31 - springOffset)), name: "Spring Bank Holiday" });
+	holidays.push({
+		date: fmtDate(new Date(year, 4, 31 - springOffset)),
+		name: "Spring Bank Holiday",
+	});
 
 	// Summer bank holiday (last Monday of August)
 	const aug31 = new Date(year, 7, 31);
 	const summerOffset = (aug31.getDay() + 6) % 7;
-	holidays.push({ date: fmtDate(new Date(year, 7, 31 - summerOffset)), name: "Summer Bank Holiday" });
+	holidays.push({
+		date: fmtDate(new Date(year, 7, 31 - summerOffset)),
+		name: "Summer Bank Holiday",
+	});
 
 	// Christmas Day (25 Dec, substituted)
 	const xmas = new Date(year, 11, 25);
-	holidays.push({ date: fmtDate(substituteDay(xmas)), name: "Christmas Day" });
+	holidays.push({
+		date: fmtDate(substituteDay(xmas)),
+		name: "Christmas Day",
+	});
 
 	// Boxing Day (26 Dec, substituted — if Xmas is on Fri, boxing day substitute is Mon)
 	const boxing = new Date(year, 11, 26);
-	const boxingSub = boxing.getDay() === 6 ? addDays(boxing, 2) : boxing.getDay() === 0 ? addDays(boxing, 1) : boxing;
+	const boxingSub =
+		boxing.getDay() === 6
+			? addDays(boxing, 2)
+			: boxing.getDay() === 0
+				? addDays(boxing, 1)
+				: boxing;
 	// If xmas substitute is same as boxing substitute, shift boxing to next day
 	const xmasSub = substituteDay(xmas);
-	const boxingFinal = fmtDate(boxingSub) === fmtDate(xmasSub) ? addDays(boxingSub, 1) : boxingSub;
+	const boxingFinal =
+		fmtDate(boxingSub) === fmtDate(xmasSub)
+			? addDays(boxingSub, 1)
+			: boxingSub;
 	holidays.push({ date: fmtDate(boxingFinal), name: "Boxing Day" });
 
 	return holidays.sort((a, b) => a.date.localeCompare(b.date));
