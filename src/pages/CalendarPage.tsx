@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
 import { CategoryIcon } from "./AccountPage";
-import { PRIORITIES, STATUS_COLORS, TODAY, userColor } from "../data";
+import { HOLIDAY_TYPE_CONFIG, PRIORITIES, STATUS_COLORS, TODAY, bankHolidayMap, userColor } from "../data";
 import type {
 	Holiday,
 	HolidayType,
@@ -58,38 +58,6 @@ function formatHour(h: number): string {
 	if (h > 12) return `${h - 12}pm`;
 	return `${h}am`;
 }
-
-// ── Holiday type config ───────────────────────────────────────────────────────
-
-const HOLIDAY_TYPE_CONFIG: Record<
-	HolidayType,
-	{ label: string; emoji: string; bg: string; text: string }
-> = {
-	holiday: {
-		label: "Holiday",
-		emoji: "🏖️",
-		bg: "bg-blue-950/60",
-		text: "text-blue-300",
-	},
-	sick: {
-		label: "Sick Day",
-		emoji: "🤒",
-		bg: "bg-red-950/60",
-		text: "text-red-300",
-	},
-	training: {
-		label: "Training",
-		emoji: "📚",
-		bg: "bg-green-950/60",
-		text: "text-green-300",
-	},
-	other: {
-		label: "Other",
-		emoji: "📅",
-		bg: "bg-neutral-800",
-		text: "text-neutral-400",
-	},
-};
 
 // ── Layout overlap detection ──────────────────────────────────────────────────
 
@@ -618,18 +586,13 @@ interface DayColumnProps {
 	ptrDragJobId: string | null;
 	isToday?: boolean;
 	nowTime?: string;
-	onScheduleUnscheduled?: (
-		jobId: string,
-		ds: string,
-		startTime: string,
-		endTime: string,
-	) => void;
-	gridScrollTop?: number;
 	holidays?: Holiday[];
 	workDayStart?: number;
 	workDayEnd?: number;
 	onEditHoliday?: (h: Holiday) => void;
 	dragGhostJob?: Job | null;
+	weekMode?: boolean;
+	onNavigateToDay?: () => void;
 }
 
 function DayColumn({
@@ -643,17 +606,40 @@ function DayColumn({
 	ptrDragJobId,
 	isToday,
 	nowTime,
-	onScheduleUnscheduled,
-	gridScrollTop,
 	holidays = [],
 	workDayStart = 7,
 	workDayEnd = 17,
 	onEditHoliday,
 	dragGhostJob,
+	weekMode,
+	onNavigateToDay,
 }: DayColumnProps) {
 	const { users, categories, isMaster } = useApp();
 	const colRef = useRef<HTMLDivElement>(null);
-	const timedJobs = layoutTimedJobs(jobs);
+	const allTimedJobs = layoutTimedJobs(jobs);
+
+	// Week-mode overflow: group overlapping jobs into clusters
+	const WEEK_MAX_COLS = 3;
+	const overflowCount = weekMode
+		? Math.max(0, Math.max(...allTimedJobs.map((j) => j.cols), 0) - WEEK_MAX_COLS)
+		: 0;
+	const hasOverflow = weekMode && overflowCount > 0;
+
+	// In week mode with overflow: cap cols at 3 and hide jobs in col >= 3
+	const timedJobs = hasOverflow
+		? allTimedJobs
+				.filter((j) => j.col < WEEK_MAX_COLS)
+				.map((j) => ({ ...j, cols: Math.min(j.cols, WEEK_MAX_COLS) }))
+		: allTimedJobs;
+	const hiddenJobCount = hasOverflow ? allTimedJobs.length - timedJobs.length : 0;
+	const hiddenEngCount = hasOverflow
+		? new Set(allTimedJobs.filter((j) => j.col >= WEEK_MAX_COLS).map((j) => j.job.assignedTo)).size
+		: 0;
+
+	// Find the vertical range of the overflow for badge positioning
+	const overflowTop = hasOverflow
+		? Math.min(...allTimedJobs.filter((j) => j.col >= WEEK_MAX_COLS).map((j) => j.top))
+		: 0;
 	const isDragOver = dragOverSlot?.ds === ds;
 
 	// Resize state — ref so pointer handlers stay stable without re-render lag
@@ -688,20 +674,6 @@ function DayColumn({
 			className="flex-1 border-r border-neutral-800 relative"
 			style={{ height: TOTAL_HEIGHT, minWidth: 0, cursor: "crosshair" }}
 			onClick={handleColumnClick}
-			onDragOver={(e) => {
-				if (e.dataTransfer.types.includes("unscheduledjobid"))
-					e.preventDefault();
-			}}
-			onDrop={(e) => {
-				const jobId = e.dataTransfer.getData("unscheduledJobId");
-				if (!jobId || !onScheduleUnscheduled) return;
-				e.preventDefault();
-				const rect = colRef.current!.getBoundingClientRect();
-				const y = e.clientY - rect.top + (gridScrollTop ?? 0);
-				const startTime = yToTime(y);
-				const endTime = minutesToTime(timeToMinutes(startTime) + 60);
-				onScheduleUnscheduled(jobId, ds, startTime, endTime);
-			}}
 		>
 			{/* Hour lines */}
 			{HOURS.map((_, i) => (
@@ -1095,6 +1067,30 @@ function DayColumn({
 					</div>
 				);
 			})}
+
+			{/* Week-mode overflow badge */}
+			{hasOverflow && hiddenJobCount > 0 && (
+				<div
+					style={{
+						position: "absolute",
+						top: overflowTop,
+						right: 2,
+						zIndex: 15,
+					}}
+					onClick={(e) => {
+						e.stopPropagation();
+						onNavigateToDay?.();
+					}}
+					className="rounded-lg bg-neutral-800/95 border border-neutral-600 px-2 py-1.5 cursor-pointer hover:bg-neutral-700 transition-colors shadow-lg"
+				>
+					<p className="text-[10px] font-medium text-neutral-200 whitespace-nowrap">
+						+{hiddenJobCount} more
+					</p>
+					<p className="text-[8px] text-neutral-500 whitespace-nowrap">
+						{hiddenEngCount} eng · tap for day view
+					</p>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -1232,16 +1228,12 @@ export function CalendarPage() {
 		jobsRef.current = jobs;
 	}, [jobs]);
 
-	function onJobPtrDown(
-		jobId: string,
-		offsetY: number,
-		clientX: number,
-		clientY: number,
-	) {
+	/** Read column rects fresh from the DOM each time — avoids stale positions after scroll. */
+	function readColRects() {
 		const cols = Array.from(
 			gridBodyRef.current?.querySelectorAll("[data-ds]") ?? [],
 		);
-		const colRects = cols.map((col) => {
+		return cols.map((col) => {
 			const r = col.getBoundingClientRect();
 			return {
 				ds: col.getAttribute("data-ds")!,
@@ -1251,13 +1243,21 @@ export function CalendarPage() {
 				top: r.top,
 			};
 		});
+	}
+
+	function startPtrDrag(
+		jobId: string,
+		offsetY: number,
+		clientX: number,
+		clientY: number,
+	) {
 		ptrDragRef.current = {
 			jobId,
 			offsetY,
 			startX: clientX,
 			startY: clientY,
 			hasDragged: false,
-			colRects,
+			colRects: readColRects(),
 			startTime: Date.now(),
 		};
 
@@ -1279,7 +1279,12 @@ export function CalendarPage() {
 					prev ? { ...prev, x: e.clientX, y: e.clientY } : null,
 				);
 			}
-			const targetCol = pd.colRects.find(
+
+			// Re-read column rects each move so they stay accurate after scroll
+			const colRects = readColRects();
+			pd.colRects = colRects;
+
+			const targetCol = colRects.find(
 				(c) => e.clientX >= c.left && e.clientX <= c.right,
 			);
 			if (targetCol) {
@@ -1294,7 +1299,7 @@ export function CalendarPage() {
 				setDragOverSlot(null);
 			}
 
-			// Auto-scroll when dragging near edges
+			// Auto-scroll when dragging near edges of the grid scroll container
 			if (pd.hasDragged && gridScrollRef.current) {
 				const rect = gridScrollRef.current.getBoundingClientRect();
 				const EDGE = 60;
@@ -1332,7 +1337,8 @@ export function CalendarPage() {
 			const pd = ptrDragRef.current;
 			if (!pd) return;
 			if (pd.hasDragged) {
-				const targetCol = pd.colRects.find(
+				const colRects = readColRects();
+				const targetCol = colRects.find(
 					(c) => e.clientX >= c.left && e.clientX <= c.right,
 				);
 				if (targetCol) {
@@ -1386,6 +1392,24 @@ export function CalendarPage() {
 
 		document.addEventListener("mousemove", onMove);
 		document.addEventListener("mouseup", onUp);
+	}
+
+	function onJobPtrDown(
+		jobId: string,
+		offsetY: number,
+		clientX: number,
+		clientY: number,
+	) {
+		startPtrDrag(jobId, offsetY, clientX, clientY);
+	}
+
+	/** Called from UnscheduledPanel — offsetY is 0 since the card isn't in the time grid. */
+	function onUnscheduledPtrDown(
+		jobId: string,
+		clientX: number,
+		clientY: number,
+	) {
+		startPtrDrag(jobId, 0, clientX, clientY);
 	}
 
 	// Holiday modal
@@ -1444,7 +1468,7 @@ export function CalendarPage() {
 
 	const holidaysByDate = useMemo(() => {
 		const m: Record<string, typeof holidays> = {};
-		holidays.forEach((h) => {
+		holidays.filter((h) => h.status === "approved").forEach((h) => {
 			// Expand multi-day holidays across all dates in the range
 			const start = new Date(h.date);
 			const end = h.endDate ? new Date(h.endDate) : start;
@@ -1490,6 +1514,12 @@ export function CalendarPage() {
 			setCalDate(d);
 		}
 	}
+
+	// UK Bank Holidays lookup (covers current year ± 1)
+	const bankHols = useMemo(
+		() => bankHolidayMap([year - 1, year, year + 1]),
+		[year],
+	);
 
 	const weekStart = getWeekStart(calDate);
 	const weekDays = weekDaysFrom(weekStart, 7);
@@ -1749,6 +1779,7 @@ export function CalendarPage() {
 					if (!cell) return <div key={i} className="min-h-[88px]" />;
 					const isToday = cell.ds === TODAY;
 					const hols = visibleHolidaysForDate(cell.ds);
+					const bankHol = bankHols[cell.ds];
 
 					return (
 						<div
@@ -1760,7 +1791,9 @@ export function CalendarPage() {
 							className={`min-h-[88px] rounded-lg border p-1.5 cursor-pointer transition-colors ${
 								isToday
 									? "border-orange-700/50 bg-orange-950/30 hover:border-orange-600/60"
-									: "border-neutral-800 bg-neutral-900 hover:border-neutral-700"
+									: bankHol
+										? "border-emerald-800/40 bg-emerald-950/20 hover:border-emerald-700/50"
+										: "border-neutral-800 bg-neutral-900 hover:border-neutral-700"
 							}`}
 						>
 							<div className="flex items-center justify-between mb-1">
@@ -1786,6 +1819,11 @@ export function CalendarPage() {
 									</div>
 								)}
 							</div>
+							{bankHol && (
+								<p className="text-[9px] text-emerald-400/80 truncate mb-0.5" title={bankHol}>
+									🏦 {bankHol}
+								</p>
+							)}
 							<div className="flex flex-col gap-0.5">
 								{cell.dayJobs.slice(0, 3).map((j) => {
 									const sc = STATUS_COLORS[j.status];
@@ -1873,8 +1911,18 @@ export function CalendarPage() {
 		const wds = `${String(business.workDayStart).padStart(2, "0")}:00`;
 		const totalW = showList.length * COL_W + GUTTER_W;
 
+		const dayBankHol = bankHols[ds];
+
 		return (
-			// Single scroll container handles both axes — no nested overflow-hidden
+			<>
+			{dayBankHol && (
+				<div className="flex items-center gap-2 rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-3 py-2 mb-3">
+					<span className="text-base">🏦</span>
+					<span className="text-sm text-emerald-400">{dayBankHol}</span>
+					<span className="text-xs text-emerald-600">— UK Bank Holiday</span>
+				</div>
+			)}
+			{/* Single scroll container handles both axes — no nested overflow-hidden */}
 			<div
 				ref={gridScrollRef}
 				className="w-full border border-neutral-800 rounded-xl overflow-auto"
@@ -1995,18 +2043,6 @@ export function CalendarPage() {
 									data-engineer-id={eng.id}
 									style={{ width: COL_W, flexShrink: 0, position: "relative", height: TOTAL_HEIGHT, cursor: "crosshair" }}
 									className="border-r border-neutral-800"
-									onDragOver={(e) => {
-										if (e.dataTransfer.types.includes("unscheduledjobid")) e.preventDefault();
-									}}
-									onDrop={(e) => {
-										const jobId = e.dataTransfer.getData("unscheduledJobId");
-										if (!jobId) return;
-										e.preventDefault();
-										const rect = e.currentTarget.getBoundingClientRect();
-										const scrollTop = gridScrollRef.current?.scrollTop ?? 0;
-										const startTime = yToTime(e.clientY - rect.top + scrollTop);
-										rescheduleJob(jobId, ds, startTime, minutesToTime(timeToMinutes(startTime) + 60), eng.id);
-									}}
 									onClick={(e) => {
 										const rect = e.currentTarget.getBoundingClientRect();
 										const scrollTop = gridScrollRef.current?.scrollTop ?? 0;
@@ -2127,6 +2163,7 @@ export function CalendarPage() {
 					</div>
 				</div>
 			</div>
+		</>
 		);
 	}
 
@@ -2162,6 +2199,11 @@ export function CalendarPage() {
 									>
 										{date.getDate()}
 									</div>
+									{bankHols[ds] && (
+										<p className="text-[8px] text-emerald-400/80 truncate leading-tight mt-0.5" title={bankHols[ds]}>
+											🏦 {bankHols[ds]}
+										</p>
+									)}
 									{(() => {
 										const workMinutes =
 											(business.workDayEnd -
@@ -2381,15 +2423,16 @@ export function CalendarPage() {
 									ptrDragJobId={ptrGhost?.job.id ?? null}
 									isToday={ds === TODAY}
 									nowTime={nowTime}
-									onScheduleUnscheduled={rescheduleJob}
-									gridScrollTop={
-										gridScrollRef.current?.scrollTop ?? 0
-									}
 									holidays={visibleHolidaysForDate(ds)}
 									workDayStart={business.workDayStart}
 									workDayEnd={business.workDayEnd}
 								onEditHoliday={openEditHoliday}
 									dragGhostJob={ptrGhost?.job ?? null}
+									weekMode={true}
+									onNavigateToDay={() => {
+										setCalDate(new Date(ds + "T00:00:00"));
+										setViewPersisted("day");
+									}}
 								/>
 							))}
 						</div>
@@ -2732,6 +2775,7 @@ export function CalendarPage() {
 					accentColor={business.accentColor}
 					workDayStart={business.workDayStart}
 					workDayEnd={business.workDayEnd}
+					onPointerDragStart={onUnscheduledPtrDown}
 				/>
 
 				{/* Engineer legend */}

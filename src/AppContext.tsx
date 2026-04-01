@@ -30,7 +30,6 @@ interface AppCtx {
 	currentUser: User | null;
 	login: (email: string, password: string) => Promise<Role | null>;
 	logout: () => void;
-	resetPassword: (email: string) => Promise<string | null>;
 	business: Business;
 	saveBusiness: (b: Business) => void;
 	users: User[];
@@ -45,6 +44,15 @@ interface AppCtx {
 		userId: string,
 		password: string,
 	) => Promise<string | null>;
+	inviteUser: (params: {
+		email: string;
+		password: string;
+		name: string;
+		role: Role;
+		phone?: string;
+		homeAddress?: string;
+		avatar?: string;
+	}) => Promise<string | null>;
 	theme: "dark" | "light";
 	toggleTheme: () => void;
 	createJob: (form: NewJobForm) => Promise<void>;
@@ -80,6 +88,8 @@ interface AppCtx {
 	createHoliday: (h: Omit<Holiday, "id">) => void;
 	deleteHoliday: (id: string) => void;
 	updateHoliday: (id: string, changes: Partial<Omit<Holiday, "id">>) => void;
+	approveHoliday: (id: string) => void;
+	declineHoliday: (id: string) => void;
 	// Atomic scheduling helpers (single DB call)
 	rescheduleJob: (jobId: string, date: string, startTime?: string, endTime?: string, assignedTo?: string) => void;
 	resizeJobTime: (jobId: string, startTime: string, endTime: string) => void;
@@ -152,6 +162,7 @@ function mapProfile(r: any): User {
 		phone: r.phone ?? "",
 		color: r.accent_color ?? "#f97316",
 		locked: r.locked ?? false,
+		holidayAllowance: r.holiday_allowance ?? 28,
 	};
 }
 
@@ -224,6 +235,7 @@ function mapHoliday(r: any): Holiday {
 		halfDay: r.half_day ?? false,
 		label: r.label ?? "Holiday",
 		type: (r.type ?? "holiday") as HolidayType,
+		status: (r.status ?? "approved") as import("./types").HolidayStatus,
 	};
 }
 
@@ -761,6 +773,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				avatar: user.avatar,
 				role: user.role,
 				accent_color: user.color,
+				holiday_allowance: user.holidayAllowance,
 			})
 			.eq("id", user.id);
 		if (error) {
@@ -868,6 +881,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				});
 			}
 			return res.ok ? null : (body.error ?? "Failed to update password");
+		} catch {
+			return "Network error — could not reach server";
+		}
+	}
+
+	async function inviteUser(params: {
+		email: string;
+		password: string;
+		name: string;
+		role: Role;
+		phone?: string;
+		homeAddress?: string;
+		avatar?: string;
+	}): Promise<string | null> {
+		const { data: { session } } = await supabase.auth.getSession();
+		if (!session) return "Not authenticated";
+		try {
+			const res = await fetch("/.netlify/functions/admin-invite-user", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${session.access_token}`,
+				},
+				body: JSON.stringify(params),
+			});
+			const body = await res.json();
+			if (!res.ok) return body.error ?? "Failed to create team member";
+			// Optimistically add new user to local state
+			const newUser: User = {
+				id: body.userId,
+				name: body.name,
+				email: body.email,
+				role: params.role,
+				avatar: params.avatar?.trim().toUpperCase().slice(0, 3) ||
+					params.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 3),
+				phone: params.phone ?? "",
+				home: params.homeAddress ?? "",
+				color: "#f97316",
+				locked: false,
+				holidayAllowance: 28,
+			};
+			setUsers((prev) => [...prev, newUser].sort((a, b) => a.name.localeCompare(b.name)));
+			return null;
 		} catch {
 			return "Network error — could not reach server";
 		}
@@ -993,7 +1049,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 	function createHoliday(h: Omit<Holiday, "id">) {
 		const id = crypto.randomUUID();
-		const full: Holiday = { ...h, id };
+		const status = h.status ?? (isMaster ? "approved" : "pending");
+		const full: Holiday = { ...h, id, status };
 		setHolidays((prev) =>
 			[...prev, full].sort((a, b) => a.date.localeCompare(b.date)),
 		);
@@ -1008,8 +1065,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					half_day: h.halfDay,
 					label: h.label,
 					type: h.type,
+					status,
 				}),
 		);
+		// Notify master when engineer submits request
+		if (!isMaster && status === "pending") {
+			const userName = currentUser?.name ?? "An engineer";
+			addNotification({
+				icon: "🏖️",
+				message: `${userName} requested holiday on ${h.date}`,
+				for: "master",
+			});
+		}
+	}
+
+	function approveHoliday(id: string) {
+		setHolidays((prev) =>
+			prev.map((h) => (h.id === id ? { ...h, status: "approved" as const } : h)),
+		);
+		dbSave(() =>
+			supabase.from("team_holidays").update({ status: "approved" }).eq("id", id),
+		);
+		const hol = holidays.find((h) => h.id === id);
+		if (hol) {
+			addNotification({
+				icon: "✅",
+				message: `Your holiday request (${hol.date}) has been approved`,
+				for: hol.profileId,
+			});
+		}
+	}
+
+	function declineHoliday(id: string) {
+		setHolidays((prev) =>
+			prev.map((h) => (h.id === id ? { ...h, status: "declined" as const } : h)),
+		);
+		dbSave(() =>
+			supabase.from("team_holidays").update({ status: "declined" }).eq("id", id),
+		);
+		const hol = holidays.find((h) => h.id === id);
+		if (hol) {
+			addNotification({
+				icon: "❌",
+				message: `Your holiday request (${hol.date}) has been declined`,
+				for: hol.profileId,
+			});
+		}
 	}
 
 	// Single-call reschedule (date + times together — avoids 3 separate DB round-trips)
@@ -1096,6 +1197,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		if (changes.halfDay !== undefined) dbChanges.half_day = changes.halfDay;
 		if (changes.label !== undefined) dbChanges.label = changes.label;
 		if (changes.type !== undefined) dbChanges.type = changes.type;
+		if (changes.status !== undefined) dbChanges.status = changes.status;
 		dbSave(() => supabase.from("team_holidays").update(dbChanges).eq("id", id));
 	}
 
@@ -1106,7 +1208,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				currentUser,
 				login,
 				logout,
-				resetPassword,
 				business,
 				saveBusiness,
 				users,
@@ -1118,6 +1219,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			unlockUser,
 			deleteUser,
 				changePassword,
+				inviteUser,
 				theme,
 				toggleTheme,
 				createJob,
@@ -1147,6 +1249,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				createHoliday,
 				deleteHoliday,
 				updateHoliday,
+				approveHoliday,
+				declineHoliday,
 				rescheduleJob,
 				resizeJobTime,
 			}}

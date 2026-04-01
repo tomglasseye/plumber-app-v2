@@ -19,6 +19,7 @@ export interface User {
 	phone: string;
 	color?: string; // personal accent colour
 	locked?: boolean;
+	holidayAllowance: number; // annual holiday allowance in days
 }
 
 export interface Category {
@@ -30,6 +31,7 @@ export interface Category {
 }
 
 export type HolidayType = "holiday" | "sick" | "training" | "other";
+export type HolidayStatus = "pending" | "approved" | "declined";
 
 export interface Holiday {
 	id: string;
@@ -39,6 +41,7 @@ export interface Holiday {
 	halfDay: boolean;
 	label: string;
 	type: HolidayType;
+	status: HolidayStatus;
 }
 
 export interface Job {

@@ -1,4 +1,4 @@
-import type { Business, Job, Priority, Status, User } from "./types";
+import type { Business, HolidayType, Job, Priority, Status, User } from "./types";
 
 export const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -174,6 +174,123 @@ export function engColor(id: string): string {
 export function userColor(id: string, users: User[]): string {
 	const u = users.find((u) => u.id === id);
 	return u?.color ?? engColor(id);
+}
+
+export const HOLIDAY_TYPE_CONFIG: Record<
+	HolidayType,
+	{ label: string; emoji: string; bg: string; text: string }
+> = {
+	holiday: { label: "Holiday", emoji: "🏖️", bg: "bg-blue-950/60", text: "text-blue-300" },
+	sick: { label: "Sick Day", emoji: "🤒", bg: "bg-red-950/60", text: "text-red-300" },
+	training: { label: "Training", emoji: "📚", bg: "bg-green-950/60", text: "text-green-300" },
+	other: { label: "Other", emoji: "📅", bg: "bg-neutral-800", text: "text-neutral-400" },
+};
+
+// ── UK Bank Holidays ────────────────────────────────────────────────────────
+
+export interface BankHoliday {
+	date: string; // YYYY-MM-DD
+	name: string;
+}
+
+/** Compute Easter Sunday for a given year (Anonymous Gregorian algorithm). */
+function easterSunday(year: number): Date {
+	const a = year % 19;
+	const b = Math.floor(year / 100);
+	const c = year % 100;
+	const d = Math.floor(b / 4);
+	const e = b % 4;
+	const f = Math.floor((b + 8) / 25);
+	const g = Math.floor((b - f + 1) / 3);
+	const h = (19 * a + b - d - g + 15) % 30;
+	const i = Math.floor(c / 4);
+	const k = c % 4;
+	const l = (32 + 2 * e + 2 * i - h - k) % 7;
+	const m = Math.floor((a + 11 * h + 22 * l) / 451);
+	const month = Math.floor((h + l - 7 * m + 114) / 31);
+	const day = ((h + l - 7 * m + 114) % 31) + 1;
+	return new Date(year, month - 1, day);
+}
+
+function fmtDate(d: Date): string {
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function addDays(d: Date, n: number): Date {
+	const r = new Date(d);
+	r.setDate(r.getDate() + n);
+	return r;
+}
+
+/** If date falls on Sat → substitute Mon; if Sun → substitute Mon. */
+function substituteDay(d: Date): Date {
+	const dow = d.getDay();
+	if (dow === 6) return addDays(d, 2); // Sat → Mon
+	if (dow === 0) return addDays(d, 1); // Sun → Mon
+	return d;
+}
+
+/** Returns all UK (England & Wales) bank holidays for a given year. */
+export function getUKBankHolidays(year: number): BankHoliday[] {
+	const holidays: BankHoliday[] = [];
+
+	// New Year's Day (1 Jan, substituted)
+	holidays.push({ date: fmtDate(substituteDay(new Date(year, 0, 1))), name: "New Year's Day" });
+
+	// Good Friday (Easter - 2)
+	const easter = easterSunday(year);
+	holidays.push({ date: fmtDate(addDays(easter, -2)), name: "Good Friday" });
+
+	// Easter Monday (Easter + 1)
+	holidays.push({ date: fmtDate(addDays(easter, 1)), name: "Easter Monday" });
+
+	// Early May bank holiday (first Monday of May)
+	const may1 = new Date(year, 4, 1);
+	const earlyMayOffset = (8 - may1.getDay()) % 7;
+	holidays.push({ date: fmtDate(new Date(year, 4, 1 + earlyMayOffset)), name: "Early May Bank Holiday" });
+
+	// Spring bank holiday (last Monday of May)
+	const may31 = new Date(year, 4, 31);
+	const springOffset = (may31.getDay() + 6) % 7;
+	holidays.push({ date: fmtDate(new Date(year, 4, 31 - springOffset)), name: "Spring Bank Holiday" });
+
+	// Summer bank holiday (last Monday of August)
+	const aug31 = new Date(year, 7, 31);
+	const summerOffset = (aug31.getDay() + 6) % 7;
+	holidays.push({ date: fmtDate(new Date(year, 7, 31 - summerOffset)), name: "Summer Bank Holiday" });
+
+	// Christmas Day (25 Dec, substituted)
+	const xmas = new Date(year, 11, 25);
+	holidays.push({ date: fmtDate(substituteDay(xmas)), name: "Christmas Day" });
+
+	// Boxing Day (26 Dec, substituted — if Xmas is on Fri, boxing day substitute is Mon)
+	const boxing = new Date(year, 11, 26);
+	const boxingSub = boxing.getDay() === 6 ? addDays(boxing, 2) : boxing.getDay() === 0 ? addDays(boxing, 1) : boxing;
+	// If xmas substitute is same as boxing substitute, shift boxing to next day
+	const xmasSub = substituteDay(xmas);
+	const boxingFinal = fmtDate(boxingSub) === fmtDate(xmasSub) ? addDays(boxingSub, 1) : boxingSub;
+	holidays.push({ date: fmtDate(boxingFinal), name: "Boxing Day" });
+
+	return holidays.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Returns a lookup of date string → bank holiday name for a range of years. */
+export function bankHolidayMap(years: number[]): Record<string, string> {
+	const m: Record<string, string> = {};
+	for (const y of years) {
+		for (const h of getUKBankHolidays(y)) {
+			m[h.date] = h.name;
+		}
+	}
+	return m;
+}
+
+export function getWeekStart(d: Date): Date {
+	const result = new Date(d);
+	const day = result.getDay();
+	const diff = day === 0 ? -6 : 1 - day;
+	result.setDate(result.getDate() + diff);
+	return result;
 }
 
 export const INITIAL_JOBS: Job[] = [

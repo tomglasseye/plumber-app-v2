@@ -20,6 +20,7 @@ import { NewJobPage } from "./pages/NewJobPage";
 import { TeamPage } from "./pages/TeamPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { AboutPage } from "./pages/AboutPage";
+import { HolidaysPage } from "./pages/HolidaysPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
 	const { currentUser } = useApp();
@@ -171,6 +172,14 @@ export default function App() {
 							element={
 								<RequireAuth>
 									<CalendarPage />
+								</RequireAuth>
+							}
+						/>
+						<Route
+							path="/holidays"
+							element={
+								<RequireAuth>
+									<HolidaysPage />
 								</RequireAuth>
 							}
 						/>

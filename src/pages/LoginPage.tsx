@@ -8,14 +8,12 @@ const LS_LOCKOUT_KEY = "login_lockout_until";
 const LS_ATTEMPTS_KEY = "login_attempts";
 
 export function LoginPage() {
-	const { login, resetPassword } = useApp();
+	const { login } = useApp();
 	const navigate = useNavigate();
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
-	const [info, setInfo] = useState("");
 	const [busy, setBusy] = useState(false);
-	const [showReset, setShowReset] = useState(false);
 	const [attempts, setAttempts] = useState(() => {
 		return parseInt(localStorage.getItem(LS_ATTEMPTS_KEY) ?? "0", 10);
 	});
@@ -146,69 +144,22 @@ export function LoginPage() {
 				</div>
 
 				{error && <p className="mb-3 text-sm text-red-400">{error}</p>}
-				{info && <p className="mb-3 text-sm text-green-400">{info}</p>}
 
-				{showReset ? (
-					<>
-						<button
-							onClick={async () => {
-								if (!email) {
-									setError("Enter your email address above.");
-									return;
-								}
-								setBusy(true);
-								setError("");
-								const err = await resetPassword(email);
-								setBusy(false);
-								if (err) setError(err);
-								else {
-									setInfo(
-										"Password reset email sent. Check your inbox.",
-									);
-									setShowReset(false);
-								}
-							}}
-							disabled={busy}
-							className="w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-						>
-							{busy ? "Sending…" : "Send Reset Link"}
-						</button>
-						<button
-							onClick={() => {
-								setShowReset(false);
-								setError("");
-								setInfo("");
-							}}
-							className="mt-3 w-full text-center text-xs text-neutral-500 hover:text-neutral-300 transition-colors bg-transparent border-0 cursor-pointer"
-						>
-							Back to sign in
-						</button>
-					</>
-				) : (
-					<>
-						<button
-							onClick={handleLogin}
-							disabled={busy || isLockedOut}
-							className="w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-						>
-							{isLockedOut
-								? `Locked — ${formatRemaining(remaining)}`
-								: busy
-									? "Signing in…"
-									: "Sign In"}
-						</button>
-						<button
-							onClick={() => {
-								setShowReset(true);
-								setError("");
-								setInfo("");
-							}}
-							className="mt-3 w-full text-center text-xs text-neutral-500 hover:text-neutral-300 transition-colors bg-transparent border-0 cursor-pointer"
-						>
-							Forgot password?
-						</button>
-					</>
-				)}
+				<button
+					onClick={handleLogin}
+					disabled={busy || isLockedOut}
+					className="w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+				>
+					{isLockedOut
+						? `Locked — ${formatRemaining(remaining)}`
+						: busy
+							? "Signing in…"
+							: "Sign In"}
+				</button>
+
+				<p className="mt-4 text-center text-xs text-neutral-700">
+					Forgotten your password? Contact your administrator.
+				</p>
 			</div>
 		</div>
 	);

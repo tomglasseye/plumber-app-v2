@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
-import { ACCENT_OPTIONS, STATUS_COLORS, TODAY, userColor } from "../data";
+import { ACCENT_OPTIONS, userColor } from "../data";
 import type { Role, User } from "../types";
 
 interface EditForm {
@@ -13,41 +12,29 @@ interface EditForm {
 	color: string;
 }
 
-const THIS_YEAR = new Date().getFullYear();
-
-function countDays(holidays: import("../types").Holiday[], profileId: string, type?: import("../types").HolidayType) {
-	return holidays
-		.filter(
-			(h) =>
-				h.profileId === profileId &&
-				h.date.startsWith(String(THIS_YEAR)) &&
-				(type === undefined || h.type === type),
-		)
-		.reduce((sum, h) => {
-			if (h.halfDay) return sum + 0.5;
-			if (!h.endDate || h.endDate <= h.date) return sum + 1;
-			const start = new Date(h.date + "T00:00:00");
-			const end = new Date(h.endDate + "T00:00:00");
-			const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
-			return sum + days;
-		}, 0);
+interface AddForm {
+	name: string;
+	email: string;
+	password: string;
+	confirmPassword: string;
+	phone: string;
+	home: string;
+	role: Role;
 }
 
 export function TeamPage() {
 	const {
-		jobs,
 		users,
-		holidays,
 		saveUser,
 		lockUser,
 		unlockUser,
 		deleteUser,
 		changePassword,
+		inviteUser,
 		isMaster,
 		business,
 		currentUser,
 	} = useApp();
-	const navigate = useNavigate();
 
 	const [editing, setEditing] = useState<User | null>(null);
 	const [form, setForm] = useState<EditForm>({
@@ -66,6 +53,44 @@ export function TeamPage() {
 	const [pwSuccess, setPwSuccess] = useState(false);
 	const [confirmDelete, setConfirmDelete] = useState(false);
 
+	// Add member modal
+	const [showAdd, setShowAdd] = useState(false);
+	const [addForm, setAddForm] = useState<AddForm>({
+		name: "", email: "", password: "", confirmPassword: "", phone: "", home: "", role: "engineer",
+	});
+	const [addSaving, setAddSaving] = useState(false);
+	const [addError, setAddError] = useState<string | null>(null);
+
+	function openAdd() {
+		setAddForm({ name: "", email: "", password: "", confirmPassword: "", phone: "", home: "", role: "engineer" });
+		setAddError(null);
+		setShowAdd(true);
+	}
+
+	function closeAdd() {
+		setShowAdd(false);
+		setAddError(null);
+	}
+
+	async function handleAdd() {
+		if (!addForm.name.trim()) { setAddError("Name is required."); return; }
+		if (!addForm.email.trim()) { setAddError("Email is required."); return; }
+		if (addForm.password.length < 8) { setAddError("Password must be at least 8 characters."); return; }
+		if (addForm.password !== addForm.confirmPassword) { setAddError("Passwords do not match."); return; }
+		setAddSaving(true);
+		setAddError(null);
+		const err = await inviteUser({
+			email: addForm.email.trim(),
+			password: addForm.password,
+			name: addForm.name.trim(),
+			role: addForm.role,
+			phone: addForm.phone.trim(),
+			homeAddress: addForm.home.trim(),
+		});
+		setAddSaving(false);
+		if (err) { setAddError(err); } else { closeAdd(); }
+	}
+
 	function openEdit(u: User) {
 		setEditing(u);
 		setForm({
@@ -77,6 +102,10 @@ export function TeamPage() {
 			color: u.color ?? "#f97316",
 		});
 		setConfirmDelete(false);
+		setNewPassword("");
+		setConfirmPassword("");
+		setPwError(null);
+		setPwSuccess(false);
 	}
 
 	function closeEdit() {
@@ -134,310 +163,138 @@ export function TeamPage() {
 		closeEdit();
 	}
 
-	function dayLabel(date: string): string {
-		const tomorrow = new Date(TODAY + "T00:00:00");
-		tomorrow.setDate(tomorrow.getDate() + 1);
-		const tomorrowStr = tomorrow.toISOString().slice(0, 10);
-		if (date === TODAY) return "Today";
-		if (date === tomorrowStr) return "Tomorrow";
-		return new Date(date + "T00:00:00").toLocaleDateString("en-GB", {
-			weekday: "long",
-			day: "numeric",
-			month: "short",
-		});
-	}
-
 	const sorted = [...users].sort((a, b) => {
 		if (a.role === b.role) return a.name.localeCompare(b.name);
 		return a.role === "master" ? -1 : 1;
 	});
 
+	const engineers = sorted.filter((u) => u.role === "engineer");
+	const masters = sorted.filter((u) => u.role === "master");
+
 	const inputCls =
 		"w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500";
 
 	return (
-		<div className="p-5 md:p-7 max-w-6xl overflow-x-hidden">
-			<h1 className="mb-6 text-2xl font-normal text-neutral-100 tracking-tight">
-				Team
-			</h1>
-
-			{/* Masters — compact row */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-				{sorted
-					.filter((u) => u.role === "master")
-					.map((u) => {
-						const ec = u.color ?? business.accentColor;
-						return (
-							<div
-								key={u.id}
-								className="rounded-xl border border-neutral-800 bg-neutral-900 p-5"
-							>
-								<div className="flex gap-3 items-start">
-									<div
-										className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium"
-										style={{
-											background: ec + "22",
-											border: `1px solid ${ec}44`,
-											color: ec,
-										}}
-									>
-										{u.avatar}
-									</div>
-									<div className="flex-1 min-w-0">
-										<div className="flex items-center gap-2 flex-wrap">
-											<p className="text-base text-neutral-100 truncate">
-												{u.name}
-											</p>
-											<span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-mono bg-orange-950 text-orange-400">
-												Master
-											</span>
-										</div>
-										{u.phone && (
-											<p className="text-xs text-neutral-600 mt-0.5">
-												📞 {u.phone}
-											</p>
-										)}
-										{u.home && (
-											<p className="mt-0.5 text-xs text-neutral-700 truncate">
-												🏠 {u.home}
-											</p>
-										)}
-									</div>
-									{isMaster && (
-										<button
-											onClick={() => openEdit(u)}
-											className="flex-shrink-0 rounded-lg p-1.5 text-neutral-600 hover:text-neutral-300 hover:bg-neutral-800 transition-colors"
-											title="Edit member"
-										>
-											<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-												<path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-												<path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.125L18 8.625" />
-											</svg>
-										</button>
-									)}
-								</div>
-							</div>
-						);
-					})}
+		<div className="p-5 md:p-7 max-w-3xl">
+			<div className="flex items-center justify-between mb-6 gap-4">
+				<div>
+					<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
+						Team
+					</h1>
+					<p className="mt-0.5 text-sm text-neutral-600">
+						{users.length} member{users.length !== 1 ? "s" : ""}
+					</p>
+				</div>
+				{isMaster && (
+					<button
+						onClick={openAdd}
+						className="rounded-lg px-4 py-2 text-sm font-medium text-white cursor-pointer hover:opacity-90 transition-opacity"
+						style={{ backgroundColor: business.accentColor }}
+					>
+						+ Add Member
+					</button>
+				)}
 			</div>
 
-			{/* Engineers */}
-			<div className="space-y-4">
-				{sorted
-					.filter((u) => u.role === "engineer")
-					.map((u) => {
-						const ec = userColor(u.id, users);
-						const assigned = jobs.filter((j) => j.assignedTo === u.id);
-						const active = assigned.filter((j) =>
-							["En Route", "On Site"].includes(j.status),
-						);
-						const done = assigned.filter((j) => j.status === "Completed");
+			{/* Masters section */}
+			{masters.length > 0 && (
+				<section className="mb-6">
+					<h2 className="text-[11px] uppercase tracking-wider text-neutral-600 mb-3">
+						Administrators
+					</h2>
+					<div className="space-y-2">
+						{masters.map((u) => (
+							<MemberRow key={u.id} user={u} accent={u.color ?? business.accentColor} isSelf={u.id === currentUser?.id} canEdit={isMaster} onEdit={() => openEdit(u)} onLock={() => lockUser(u.id)} onUnlock={() => unlockUser(u.id)} />
+						))}
+					</div>
+				</section>
+			)}
 
-						const upcoming = assigned
-							.filter(
-								(j) =>
-									j.date >= TODAY &&
-									!["Completed", "Invoiced"].includes(j.status),
-							)
-							.sort(
-								(a, b) =>
-									a.date.localeCompare(b.date) ||
-									(a.sortOrder ?? 0) - (b.sortOrder ?? 0),
-							);
+			{/* Engineers section */}
+			<section>
+				<h2 className="text-[11px] uppercase tracking-wider text-neutral-600 mb-3">
+					Engineers
+				</h2>
+				{engineers.length === 0 ? (
+					<div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900/50 py-10 text-center">
+						<p className="text-sm text-neutral-600">No engineers yet</p>
+						<p className="text-xs text-neutral-700 mt-1">Add team members from Account settings</p>
+					</div>
+				) : (
+					<div className="space-y-2">
+						{engineers.map((u) => (
+							<MemberRow key={u.id} user={u} accent={userColor(u.id, users)} isSelf={u.id === currentUser?.id} canEdit={isMaster} onEdit={() => openEdit(u)} onLock={() => lockUser(u.id)} onUnlock={() => unlockUser(u.id)} />
+						))}
+					</div>
+				)}
+			</section>
 
-						const byDate: Record<string, typeof upcoming> = {};
-						for (const j of upcoming) {
-							(byDate[j.date] ??= []).push(j);
-						}
-						const dateEntries = Object.entries(byDate).sort(([a], [b]) =>
-							a.localeCompare(b),
-						);
+			{/* Add Member Modal */}
+			{showAdd && (
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto"
+					onClick={(e) => e.target === e.currentTarget && closeAdd()}
+				>
+					<div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-6 my-4">
+						<h2 className="mb-1 text-lg text-neutral-100">Add Team Member</h2>
+						<p className="mb-5 text-xs text-neutral-600">
+							Set their login details and share them directly.
+						</p>
 
-						// This year's absence stats
-						const holDays = countDays(holidays, u.id, "holiday");
-						const sickDays = countDays(holidays, u.id, "sick");
-						const trainingDays = countDays(holidays, u.id, "training");
-						const otherDays = countDays(holidays, u.id, "other");
-						const totalAbsence = holDays + sickDays + trainingDays + otherDays;
-
-						return (
-							<div
-								key={u.id}
-								className={`rounded-xl border bg-neutral-900 p-5 flex flex-col md:flex-row gap-5 md:gap-6 ${u.locked ? "border-red-900/50 opacity-60" : "border-neutral-800"}`}
-							>
-								{/* Left panel */}
-								<div className="md:w-56 flex-shrink-0">
-									<div className="flex gap-3 items-start mb-4">
-										<div
-											className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium"
-											style={{
-												background: ec + "22",
-												border: `1px solid ${ec}44`,
-												color: ec,
-											}}
-										>
-											{u.avatar}
-											{u.locked && (
-												<span className="absolute -top-1 -right-1 text-[10px]">🔒</span>
-											)}
-										</div>
-										<div className="flex-1 min-w-0">
-											<div className="flex items-center gap-2 flex-wrap">
-												<p className="text-base text-neutral-100 truncate">
-													{u.name}
-												</p>
-												{u.locked ? (
-													<span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-mono bg-red-950 text-red-400">
-														Locked
-													</span>
-												) : (
-													<span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-mono bg-blue-950 text-blue-400">
-														Engineer
-													</span>
-												)}
-											</div>
-											{u.phone && (
-												<p className="text-xs text-neutral-600 mt-0.5">
-													📞 {u.phone}
-												</p>
-											)}
-											{u.home && (
-												<p className="mt-0.5 text-xs text-neutral-700 truncate">
-													🏠 {u.home}
-												</p>
-											)}
-										</div>
-										{isMaster && (
-											<button
-												onClick={() => openEdit(u)}
-												className="flex-shrink-0 rounded-lg p-1.5 text-neutral-600 hover:text-neutral-300 hover:bg-neutral-800 transition-colors"
-												title="Edit member"
-											>
-												<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-													<path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-													<path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.125L18 8.625" />
-												</svg>
-											</button>
-										)}
-									</div>
-
-									{/* Job stats */}
-									<div className="flex rounded-xl bg-neutral-950 overflow-hidden mb-3">
-										{[
-											{ label: "Total", count: assigned.length, color: "text-neutral-200" },
-											{ label: "Active", count: active.length, color: "text-green-400" },
-											{ label: "Done", count: done.length, color: "text-purple-400" },
-										].map((s) => (
-											<div key={s.label} className="flex-1 py-2.5 text-center">
-												<span className={`block text-xl font-light ${s.color}`}>
-													{s.count}
-												</span>
-												<span className="block text-[10px] text-neutral-600">
-													{s.label}
-												</span>
-											</div>
-										))}
-									</div>
-
-									{/* This year's absence stats */}
-									{totalAbsence > 0 && (
-										<div className="rounded-lg bg-neutral-950 p-3 space-y-1.5">
-											<p className="text-[10px] uppercase tracking-wider text-neutral-600 mb-2">
-												{THIS_YEAR} Absence
-											</p>
-											{holDays > 0 && (
-												<div className="flex justify-between text-xs">
-													<span className="text-neutral-500">🏖 Holiday</span>
-													<span className="text-neutral-300 font-medium">{holDays}d</span>
-												</div>
-											)}
-											{sickDays > 0 && (
-												<div className="flex justify-between text-xs">
-													<span className="text-neutral-500">🤒 Sick</span>
-													<span className="text-amber-400 font-medium">{sickDays}d</span>
-												</div>
-											)}
-											{trainingDays > 0 && (
-												<div className="flex justify-between text-xs">
-													<span className="text-neutral-500">📚 Training</span>
-													<span className="text-neutral-300 font-medium">{trainingDays}d</span>
-												</div>
-											)}
-											{otherDays > 0 && (
-												<div className="flex justify-between text-xs">
-													<span className="text-neutral-500">📋 Other</span>
-													<span className="text-neutral-300 font-medium">{otherDays}d</span>
-												</div>
-											)}
-											<div className="border-t border-neutral-800 pt-1.5 flex justify-between text-xs">
-												<span className="text-neutral-600">Total</span>
-												<span className="text-neutral-400 font-medium">{totalAbsence}d</span>
-											</div>
-										</div>
-									)}
-								</div>
-
-								{/* Right panel: schedule */}
-								<div className="flex-1 min-w-0 md:border-l md:border-neutral-800 md:pl-6">
-									{dateEntries.length === 0 ? (
-										<p className="text-xs text-neutral-700 py-2">
-											No upcoming jobs scheduled
-										</p>
-									) : (
-										<div className="space-y-5">
-											{dateEntries.map(([date, dateJobs]) => {
-												const isToday = date === TODAY;
-												return (
-													<div key={date}>
-														<p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-2">
-															{dayLabel(date)}
-														</p>
-														<div>
-															{dateJobs.map((j, idx) => {
-																const sc = STATUS_COLORS[j.status];
-																return (
-																	<div
-																		key={j.id}
-																		onClick={() => navigate(`/job/${j.id}`)}
-																		className="flex items-center gap-2 border-t border-neutral-800 py-2 -mx-1 px-1 rounded hover:bg-neutral-800/40 transition-colors cursor-pointer"
-																	>
-																		{isToday && (
-																			<span className="w-4 flex-shrink-0 text-[10px] text-neutral-700 font-mono text-center">
-																				{idx + 1}
-																			</span>
-																		)}
-																		<div
-																			className="h-2 w-2 flex-shrink-0 rounded-full"
-																			style={{ background: ec }}
-																		/>
-																		<span className="hidden sm:block w-14 flex-shrink-0 text-[10px] text-neutral-600">
-																			{j.ref}
-																		</span>
-																		<div className="flex-1 min-w-0">
-																			<span className="block truncate text-sm text-neutral-400">
-																				{j.customer}
-																			</span>
-																			<span className="block truncate text-xs text-neutral-600">
-																				📍 {j.address}
-																			</span>
-																		</div>
-																		<span className={`hidden sm:inline text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-mono ${sc.bg} ${sc.text}`}>
-																			{j.status}
-																		</span>
-																	</div>
-																);
-															})}
-														</div>
-													</div>
-												);
-											})}
-										</div>
-									)}
-								</div>
+						<div className="space-y-4">
+							<div>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Full Name</label>
+								<input type="text" value={addForm.name} onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="e.g. Tom Briggs" />
 							</div>
-						);
-					})}
-			</div>
+							<div>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Work Email</label>
+								<input type="email" value={addForm.email} onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} placeholder="tom@yourcompany.co.uk" />
+							</div>
+							<div>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Role</label>
+								<select value={addForm.role} onChange={(e) => setAddForm((f) => ({ ...f, role: e.target.value as Role }))} className={inputCls}>
+									<option value="engineer">Engineer</option>
+									<option value="master">Master (Admin)</option>
+								</select>
+							</div>
+							<div>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Phone</label>
+								<input type="tel" value={addForm.phone} onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="07700 900000" />
+							</div>
+							<div>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Home Address</label>
+								<input type="text" value={addForm.home} onChange={(e) => setAddForm((f) => ({ ...f, home: e.target.value }))} className={inputCls} placeholder="Optional" />
+							</div>
+							<div className="border-t border-neutral-800 pt-4">
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Password</label>
+								<input type="password" value={addForm.password} onChange={(e) => setAddForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} placeholder="Min. 8 characters" />
+							</div>
+							<div>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Confirm Password</label>
+								<input type="password" value={addForm.confirmPassword} onChange={(e) => setAddForm((f) => ({ ...f, confirmPassword: e.target.value }))} className={inputCls} placeholder="Repeat password" />
+							</div>
+						</div>
+
+						{addError && (
+							<p className="mt-3 text-sm text-red-400">{addError}</p>
+						)}
+
+						<div className="mt-6 flex gap-3">
+							<button onClick={closeAdd} className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer">
+								Cancel
+							</button>
+							<button
+								onClick={handleAdd}
+								disabled={addSaving}
+								className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
+								style={{ backgroundColor: business.accentColor }}
+							>
+								{addSaving ? "Creating..." : "Create Member"}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{/* Edit Modal */}
 			{editing && (
@@ -456,7 +313,7 @@ export function TeamPage() {
 								<input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} />
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Initials (2–3 letters)</label>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Initials (2-3 letters)</label>
 								<input type="text" maxLength={3} value={form.avatar} onChange={(e) => setForm((f) => ({ ...f, avatar: e.target.value }))} className={inputCls + " uppercase"} />
 							</div>
 							<div>
@@ -490,16 +347,16 @@ export function TeamPage() {
 						</div>
 
 						<div className="mt-6 flex gap-3">
-							<button onClick={closeEdit} className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
+							<button onClick={closeEdit} className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer">
 								Cancel
 							</button>
 							<button
 								onClick={handleSave}
 								disabled={saving || !form.name.trim()}
-								className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+								className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
 								style={{ backgroundColor: business.accentColor }}
 							>
-								{saving ? "Saving…" : "Save Changes"}
+								{saving ? "Saving..." : "Save Changes"}
 							</button>
 						</div>
 
@@ -512,14 +369,14 @@ export function TeamPage() {
 										onClick={() => { unlockUser(editing.id); closeEdit(); }}
 										className="w-full rounded-lg border border-green-800 bg-green-950 px-4 py-2.5 text-sm text-green-400 hover:bg-green-900 transition-colors cursor-pointer"
 									>
-										🔓 Unlock Account
+										Unlock Account
 									</button>
 								) : (
 									<button
 										onClick={() => { lockUser(editing.id); closeEdit(); }}
 										className="w-full rounded-lg border border-amber-800 bg-amber-950 px-4 py-2.5 text-sm text-amber-400 hover:bg-amber-900 transition-colors cursor-pointer"
 									>
-										🔒 Lock Account
+										Lock Account
 									</button>
 								)}
 							</div>
@@ -527,7 +384,7 @@ export function TeamPage() {
 
 						{/* Password section */}
 						<div className="mt-4 border-t border-neutral-800 pt-4">
-							<p className="mb-3 text-xs uppercase tracking-wider text-neutral-600">Set New Password</p>
+							<p className="mb-3 text-xs uppercase tracking-wider text-neutral-600">Reset Password</p>
 							<div className="space-y-3">
 								<input
 									type="password"
@@ -545,17 +402,17 @@ export function TeamPage() {
 								/>
 							</div>
 							{pwError && <p className="mt-2 text-xs text-red-400">{pwError}</p>}
-							{pwSuccess && <p className="mt-2 text-xs text-emerald-400">✓ Password updated</p>}
+							{pwSuccess && <p className="mt-2 text-xs text-emerald-400">Password updated</p>}
 							<button
 								onClick={handlePasswordSave}
 								disabled={pwSaving || !newPassword || !confirmPassword}
-								className="mt-3 w-full rounded-lg border border-neutral-700 px-4 py-2.5 text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 transition-colors disabled:opacity-40"
+								className="mt-3 w-full rounded-lg border border-neutral-700 px-4 py-2.5 text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 transition-colors disabled:opacity-40 cursor-pointer"
 							>
-								{pwSaving ? "Updating…" : "Update Password"}
+								{pwSaving ? "Updating..." : "Update Password"}
 							</button>
 						</div>
 
-						{/* Delete — not for self, not for the only master */}
+						{/* Delete — not for self */}
 						{editing.id !== currentUser?.id && (
 							<div className="mt-4 border-t border-neutral-800 pt-4">
 								<p className="mb-2 text-xs uppercase tracking-wider text-neutral-600">Danger Zone</p>
@@ -572,7 +429,7 @@ export function TeamPage() {
 										<div className="flex gap-2">
 											<button
 												onClick={() => setConfirmDelete(false)}
-												className="flex-1 rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-400 hover:text-neutral-200"
+												className="flex-1 rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-400 hover:text-neutral-200 cursor-pointer"
 											>
 												Cancel
 											</button>
@@ -588,6 +445,99 @@ export function TeamPage() {
 							</div>
 						)}
 					</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ── Member row component ────────────────────────────────────────────────────
+
+function MemberRow({ user, accent, isSelf, canEdit, onEdit, onLock, onUnlock }: {
+	user: User;
+	accent: string;
+	isSelf: boolean;
+	canEdit: boolean;
+	onEdit: () => void;
+	onLock: () => void;
+	onUnlock: () => void;
+}) {
+	return (
+		<div className={`flex items-center gap-4 rounded-xl border px-4 py-3 transition-colors ${user.locked ? "border-red-900/40 bg-neutral-900/60 opacity-60" : "border-neutral-800 bg-neutral-900"}`}>
+			{/* Avatar */}
+			<div
+				className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium"
+				style={{
+					background: accent + "22",
+					border: `1px solid ${accent}44`,
+					color: accent,
+				}}
+			>
+				{user.avatar}
+				{user.locked && (
+					<span className="absolute -top-1 -right-1 text-[10px]">🔒</span>
+				)}
+			</div>
+
+			{/* Info */}
+			<div className="flex-1 min-w-0">
+				<div className="flex items-center gap-2 flex-wrap">
+					<p className="text-sm text-neutral-100 font-medium truncate">{user.name}</p>
+					{isSelf && (
+						<span className="text-[9px] px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-500">You</span>
+					)}
+					{user.role === "master" ? (
+						<span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-orange-950 text-orange-400">
+							Admin
+						</span>
+					) : user.locked ? (
+						<span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-red-950 text-red-400">
+							Locked
+						</span>
+					) : (
+						<span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-blue-950 text-blue-400">
+							Engineer
+						</span>
+					)}
+				</div>
+				<div className="flex items-center gap-3 mt-0.5 flex-wrap">
+					{user.email && (
+						<span className="text-xs text-neutral-600 truncate">{user.email}</span>
+					)}
+					{user.phone && (
+						<span className="text-xs text-neutral-600">{user.phone}</span>
+					)}
+				</div>
+			</div>
+
+			{/* Quick actions */}
+			{canEdit && (
+				<div className="flex items-center gap-1 flex-shrink-0">
+					{!isSelf && (
+						<button
+							onClick={(e) => { e.stopPropagation(); user.locked ? onUnlock() : onLock(); }}
+							className={`rounded-lg p-2 transition-colors cursor-pointer ${user.locked ? "text-green-600 hover:text-green-400 hover:bg-green-950/50" : "text-neutral-700 hover:text-amber-400 hover:bg-amber-950/50"}`}
+							title={user.locked ? "Unlock account" : "Lock account"}
+						>
+							<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+								{user.locked ? (
+									<path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+								) : (
+									<path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+								)}
+							</svg>
+						</button>
+					)}
+					<button
+						onClick={onEdit}
+						className="rounded-lg p-2 text-neutral-700 hover:text-neutral-300 hover:bg-neutral-800 transition-colors cursor-pointer"
+						title="Edit member"
+					>
+						<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+							<path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+							<path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.125L18 8.625" />
+						</svg>
+					</button>
 				</div>
 			)}
 		</div>
