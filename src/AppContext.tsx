@@ -270,7 +270,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	const [customers, setCustomers] = useState<Customer[]>([]);
 	const [categories, setCategories] = useState<Category[]>([]);
 	const [holidays, setHolidays] = useState<Holiday[]>([]);
-	const notifCounter = useRef(1000);
 	const pendingMutations = useRef<Set<string>>(new Set());
 	const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const warnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
