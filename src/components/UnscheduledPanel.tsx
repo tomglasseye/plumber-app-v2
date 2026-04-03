@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CategoryIcon } from "../pages/AccountPage";
 import { STATUS_COLORS } from "../data";
+import { haversine, geocodeAddress } from "../utils/geo";
 import type { Category, Job } from "../types";
 
 interface Props {
@@ -12,18 +13,6 @@ interface Props {
 	workDayStart: number;
 	workDayEnd: number;
 	onPointerDragStart?: (jobId: string, clientX: number, clientY: number) => void;
-}
-
-function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
-	const R = 6371;
-	const dLat = ((lat2 - lat1) * Math.PI) / 180;
-	const dLon = ((lon2 - lon1) * Math.PI) / 180;
-	const a =
-		Math.sin(dLat / 2) ** 2 +
-		Math.cos((lat1 * Math.PI) / 180) *
-			Math.cos((lat2 * Math.PI) / 180) *
-			Math.sin(dLon / 2) ** 2;
-	return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -72,27 +61,11 @@ export function UnscheduledPanel({ jobs, categories, onPointerDragStart }: Props
 				const job = unscheduled[i];
 				if (!job.address) continue;
 
-				// Check cache
-				let coords = geocodeCache.current.get(job.address);
-				if (!coords) {
-					// Rate limit: 1 per second
-					if (i > 0) {
-						await new Promise((r) => setTimeout(r, 1000));
-					}
-					try {
-						const res = await fetch(
-							`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(job.address)}&format=json&limit=1&countrycodes=gb`,
-							{ headers: { "User-Agent": "PipeLineApp/1.0" } },
-						);
-						const data = await res.json();
-						if (data.length > 0) {
-							coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-							geocodeCache.current.set(job.address, coords);
-						}
-					} catch {
-						// skip
-					}
+				// Rate limit: 1 per second
+				if (i > 0) {
+					await new Promise((r) => setTimeout(r, 1000));
 				}
+				const coords = await geocodeAddress(job.address, geocodeCache.current);
 
 				if (coords) {
 					newDistances[job.id] = haversine(latitude, longitude, coords[0], coords[1]);
