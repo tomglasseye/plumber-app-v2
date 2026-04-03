@@ -271,6 +271,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	const [categories, setCategories] = useState<Category[]>([]);
 	const [holidays, setHolidays] = useState<Holiday[]>([]);
 	const notifCounter = useRef(1000);
+	const pendingMutations = useRef<Set<string>>(new Set());
 	const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const warnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const resetIdleRef = useRef<() => void>(() => {});
@@ -387,6 +388,132 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			supabase.removeChannel(channel);
 		};
 	}, [currentUser, isMaster]);
+
+	// Supabase Realtime — live sync for jobs table
+	useEffect(() => {
+		if (!currentUser) return;
+
+		const channel = supabase
+			.channel("app-jobs")
+			.on(
+				"postgres_changes",
+				{ event: "INSERT", schema: "public", table: "jobs" },
+				(payload) => {
+					const id = payload.new.id;
+					if (pendingMutations.current.has(id)) {
+						pendingMutations.current.delete(id);
+						return;
+					}
+					const job = mapJob(payload.new);
+					setJobs((prev) => {
+						if (prev.some((j) => j.id === id)) return prev;
+						return [...prev, job];
+					});
+				},
+			)
+			.on(
+				"postgres_changes",
+				{ event: "UPDATE", schema: "public", table: "jobs" },
+				(payload) => {
+					const id = payload.new.id;
+					if (pendingMutations.current.has(id)) {
+						pendingMutations.current.delete(id);
+						return;
+					}
+					const updated = mapJob(payload.new);
+					setJobs((prev) =>
+						prev.map((j) => (j.id === id ? updated : j)),
+					);
+				},
+			)
+			.on(
+				"postgres_changes",
+				{ event: "DELETE", schema: "public", table: "jobs" },
+				(payload) => {
+					const id = payload.old.id;
+					if (pendingMutations.current.has(id)) {
+						pendingMutations.current.delete(id);
+						return;
+					}
+					setJobs((prev) => prev.filter((j) => j.id !== id));
+				},
+			)
+			.subscribe();
+
+		return () => {
+			supabase.removeChannel(channel);
+		};
+	}, [currentUser]);
+
+	// Supabase Realtime — live sync for team_holidays table
+	useEffect(() => {
+		if (!currentUser) return;
+
+		const channel = supabase
+			.channel("app-holidays")
+			.on(
+				"postgres_changes",
+				{
+					event: "INSERT",
+					schema: "public",
+					table: "team_holidays",
+				},
+				(payload) => {
+					const id = payload.new.id;
+					if (pendingMutations.current.has(id)) {
+						pendingMutations.current.delete(id);
+						return;
+					}
+					const holiday = mapHoliday(payload.new);
+					setHolidays((prev) => {
+						if (prev.some((h) => h.id === id)) return prev;
+						return [...prev, holiday].sort((a, b) =>
+							a.date.localeCompare(b.date),
+						);
+					});
+				},
+			)
+			.on(
+				"postgres_changes",
+				{
+					event: "UPDATE",
+					schema: "public",
+					table: "team_holidays",
+				},
+				(payload) => {
+					const id = payload.new.id;
+					if (pendingMutations.current.has(id)) {
+						pendingMutations.current.delete(id);
+						return;
+					}
+					const updated = mapHoliday(payload.new);
+					setHolidays((prev) =>
+						prev.map((h) => (h.id === id ? updated : h)),
+					);
+				},
+			)
+			.on(
+				"postgres_changes",
+				{
+					event: "DELETE",
+					schema: "public",
+					table: "team_holidays",
+				},
+				(payload) => {
+					const id = payload.old.id;
+					if (pendingMutations.current.has(id)) {
+						pendingMutations.current.delete(id);
+						return;
+					}
+					setHolidays((prev) => prev.filter((h) => h.id !== id));
+				},
+			)
+			.subscribe();
+
+		return () => {
+			supabase.removeChannel(channel);
+		};
+	}, [currentUser]);
 
 	// ── DB write helpers ──────────────────────────────────────────
 
@@ -525,9 +652,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	function addNotification(n: Omit<Notification, "id" | "time" | "read">) {
+		const id = crypto.randomUUID();
 		const full: Notification = {
 			...n,
-			id: String(notifCounter.current++),
+			id,
 			time: fmtTime(),
 			read: false,
 		};
@@ -539,8 +667,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			setNotifications((prev) => [full, ...prev]);
 			setPushBanner(full);
 		}
-		// Persist to DB
+		// Persist to DB (use same ID so realtime dedup works)
 		const row: Record<string, unknown> = {
+			id,
 			business_id: business.id,
 			icon: n.icon,
 			message: n.message,
@@ -561,6 +690,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		field: K,
 		value: Job[K],
 	) {
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		const prev_val = jobs.find((j) => j.id === id)?.[field];
 		setJobs((prev) =>
 			prev.map((j) => (j.id === id ? { ...j, [field]: value } : j)),
@@ -581,6 +712,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	function changeStatus(id: string, status: Job["status"]) {
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		const job = jobs.find((j) => j.id === id)!;
 		const prevStatus = job.status;
 		// When completing a timed job, snap endTime to now if now is after startTime
@@ -613,19 +746,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					),
 				),
 		);
-		if (!isMaster) {
-			addNotification({
-				icon:
-					status === "Completed"
-						? "✅"
-						: status === "On Site"
-							? "🔧"
-							: "🚗",
-				message: `${currentUser!.name} updated ${job.ref} (${job.customer}) to ${status}`,
-				for: "master",
-				jobId: id,
-			});
-		} else {
+		// Only notify engineer when master changes their job status
+		// (engineer→master status changes are now visible via live sync)
+		if (isMaster) {
 			addNotification({
 				icon: "📋",
 				message: `HQ updated your job ${job.ref} (${job.customer}) to ${status}`,
@@ -636,6 +759,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	function changePriority(id: string, priority: Job["priority"]) {
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		const job = jobs.find((j) => j.id === id)!;
 		const prevPriority = job.priority;
 		setJobs((prev) =>
@@ -661,6 +786,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	function finalComplete(id: string) {
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		const job = jobs.find((j) => j.id === id)!;
 		setJobs((prev) =>
 			prev.map((j) => (j.id === id ? { ...j, readyToInvoice: true } : j)),
@@ -709,9 +836,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 	async function createJob(form: NewJobForm) {
 		const ref = genRef(jobs, business.logoInitials);
+		const jobId = crypto.randomUUID();
+		pendingMutations.current.add(jobId);
+		setTimeout(() => pendingMutations.current.delete(jobId), 10000);
 		const newJob: Job = {
 			...form,
-			id: crypto.randomUUID(),
+			id: jobId,
 			ref,
 			status: "Scheduled",
 			materials: "",
@@ -1082,6 +1212,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 	function createHoliday(h: Omit<Holiday, "id">) {
 		const id = crypto.randomUUID();
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		const status = h.status ?? (isMaster ? "approved" : "pending");
 		const full: Holiday = { ...h, id, status };
 		setHolidays((prev) =>
@@ -1112,6 +1244,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	function approveHoliday(id: string) {
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		setHolidays((prev) =>
 			prev.map((h) =>
 				h.id === id ? { ...h, status: "approved" as const } : h,
@@ -1134,6 +1268,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	function declineHoliday(id: string) {
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		setHolidays((prev) =>
 			prev.map((h) =>
 				h.id === id ? { ...h, status: "declined" as const } : h,
@@ -1163,6 +1299,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		endTime?: string,
 		assignedTo?: string,
 	) {
+		pendingMutations.current.add(jobId);
+		setTimeout(() => pendingMutations.current.delete(jobId), 10000);
 		const job = jobs.find((j) => j.id === jobId);
 		const prev = job
 			? {
@@ -1213,10 +1351,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					);
 			},
 		);
+		// Notify engineer when master reschedules their job
+		if (isMaster && job) {
+			const target = assignedTo ?? job.assignedTo;
+			if (target) {
+				addNotification({
+					icon: "📅",
+					message: `HQ rescheduled ${job.ref} (${job.customer}) to ${date}`,
+					for: target,
+					jobId,
+				});
+			}
+		}
 	}
 
 	// Single-call resize (start + end time together)
 	function resizeJobTime(jobId: string, startTime: string, endTime: string) {
+		pendingMutations.current.add(jobId);
+		setTimeout(() => pendingMutations.current.delete(jobId), 10000);
 		const job = jobs.find((j) => j.id === jobId);
 		const prevStart = job?.startTime;
 		const prevEnd = job?.endTime;
@@ -1243,11 +1395,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	function deleteHoliday(id: string) {
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		setHolidays((prev) => prev.filter((h) => h.id !== id));
 		dbSave(() => supabase.from("team_holidays").delete().eq("id", id));
 	}
 
 	function updateHoliday(id: string, changes: Partial<Omit<Holiday, "id">>) {
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		setHolidays((prev) =>
 			prev.map((h) => (h.id === id ? { ...h, ...changes } : h)),
 		);
