@@ -8,6 +8,7 @@ import {
 	STATUS_COLORS,
 	TODAY,
 	bankHolidayMap,
+	fmtDate,
 	userColor,
 } from "../data";
 import type {
@@ -158,7 +159,7 @@ function weekDaysFrom(start: Date, count = 7) {
 	return Array.from({ length: count }, (_, i) => {
 		const d = new Date(start);
 		d.setDate(start.getDate() + i);
-		return { date: d, ds: d.toISOString().slice(0, 10) };
+		return { date: d, ds: fmtDate(d) };
 	});
 }
 
@@ -1544,7 +1545,7 @@ export function CalendarPage() {
 				d <= end;
 				d.setDate(d.getDate() + 1)
 			) {
-				const ds = d.toISOString().slice(0, 10);
+				const ds = fmtDate(d);
 				if (!m[ds]) m[ds] = [];
 				m[ds].push(j);
 			}
@@ -1565,7 +1566,7 @@ export function CalendarPage() {
 					d <= end;
 					d.setDate(d.getDate() + 1)
 				) {
-					const ds = d.toISOString().slice(0, 10);
+					const ds = fmtDate(d);
 					if (!m[ds]) m[ds] = [];
 					m[ds].push(h);
 				}
@@ -2010,7 +2011,7 @@ export function CalendarPage() {
 	// ── Day view (per-engineer columns) ────────────────────────────────
 
 	function DayView() {
-		const ds = calDate.toISOString().slice(0, 10);
+		const ds = fmtDate(calDate);
 		const dayJobs = byDate[ds] ?? [];
 		const dayHols = visibleHolidaysForDate(ds);
 
@@ -3211,7 +3212,7 @@ export function CalendarPage() {
 
 				{/* Calendar views */}
 				<div
-					key={`${view}-${calDate.toISOString().slice(0, 10)}`}
+					key={`${view}-${fmtDate(calDate)}`}
 					className="cal-view-enter"
 				>
 					{view === "month" && <MonthView />}

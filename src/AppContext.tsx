@@ -7,7 +7,7 @@ import {
 	type ReactNode,
 } from "react";
 import { supabase } from "./supabase";
-import { fmtTime, genRef, INITIAL_BUSINESS } from "./data";
+import { fmtDate, fmtTime, genRef, INITIAL_BUSINESS } from "./data";
 import type {
 	Business,
 	Category,
@@ -817,7 +817,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			else if (job.repeatFrequency === "biannually")
 				next.setMonth(next.getMonth() + 6);
 			else next.setMonth(next.getMonth() + 3);
-			const nextDate = next.toISOString().slice(0, 10);
+			const nextDate = fmtDate(next);
 			createJob({
 				customer: job.customer,
 				phone: job.phone,

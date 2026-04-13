@@ -7,7 +7,10 @@ import type {
 	User,
 } from "./types";
 
-export const TODAY = new Date().toISOString().slice(0, 10);
+export const TODAY = (() => {
+	const d = new Date();
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+})();
 
 export const ACCENT_OPTIONS = [
 	"#f97316", // orange
@@ -246,7 +249,7 @@ function easterSunday(year: number): Date {
 	return new Date(year, month - 1, day);
 }
 
-function fmtDate(d: Date): string {
+export function fmtDate(d: Date): string {
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 

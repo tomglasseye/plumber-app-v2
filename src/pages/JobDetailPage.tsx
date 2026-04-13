@@ -7,6 +7,7 @@ import {
 	PRIORITY_COLORS,
 	STATUSES,
 	STATUS_COLORS,
+	TODAY,
 } from "../data";
 import type { Priority, RepeatFrequency, Status } from "../types";
 
@@ -208,9 +209,8 @@ export function JobDetailPage() {
 	// Engineer: mark job completed early — set end date to today
 	function handleEarlyComplete() {
 		if (!job) return;
-		const today = new Date().toISOString().slice(0, 10);
-		updateJob(job.id, "endDate", today);
-		setDraftEndDate(today);
+		updateJob(job.id, "endDate", TODAY);
+		setDraftEndDate(TODAY);
 	}
 
 	const inputClass =
@@ -682,7 +682,7 @@ export function JobDetailPage() {
 						{/* Early completion shortcut (non-master only) */}
 						{!isMaster &&
 							job.endDate &&
-							job.endDate > new Date().toISOString().slice(0, 10) && (
+							job.endDate > TODAY && (
 								<div className="mt-4 pt-4 border-t border-neutral-800">
 									<p className="text-xs text-neutral-600 mb-2">
 										Finished early?

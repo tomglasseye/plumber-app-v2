@@ -22,7 +22,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { useApp } from "../AppContext";
-import { ACCENT_OPTIONS } from "../data";
+import { ACCENT_OPTIONS, TODAY, fmtDate } from "../data";
 import type { Business, Category, Job, User } from "../types";
 
 // ── Icon Registry ────────────────────────────────────────────────────────────
@@ -167,13 +167,10 @@ function ExportPanel({
 	users: User[];
 	accent: string;
 }) {
-	const today = new Date().toISOString().slice(0, 10);
-	const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000)
-		.toISOString()
-		.slice(0, 10);
+	const thirtyDaysAgo = fmtDate(new Date(Date.now() - 30 * 86_400_000));
 
 	const [from, setFrom] = useState(thirtyDaysAgo);
-	const [to, setTo] = useState(today);
+	const [to, setTo] = useState(TODAY);
 	const [exported, setExported] = useState(false);
 
 	const filteredJobs = jobs.filter((j) => j.date >= from && j.date <= to);

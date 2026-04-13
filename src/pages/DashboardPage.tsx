@@ -8,6 +8,7 @@ import {
 	STATUS_COLORS,
 	TODAY,
 	bankHolidayMap,
+	fmtDate,
 	getWeekStart,
 } from "../data";
 
@@ -247,7 +248,7 @@ function MasterDashboard() {
 	// Recurring jobs due within 30 days
 	const thirtyOut = new Date();
 	thirtyOut.setDate(thirtyOut.getDate() + 30);
-	const cutoff30 = thirtyOut.toISOString().slice(0, 10);
+	const cutoff30 = fmtDate(thirtyOut);
 	const upcomingRecurring = jobs
 		.filter(
 			(j) =>
@@ -262,7 +263,7 @@ function MasterDashboard() {
 	// Upcoming holidays (next 14 days)
 	const fourteenOut = new Date();
 	fourteenOut.setDate(fourteenOut.getDate() + 14);
-	const cutoff14 = fourteenOut.toISOString().slice(0, 10);
+	const cutoff14 = fmtDate(fourteenOut);
 	const upcomingHolidays = holidays
 		.filter(
 			(h) =>
@@ -277,7 +278,7 @@ function MasterDashboard() {
 	const weekDays = Array.from({ length: 7 }, (_, i) => {
 		const d = new Date(weekStart);
 		d.setDate(d.getDate() + i);
-		return d.toISOString().slice(0, 10);
+		return fmtDate(d);
 	});
 	const thisYear = new Date(TODAY).getFullYear();
 	const bankHols = bankHolidayMap([thisYear - 1, thisYear, thisYear + 1]);
