@@ -3232,14 +3232,16 @@ export function CalendarPage() {
 						</div>
 					)}
 
-				{/* Calendar views */}
+				{/* Calendar views — called as functions (not <Component />) so React
+				    treats the output as inline JSX. This avoids unmount/remount on
+				    every re-render, which would reset the scroll container. */}
 				<div
 					key={`${view}-${fmtDate(calDate)}`}
 					className="cal-view-enter"
 				>
-					{view === "month" && <MonthView />}
-					{view === "week" && <TimeGridView days={weekDays} />}
-					{view === "day" && <DayView />}
+					{view === "month" && MonthView()}
+					{view === "week" && TimeGridView({ days: weekDays })}
+					{view === "day" && DayView()}
 				</div>
 
 				{/* Holiday / Leave modal */}
