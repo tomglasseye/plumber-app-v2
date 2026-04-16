@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
 import { CategoryIcon } from "./AccountPage";
@@ -1232,6 +1232,7 @@ export function CalendarPage() {
 	}
 	function handleUndo() {
 		if (!undoAction) return;
+		pendingScrollRestore.current = gridScrollRef.current?.scrollTop ?? null;
 		rescheduleJob(
 			undoAction.jobId,
 			undoAction.prevDate,
@@ -1424,6 +1425,10 @@ export function CalendarPage() {
 			const pd = ptrDragRef.current;
 			if (!pd) return;
 			if (pd.hasDragged) {
+				// Save scroll position before state updates cause a remount
+				pendingScrollRestore.current =
+					gridScrollRef.current?.scrollTop ?? null;
+
 				const colRects = readColRects();
 				const targetCol = colRects.find(
 					(c) => e.clientX >= c.left && e.clientX <= c.right,
@@ -1629,8 +1634,14 @@ export function CalendarPage() {
 					});
 
 	const gridScrollRef = useRef<HTMLDivElement>(null);
+	// Pending scroll restore — when set, the next layout paint will apply it.
+	// This survives inner-function component remounts that destroy the scroll container.
+	const pendingScrollRestore = useRef<number | null>(null);
+
 	useEffect(() => {
 		if (gridScrollRef.current && (view === "week" || view === "day")) {
+			// Only scroll to current time on genuine view change, not after a drag
+			if (pendingScrollRestore.current != null) return;
 			const now = new Date();
 			const currentMins = now.getHours() * 60 + now.getMinutes();
 			const scrollTarget =
@@ -1642,6 +1653,15 @@ export function CalendarPage() {
 			);
 		}
 	}, [view]);
+
+	// After every render, restore scroll position if one is pending.
+	// useLayoutEffect fires before the browser paints, so there's no visible jump.
+	useLayoutEffect(() => {
+		if (pendingScrollRestore.current != null && gridScrollRef.current) {
+			gridScrollRef.current.scrollTop = pendingScrollRestore.current;
+			pendingScrollRestore.current = null;
+		}
+	});
 
 	const shortcutHandlers = useMemo(
 		() => ({
@@ -1662,9 +1682,7 @@ export function CalendarPage() {
 	function preserveScroll(fn: () => void) {
 		const saved = gridScrollRef.current?.scrollTop ?? 0;
 		fn();
-		requestAnimationFrame(() => {
-			if (gridScrollRef.current) gridScrollRef.current.scrollTop = saved;
-		});
+		pendingScrollRestore.current = saved;
 	}
 
 	function openAddPanel(prefill: Partial<NewJobForm>) {
@@ -1838,6 +1856,8 @@ export function CalendarPage() {
 									<button
 										key={s}
 										onClick={() => {
+											pendingScrollRestore.current =
+												gridScrollRef.current?.scrollTop ?? null;
 											changeStatus(job.id, s);
 										}}
 										className={`rounded px-2 py-1 text-[10px] font-medium cursor-pointer transition-opacity hover:opacity-80 ${sc.bg} ${sc.text} ${isCurrent ? "ring-1 ring-white/40" : "opacity-60"}`}
@@ -2800,6 +2820,8 @@ export function CalendarPage() {
 										startTime,
 										endTime,
 									) => {
+										pendingScrollRestore.current =
+											gridScrollRef.current?.scrollTop ?? null;
 										const job = jobs.find(
 											(j) => j.id === jobId,
 										);

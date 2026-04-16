@@ -73,6 +73,31 @@ When the Xero integration is built, OAuth tokens (`xero_access_token`, `xero_ref
 
 ---
 
+## Audit Log
+
+An `audit_log` table (migration 16) records admin actions in a tamper-proof way. Clients cannot write to it directly — all writes go through the `log_audit_event()` security-definer function, so a compromised client cannot forge or suppress records.
+
+### Recorded events
+
+| Action                          | When                                  |
+| ------------------------------- | ------------------------------------- |
+| `job.created`                   | Job created                           |
+| `job.status_changed`            | Status updated                        |
+| `job.priority_changed`          | Priority updated                      |
+| `job.field_updated`             | Job fields saved                      |
+| `job.rescheduled`               | Date/time changed                     |
+| `job.final_completed`           | Master marks job Final Complete       |
+| `business.settings_updated`     | Account Settings saved                |
+| `profile.locked`                | Engineer account locked               |
+| `profile.unlocked`              | Engineer account unlocked             |
+| `profile.deleted`               | Engineer account deleted              |
+| `auth.password_change_self`     | User changes own password             |
+| `auth.password_changed_by_master` | Master resets another user's password |
+
+Masters view the log from the Account Settings page (full business log with filter tabs) or the Job Detail page (per-job history). Engineers cannot see the audit log.
+
+---
+
 ## Session Security
 
 ### Current state
@@ -102,6 +127,9 @@ Use Supabase's `pgTAP` testing framework to automate these checks as part of CI.
 
 ## Checklist
 
+- [x] Audit log with tamper-proof `log_audit_event()` function (migration 16)
+- [x] Profile delete RLS policy (masters cannot delete themselves — migration 15)
+- [x] Field-length CHECK constraints on key tables (migration 15)
 - [ ] Configure SMTP provider in Supabase Auth settings
 - [ ] Review Supabase Auth rate limit settings
 - [ ] Encrypt Xero tokens when integration is built

@@ -93,16 +93,17 @@ One row per user, linked to `auth.users` via `id`. Stores role, home address, an
 
 ```sql
 create table profiles (
-  id           uuid primary key references auth.users(id) on delete cascade,
-  business_id  uuid references businesses(id) on delete cascade,
-  name         text not null,
-  phone        text,
-  role         text check (role in ('master', 'engineer')) default 'engineer',
-  avatar       text,        -- two-letter initials e.g. "TB"
-  home_address text,
-  accent_color text default '#f97316',   -- added in migration 3
-  locked       boolean not null default false,  -- migration 14: master can lock engineer accounts
-  created_at   timestamptz default now()
+  id                uuid primary key references auth.users(id) on delete cascade,
+  business_id       uuid references businesses(id) on delete cascade,
+  name              text not null,
+  phone             text,
+  role              text check (role in ('master', 'engineer')) default 'engineer',
+  avatar            text,        -- two-letter initials e.g. "TB"
+  home_address      text,
+  accent_color      text default '#f97316',   -- added in migration 3
+  locked            boolean not null default false,  -- migration 14: master can lock engineer accounts
+  holiday_allowance integer default 28,              -- migration 17: annual leave days (UK default 28)
+  created_at        timestamptz default now()
 );
 
 -- Automatically create a profile stub when a new auth user signs up
@@ -148,6 +149,7 @@ create table jobs (
                      'annually', 'biannually', 'quarterly'
                    )),                      -- migration 12
   materials        text default '',
+  materials_cost   numeric(8,2) default 0, -- migration 19: cost of materials used
   notes            text default '',
   time_spent       numeric(5,2) default 0,
   sort_order       integer default 0,       -- migration 4
@@ -221,11 +223,68 @@ create table team_holidays (
   label       text default 'Holiday',
   type        text default 'holiday'           -- migration 10
               check (type in ('holiday', 'sick', 'training', 'other')),
+  status      text default 'approved'          -- migration 17: approval workflow
+              check (status in ('pending', 'approved', 'declined')),
   created_at  timestamptz default now()
 );
 ```
 
+Engineers submit leave requests as `pending`. Masters approve or decline. The default is `'approved'` for backward compatibility with entries created before migration 17.
+
 > **repeat_tasks (dropped in migration 12):** The `repeat_tasks` table previously held recurring job reminders as a separate concept. In migration 12 this was unified — `repeat_frequency` is now a column on the `jobs` table directly, and `repeat_tasks` was dropped.
+
+### audit_log (migration 16)
+
+Tamper-proof record of admin actions. Client code can only write via the `log_audit_event()` security-definer function — direct inserts are blocked by RLS.
+
+```sql
+create table audit_log (
+  id          uuid primary key default gen_random_uuid(),
+  business_id uuid references businesses(id) on delete cascade,
+  actor_id    uuid references profiles(id) on delete set null,
+  action      text not null,   -- e.g. 'job.status_changed', 'profile.locked'
+  target_type text,            -- 'job', 'profile', 'business'
+  target_id   text,            -- UUID of affected record
+  details     jsonb,           -- structured data (old/new values, ref, etc.)
+  created_at  timestamptz default now()
+);
+```
+
+Recorded actions: `job.created`, `job.status_changed`, `job.priority_changed`, `job.field_updated`, `job.rescheduled`, `job.final_completed`, `business.settings_updated`, `profile.locked`, `profile.unlocked`, `profile.deleted`, `auth.password_change_self`, `auth.password_changed_by_master`.
+
+### push_subscriptions (migration 20)
+
+Stores Web Push subscriptions so the server can target specific users.
+
+```sql
+create table push_subscriptions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid references auth.users not null,
+  endpoint   text not null,
+  p256dh     text not null,
+  auth       text not null,
+  created_at timestamptz default now(),
+  unique(user_id, endpoint)
+);
+```
+
+### super_admins (migration 21)
+
+Separate from the `business_id` / `role` system. Super admins have no `business_id` and are locked out of all tenant data by the existing RLS policies.
+
+```sql
+create table super_admins (
+  id         uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz default now()
+);
+```
+
+To grant super admin access, insert manually:
+
+```sql
+insert into super_admins (id)
+values ((select id from auth.users where email = 'you@yourapp.com'));
+```
 
 ### job_photos
 
@@ -288,54 +347,42 @@ $$;
 
 ### Key policies (summary)
 
-| Table          | Select                | Insert         | Update                          | Delete       |
-| -------------- | --------------------- | -------------- | ------------------------------- | ------------ |
-| businesses     | Own business          | —              | Masters only                    | —            |
-| profiles       | Own business          | Auto (trigger) | Own profile OR masters for team | —            |
-| jobs           | Own business          | Masters only   | Assigned engineer OR masters    | —            |
-| job_photos     | Own business          | Own business   | —                               | —            |
-| notifications  | Own (by user or role) | —              | —                               | —            |
-| customers      | Own business          | Masters only   | Masters only                    | Masters only |
-| categories     | Own business          | Masters only   | Masters only                    | Masters only |
-| team_holidays  | Own business          | Masters only   | Masters only                    | Masters only |
+| Table               | Select                      | Insert                              | Update                          | Delete                       |
+| ------------------- | --------------------------- | ----------------------------------- | ------------------------------- | ---------------------------- |
+| businesses          | Own business                | —                                   | Masters only                    | —                            |
+| profiles            | Own business                | Auto (trigger)                      | Own profile OR masters for team | Masters (not self)           |
+| jobs                | Own business                | Masters only                        | Assigned engineer OR masters    | —                            |
+| job_photos          | Own business                | Own business                        | —                               | Own upload OR masters        |
+| notifications       | Own (by user or role)       | —                                   | —                               | —                            |
+| customers           | Own business                | Masters only                        | Masters only                    | Masters only                 |
+| categories          | Own business                | Masters only                        | Masters only                    | Masters only                 |
+| team_holidays       | Own business                | Masters OR engineers (own, pending) | Masters OR engineers (own, pending) | Masters OR engineers (own, pending) |
+| audit_log           | Masters (own business only) | Via `log_audit_event()` only        | —                               | —                            |
+| push_subscriptions  | Own row only                | Own row only                        | Own row only                    | Own row only                 |
+| super_admins        | Own row only                | Manual SQL only                     | —                               | —                            |
 
-Full SQL is in `1_schema.sql` (base), `5_migration.sql` (profile updates), `8_migration.sql` (customers), and `9_migration.sql` (categories, team_holidays).
+Super admins have additional SELECT/INSERT/UPDATE/DELETE policies on all tenant tables (migration 22).
+
+Full SQL is in `1_schema.sql` (base), `5_migration.sql` (profile updates), `8_migration.sql` (customers), `9_migration.sql` (categories, team_holidays), `15_migration.sql` (profile delete), `16_migration.sql` (audit_log), `17_migration.sql` (holiday requests), and `22_migration.sql` (super admin bypass).
 
 ---
 
-## 5. Storage — job photos (not yet wired up)
+## 5. Storage — job photos
 
-The `job_photos` table exists but uploads are not yet connected to Supabase Storage. Currently photos use base64 strings in the UI.
+Job photos are stored in Supabase Storage and fully wired up via `src/components/JobPhotos.tsx`.
 
-**To set up when ready:**
+**One-time setup** (already done for the main instance):
 
-1. In the Supabase dashboard → Storage, create a bucket called `job-photos` (set to **private**)
-2. Add storage policies:
+1. In the Supabase dashboard → Storage, create a private bucket called `job-photos`
+2. Run `19_migration.sql` — adds `materials_cost` to `jobs`, creates storage policies, and adds a trigger to enforce the 2-photo-per-job limit server-side
 
-```sql
-create policy "members upload job photos"
-  on storage.objects for insert
-  with check (bucket_id = 'job-photos' and auth.uid() is not null);
+**How it works:**
 
-create policy "members read job photos"
-  on storage.objects for select
-  using (bucket_id = 'job-photos' and auth.uid() is not null);
-```
-
-3. Replace the base64 approach in `JobDetailPage.tsx` with:
-
-```ts
-// Upload
-const file = e.target.files[0];
-const path = `${businessId}/${jobId}/${Date.now()}-${file.name}`;
-await supabase.storage.from("job-photos").upload(path, file);
-await supabase.from("job_photos").insert({ job_id: jobId, storage_path: path });
-
-// Display (get a signed URL valid for 1 hour)
-const { data } = await supabase.storage
-	.from("job-photos")
-	.createSignedUrl(photo.storage_path, 3600);
-```
+- Images are resized to max 1200 px wide client-side before upload (JPEG, 85% quality)
+- Each photo is stored at path `{jobId}/{uuid}.{ext}`
+- Signed URLs (1-hour expiry) are fetched on component mount for display
+- Masters and the uploader can delete photos; others can only view
+- A database trigger (`enforce_job_photo_limit`) raises an exception if a third photo is attempted
 
 ---
 
@@ -396,3 +443,11 @@ Run these in the Supabase SQL Editor **after** applying `1_schema.sql` and `2_se
 | `12_migration.sql` | Drops legacy `jobs.type` column; adds `repeat_frequency` to `jobs`; drops `repeat_tasks` table (recurring moved into jobs)         |
 | `13_migration.sql` | Adds `work_day_start` (default 7) and `work_day_end` (default 17) to `businesses` — controls calendar time grid and working hours shading |
 | `14_migration.sql` | Adds `locked boolean not null default false` to `profiles` — masters can lock engineer accounts to prevent login                    |
+| `15_migration.sql` | Adds RLS DELETE policy for masters to remove team profiles; adds CHECK constraints for field lengths on `businesses`, `profiles`, `jobs`, `customers` |
+| `16_migration.sql` | Creates `audit_log` table and `log_audit_event()` security-definer function — tamper-proof record of admin actions, writable only via the function |
+| `17_migration.sql` | Adds `status` column to `team_holidays` (`pending`/`approved`/`declined`); adds `holiday_allowance` to `profiles`; adds RLS policies allowing engineers to submit and cancel their own pending requests |
+| `18_migration.sql` | Enables Supabase Realtime on `jobs` and `team_holidays`; sets `REPLICA IDENTITY FULL` so UPDATE payloads include the complete row |
+| `19_migration.sql` | Adds `materials_cost numeric(8,2)` to `jobs`; creates `job-photos` Storage bucket policies; adds `enforce_job_photo_limit` trigger (max 2 photos per job) |
+| `20_migration.sql` | Creates `push_subscriptions` table for Web Push; RLS: users manage own subscriptions |
+| `21_migration.sql` | Creates `super_admins` table and `is_super_admin()` helper function |
+| `22_migration.sql` | Adds RLS policies granting super admins read/write access to all tenant tables (`businesses`, `profiles`, `jobs`, `job_photos`, `customers`, `categories`, `notifications`, `team_holidays`) |

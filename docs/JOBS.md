@@ -9,25 +9,26 @@ This document covers the job data model, lifecycle, recurring jobs, and multi-da
 ```ts
 interface Job {
   id: string;
-  ref: string;           // e.g. "DPH-007" — auto-generated
+  ref: string;               // e.g. "DPH-007" — auto-generated
   customer: string;
   phone: string;
   address: string;
   description: string;
-  assignedTo: string;    // profile UUID
+  assignedTo: string;        // profile UUID
   status: Status;
   priority: Priority;
-  date: string;          // ISO "YYYY-MM-DD" — start date
-  endDate?: string;      // ISO "YYYY-MM-DD" — inclusive end, for multi-day
-  startTime?: string;    // "HH:MM" e.g. "09:00"
-  endTime?: string;      // "HH:MM" e.g. "10:30"
+  date: string;              // ISO "YYYY-MM-DD" — start date
+  endDate?: string;          // ISO "YYYY-MM-DD" — inclusive end, for multi-day
+  startTime?: string;        // "HH:MM" e.g. "09:00"
+  endTime?: string;          // "HH:MM" e.g. "10:30"
   categoryId?: string;
-  materials: string;
+  materials: string;         // free-text list of materials used
+  materialsCost: number;     // cost of materials (migration 19)
   notes: string;
   timeSpent: number;
   readyToInvoice: boolean;
   sortOrder?: number;
-  customerId?: string;   // linked contact UUID
+  customerId?: string;       // linked contact UUID
   repeatFrequency?: RepeatFrequency;
 }
 ```
@@ -145,3 +146,50 @@ Jobs with `readyToInvoice: true` can be pushed to Xero from the job detail page.
 Jobs can be tagged with a category (e.g. "Boiler Service", "Leak Repair"). Categories have a name, a Lucide icon, and a colour. They are managed in Account Settings (master only) and displayed as coloured chips throughout the app.
 
 Categories were added in migration 9. If no categories are configured the category selector is hidden.
+
+---
+
+## Job photos
+
+Up to 2 photos can be attached to a job via `src/components/JobPhotos.tsx`, which is rendered in the job detail page.
+
+### How it works
+
+- Photos are uploaded to Supabase Storage in the `job-photos` bucket (private)
+- Each photo is stored at `{jobId}/{uuid}.{ext}`
+- Images are resized to max 1200 px wide client-side before upload (JPEG, 85%) to save storage and bandwidth
+- Signed URLs (1-hour expiry) are fetched on component mount for display
+- A database trigger (`enforce_job_photo_limit`) prevents a third photo being inserted server-side
+- Masters and the uploader can delete photos; other engineers can only view
+
+### Database
+
+```ts
+interface JobPhoto {
+  id: string;
+  jobId: string;
+  storagePath: string;   // e.g. "{jobId}/{uuid}.jpg"
+  caption: string;
+  uploadedBy: string;    // profile UUID
+  createdAt: string;
+}
+```
+
+The `job_photos` table was created in the initial schema. Migration 19 adds the Storage bucket policies and the photo-limit trigger.
+
+---
+
+## Audit log
+
+Every significant action on a job is recorded in the `audit_log` table (master-visible only). Recorded job events:
+
+| Action                  | Triggered by                       |
+| ----------------------- | ---------------------------------- |
+| `job.created`           | Any job creation                   |
+| `job.status_changed`    | Status update (any role)           |
+| `job.priority_changed`  | Priority update (master)           |
+| `job.field_updated`     | Field edits saved (customer, address, etc.) |
+| `job.rescheduled`       | Drag-and-drop or date change       |
+| `job.final_completed`   | Master clicks Final Complete       |
+
+The `ActivityLog` component can be rendered with a `jobId` prop to show a per-job history, or without to show the full business log with filter tabs (All / Jobs / Users / Settings).
