@@ -15,7 +15,8 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  * and saves it to Supabase for the server to target.
  */
 export async function subscribeToPush(userId: string): Promise<boolean> {
-	if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+	if (!("serviceWorker" in navigator) || !("PushManager" in window))
+		return false;
 
 	const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 	if (!vapidKey) return false;
@@ -49,7 +50,12 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
  * Fire a push notification to a target user via the Netlify Function.
  * Non-blocking — errors are silently ignored.
  */
-export function firePush(userId: string, title: string, body: string, url?: string): void {
+export function firePush(
+	userId: string,
+	title: string,
+	body: string,
+	url?: string,
+): void {
 	fetch("/.netlify/functions/send-push", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
