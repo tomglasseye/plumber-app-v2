@@ -129,7 +129,7 @@ plumber-app-v2/
 └── supabase/
     ├── 1_schema.sql          # Initial schema + RLS + triggers
     ├── 2_seed.sql            # Seed data (1 business, 4 users, 6 jobs)
-    └── 3_migration.sql → 22_migration.sql  — incremental schema changes
+    └── 3_migration.sql → 24_migration.sql  — incremental schema changes
 ```
 
 ---
@@ -140,7 +140,7 @@ Run these in order in the Supabase SQL Editor when setting up a new instance:
 
 1. `1_schema.sql` — tables, RLS policies, triggers, helper functions
 2. `2_seed.sql` — demo business + users (password: `Plumber1!`)
-3. `3_migration.sql` → `22_migration.sql` — incremental schema changes
+3. `3_migration.sql` → `24_migration.sql` — incremental schema changes
 
 See full details in [docs/SUPABASE.md](docs/SUPABASE.md).
 

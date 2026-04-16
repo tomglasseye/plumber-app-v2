@@ -451,3 +451,5 @@ Run these in the Supabase SQL Editor **after** applying `1_schema.sql` and `2_se
 | `20_migration.sql` | Creates `push_subscriptions` table for Web Push; RLS: users manage own subscriptions |
 | `21_migration.sql` | Creates `super_admins` table and `is_super_admin()` helper function |
 | `22_migration.sql` | Adds RLS policies granting super admins read/write access to all tenant tables (`businesses`, `profiles`, `jobs`, `job_photos`, `customers`, `categories`, `notifications`, `team_holidays`) |
+| `23_migration.sql` | Replaces overly-broad `job-photos` Storage bucket policies with business-scoped versions — SELECT/DELETE check via `job_photos → jobs → business_id`, INSERT checks that `jobId` path segment belongs to the user's business |
+| `24_migration.sql` | Adds `guard_profile_sensitive_columns` trigger preventing engineers from changing `role`, `business_id`, or `locked` on their own profile; replaces `log_audit_event()` with version that validates action names and restricts admin-only actions to masters |

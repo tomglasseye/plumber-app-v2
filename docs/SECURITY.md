@@ -128,8 +128,12 @@ Use Supabase's `pgTAP` testing framework to automate these checks as part of CI.
 ## Checklist
 
 - [x] Audit log with tamper-proof `log_audit_event()` function (migration 16)
+- [x] Audit log action validation — only known action names accepted, admin-only actions gated (migration 24)
 - [x] Profile delete RLS policy (masters cannot delete themselves — migration 15)
 - [x] Field-length CHECK constraints on key tables (migration 15)
+- [x] Privilege escalation guard — engineers cannot change `role`, `business_id`, or `locked` on their own profile (migration 24)
+- [x] Storage bucket policies scoped to business — photo access requires job ownership (migration 23)
+- [x] `send-push` Netlify Function requires auth + same-business check
 - [ ] Configure SMTP provider in Supabase Auth settings
 - [ ] Review Supabase Auth rate limit settings
 - [ ] Encrypt Xero tokens when integration is built
