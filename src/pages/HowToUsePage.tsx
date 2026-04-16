@@ -126,8 +126,9 @@ export function HowToUsePage() {
 						How to use PipeLine
 					</h1>
 					<p className="text-neutral-400 max-w-2xl leading-relaxed">
-						A quick walkthrough for administrators (masters) and engineers.
-						Everything you need to know to get your team up and running.
+						A quick walkthrough for administrators (masters) and
+						engineers. Everything you need to know to get your team
+						up and running.
 					</p>
 				</div>
 
@@ -143,7 +144,10 @@ export function HowToUsePage() {
 					</p>
 					<div className="flex flex-wrap items-center gap-2">
 						{JOB_FLOW.map((s, i) => (
-							<div key={s.label} className="flex items-center gap-2">
+							<div
+								key={s.label}
+								className="flex items-center gap-2"
+							>
 								<span
 									className={`inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-medium text-white ${s.color}`}
 								>
@@ -163,36 +167,40 @@ export function HowToUsePage() {
 				</section>
 
 				{/* Master guide */}
-				{isMaster && <section className="mb-16">
-					<div className="flex items-center gap-3 mb-8">
-						<span className="inline-flex items-center rounded-lg bg-orange-900/40 border border-orange-800 px-3 py-1.5 text-xs font-medium text-orange-300">
-							Administrator / Master
-						</span>
-					</div>
-					<div className="space-y-8">
-						{MASTER_SECTIONS.map((sec) => (
-							<div
-								key={sec.title}
-								className="rounded-xl border border-neutral-800 bg-neutral-900 p-6"
-							>
-								<h3 className="text-base font-medium text-neutral-200 mb-4 flex items-center gap-2">
-									<span className="text-xl">{sec.icon}</span>
-									{sec.title}
-								</h3>
-								<ol className="space-y-2 list-decimal list-inside">
-									{sec.steps.map((step, i) => (
-										<li
-											key={i}
-											className="text-sm text-neutral-400 leading-relaxed pl-1"
-										>
-											{step}
-										</li>
-									))}
-								</ol>
-							</div>
-						))}
-					</div>
-				</section>}
+				{isMaster && (
+					<section className="mb-16">
+						<div className="flex items-center gap-3 mb-8">
+							<span className="inline-flex items-center rounded-lg bg-orange-900/40 border border-orange-800 px-3 py-1.5 text-xs font-medium text-orange-300">
+								Administrator / Master
+							</span>
+						</div>
+						<div className="space-y-8">
+							{MASTER_SECTIONS.map((sec) => (
+								<div
+									key={sec.title}
+									className="rounded-xl border border-neutral-800 bg-neutral-900 p-6"
+								>
+									<h3 className="text-base font-medium text-neutral-200 mb-4 flex items-center gap-2">
+										<span className="text-xl">
+											{sec.icon}
+										</span>
+										{sec.title}
+									</h3>
+									<ol className="space-y-2 list-decimal list-inside">
+										{sec.steps.map((step, i) => (
+											<li
+												key={i}
+												className="text-sm text-neutral-400 leading-relaxed pl-1"
+											>
+												{step}
+											</li>
+										))}
+									</ol>
+								</div>
+							))}
+						</div>
+					</section>
+				)}
 
 				{/* Engineer guide */}
 				<section className="mb-16">
@@ -209,22 +217,44 @@ export function HowToUsePage() {
 						</h3>
 						<ol className="space-y-3 list-decimal list-inside">
 							<li className="text-sm text-neutral-400 leading-relaxed pl-1">
-								Open <strong className="text-neutral-300">My Day</strong> first thing — see all your jobs for today in time order.
+								Open{" "}
+								<strong className="text-neutral-300">
+									My Day
+								</strong>{" "}
+								first thing — see all your jobs for today in
+								time order.
 							</li>
 							<li className="text-sm text-neutral-400 leading-relaxed pl-1">
-								Tap <strong className="text-neutral-300">GPS</strong> to check distances and plan your route.
+								Tap{" "}
+								<strong className="text-neutral-300">
+									GPS
+								</strong>{" "}
+								to check distances and plan your route.
 							</li>
 							<li className="text-sm text-neutral-400 leading-relaxed pl-1">
-								Head to your first job and mark it <strong className="text-neutral-300">En Route</strong> — the office sees it in real time.
+								Head to your first job and mark it{" "}
+								<strong className="text-neutral-300">
+									En Route
+								</strong>{" "}
+								— the office sees it in real time.
 							</li>
 							<li className="text-sm text-neutral-400 leading-relaxed pl-1">
-								Arrive on site, tap <strong className="text-neutral-300">On Site</strong>, and get to work.
+								Arrive on site, tap{" "}
+								<strong className="text-neutral-300">
+									On Site
+								</strong>
+								, and get to work.
 							</li>
 							<li className="text-sm text-neutral-400 leading-relaxed pl-1">
-								When finished, tap <strong className="text-neutral-300">Completed</strong>. Add notes about what was done and any photos.
+								When finished, tap{" "}
+								<strong className="text-neutral-300">
+									Completed
+								</strong>
+								. Add notes about what was done and any photos.
 							</li>
 							<li className="text-sm text-neutral-400 leading-relaxed pl-1">
-								Move on to the next job — your master handles invoicing from there.
+								Move on to the next job — your master handles
+								invoicing from there.
 							</li>
 						</ol>
 					</div>
@@ -263,23 +293,19 @@ export function HowToUsePage() {
 						{[
 							{
 								tip: "Works offline",
-								detail:
-									"The app caches your data so you can view jobs even with no signal. Changes sync when you're back online.",
+								detail: "The app caches your data so you can view jobs even with no signal. Changes sync when you're back online.",
 							},
 							{
 								tip: "Install on your phone",
-								detail:
-									"On iOS, tap Share → Add to Home Screen. On Android, tap the install banner. It works like a native app.",
+								detail: "On iOS, tap Share → Add to Home Screen. On Android, tap the install banner. It works like a native app.",
 							},
 							{
 								tip: "Push notifications",
-								detail:
-									"Enable notifications when prompted — you'll get alerts for new assignments, schedule changes, and completed jobs.",
+								detail: "Enable notifications when prompted — you'll get alerts for new assignments, schedule changes, and completed jobs.",
 							},
 							{
 								tip: "Keyboard shortcuts",
-								detail:
-									"On desktop, use arrow keys to navigate calendar days and Enter to open a slot. Press N to start a new job.",
+								detail: "On desktop, use arrow keys to navigate calendar days and Enter to open a slot. Press N to start a new job.",
 							},
 						].map((t) => (
 							<div

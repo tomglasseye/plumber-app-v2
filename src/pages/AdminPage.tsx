@@ -26,7 +26,10 @@ export function AdminPage() {
 	const [masterName, setMasterName] = useState("");
 	const [masterEmail, setMasterEmail] = useState("");
 	const [submitting, setSubmitting] = useState(false);
-	const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+	const [result, setResult] = useState<{
+		ok: boolean;
+		message: string;
+	} | null>(null);
 
 	// Business list for switching
 	const [allBiz, setAllBiz] = useState<BizRow[]>([]);
@@ -35,7 +38,9 @@ export function AdminPage() {
 	useEffect(() => {
 		supabase
 			.from("businesses")
-			.select("id, name, logo_initials, accent_color, phone, email, profiles(count)")
+			.select(
+				"id, name, logo_initials, accent_color, phone, email, profiles(count)",
+			)
 			.order("name", { ascending: true })
 			.then(({ data }) => {
 				if (data) setAllBiz(data as unknown as BizRow[]);
@@ -51,7 +56,9 @@ export function AdminPage() {
 		setResult(null);
 
 		try {
-			const { data: { session } } = await supabase.auth.getSession();
+			const {
+				data: { session },
+			} = await supabase.auth.getSession();
 			const res = await fetch("/.netlify/functions/create-business", {
 				method: "POST",
 				headers: {
@@ -60,7 +67,8 @@ export function AdminPage() {
 				},
 				body: JSON.stringify({
 					name,
-					logoInitials: logoInitials || name.slice(0, 3).toUpperCase(),
+					logoInitials:
+						logoInitials || name.slice(0, 3).toUpperCase(),
 					accentColor,
 					phone,
 					email,
@@ -72,7 +80,10 @@ export function AdminPage() {
 
 			const data = await res.json();
 			if (res.ok) {
-				setResult({ ok: true, message: data.message ?? "Business created successfully" });
+				setResult({
+					ok: true,
+					message: data.message ?? "Business created successfully",
+				});
 				setName("");
 				setLogoInitials("");
 				setPhone("");
@@ -81,10 +92,16 @@ export function AdminPage() {
 				setMasterName("");
 				setMasterEmail("");
 			} else {
-				setResult({ ok: false, message: data.error ?? "Something went wrong" });
+				setResult({
+					ok: false,
+					message: data.error ?? "Something went wrong",
+				});
 			}
 		} catch {
-			setResult({ ok: false, message: "Network error — please try again" });
+			setResult({
+				ok: false,
+				message: "Network error — please try again",
+			});
 		} finally {
 			setSubmitting(false);
 		}
@@ -100,13 +117,18 @@ export function AdminPage() {
 				Admin — Clients
 			</h1>
 			<p className="text-sm text-neutral-500 mb-6">
-				Switch into any client's app to manage their jobs, team, and settings.
+				Switch into any client's app to manage their jobs, team, and
+				settings.
 			</p>
 
 			{loadingBiz ? (
-				<p className="text-sm text-neutral-600 animate-pulse mb-10">Loading businesses…</p>
+				<p className="text-sm text-neutral-600 animate-pulse mb-10">
+					Loading businesses…
+				</p>
 			) : allBiz.length === 0 ? (
-				<p className="text-sm text-neutral-600 mb-10">No businesses yet — create one below.</p>
+				<p className="text-sm text-neutral-600 mb-10">
+					No businesses yet — create one below.
+				</p>
 			) : (
 				<div className="space-y-2 mb-10">
 					{allBiz.map((b) => (
@@ -120,17 +142,28 @@ export function AdminPage() {
 						>
 							<div
 								className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-								style={{ backgroundColor: b.accent_color || "#f97316" }}
+								style={{
+									backgroundColor:
+										b.accent_color || "#f97316",
+								}}
 							>
-								{b.logo_initials || b.name.slice(0, 2).toUpperCase()}
+								{b.logo_initials ||
+									b.name.slice(0, 2).toUpperCase()}
 							</div>
 							<div className="flex-1 min-w-0">
-								<p className="text-sm font-medium text-neutral-200 truncate">{b.name}</p>
+								<p className="text-sm font-medium text-neutral-200 truncate">
+									{b.name}
+								</p>
 								<p className="text-xs text-neutral-500 truncate">
-									{[b.email, b.phone].filter(Boolean).join(" · ") || "No contact details"}
+									{[b.email, b.phone]
+										.filter(Boolean)
+										.join(" · ") || "No contact details"}
 								</p>
 								<p className="text-xs text-neutral-600 mt-0.5">
-									{b.profiles?.[0]?.count ?? 0} team member{(b.profiles?.[0]?.count ?? 0) !== 1 ? "s" : ""}
+									{b.profiles?.[0]?.count ?? 0} team member
+									{(b.profiles?.[0]?.count ?? 0) !== 1
+										? "s"
+										: ""}
 								</p>
 							</div>
 							{b.id === business.id ? (
@@ -158,7 +191,8 @@ export function AdminPage() {
 				Create New Client
 			</h2>
 			<p className="text-sm text-neutral-500 mb-8">
-				Set up a new business and invite their administrator. They'll receive an email to set their password.
+				Set up a new business and invite their administrator. They'll
+				receive an email to set their password.
 			</p>
 
 			<form onSubmit={handleSubmit} className="space-y-6">
@@ -188,8 +222,18 @@ export function AdminPage() {
 							<input
 								type="text"
 								value={logoInitials}
-								onChange={(e) => setLogoInitials(e.target.value.toUpperCase().slice(0, 4))}
-								placeholder={name ? name.slice(0, 3).toUpperCase() : "SPL"}
+								onChange={(e) =>
+									setLogoInitials(
+										e.target.value
+											.toUpperCase()
+											.slice(0, 4),
+									)
+								}
+								placeholder={
+									name
+										? name.slice(0, 3).toUpperCase()
+										: "SPL"
+								}
 								maxLength={4}
 								className={inputClass}
 							/>
@@ -207,7 +251,10 @@ export function AdminPage() {
 										className="h-7 w-7 rounded-full border-2 cursor-pointer transition-transform hover:scale-110"
 										style={{
 											backgroundColor: c,
-											borderColor: accentColor === c ? "white" : "transparent",
+											borderColor:
+												accentColor === c
+													? "white"
+													: "transparent",
 										}}
 									/>
 								))}
@@ -296,18 +343,23 @@ export function AdminPage() {
 								: "border-red-800 bg-red-950/40 text-red-300"
 						}`}
 					>
-						{result.ok ? "✅ " : "⚠️ "}{result.message}
+						{result.ok ? "✅ " : "⚠️ "}
+						{result.message}
 					</div>
 				)}
 
 				{/* Submit */}
 				<button
 					type="submit"
-					disabled={submitting || !name || !masterName || !masterEmail}
+					disabled={
+						submitting || !name || !masterName || !masterEmail
+					}
 					className="rounded-lg px-6 py-3 text-sm font-medium text-white transition-all disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
 					style={{ backgroundColor: accentColor }}
 				>
-					{submitting ? "Creating..." : "Create Business & Send Invite"}
+					{submitting
+						? "Creating..."
+						: "Create Business & Send Invite"}
 				</button>
 			</form>
 		</div>

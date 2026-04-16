@@ -69,7 +69,10 @@ export function LoginPage() {
 			if (rl.status === 429) {
 				const body = await rl.json();
 				setBusy(false);
-				setError(body.message ?? "Too many login attempts. Please try again later.");
+				setError(
+					body.message ??
+						"Too many login attempts. Please try again later.",
+				);
 				return;
 			}
 		} catch {
@@ -117,51 +120,59 @@ export function LoginPage() {
 					Job management for trades teams
 				</p>
 
-			<form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-0">
-				<div className="mb-4">
-					<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
-						Work Email
-					</label>
-					<input
-						type="email"
-						placeholder="you@yourcompany.co.uk"
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-						disabled={isLockedOut}
-						autoComplete="email"
-						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600 disabled:opacity-40"
-					/>
-				</div>
-
-				<div className="mb-4">
-					<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
-						Password
-					</label>
-					<input
-						type="password"
-						placeholder="••••••••"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						disabled={isLockedOut}
-						autoComplete="current-password"
-						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600 disabled:opacity-40"
-					/>
-				</div>
-
-				{error && <p className="mb-3 text-sm text-red-400">{error}</p>}
-
-				<button
-					type="submit"
-					disabled={busy || isLockedOut}
-					className="w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						handleLogin();
+					}}
+					className="space-y-0"
 				>
-					{isLockedOut
-						? `Locked — ${formatRemaining(remaining)}`
-						: busy
-							? "Signing in…"
-							: "Sign In"}
-				</button>
-			</form>
+					<div className="mb-4">
+						<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+							Work Email
+						</label>
+						<input
+							type="email"
+							placeholder="you@yourcompany.co.uk"
+							value={email}
+							onChange={(e) => setEmail(e.target.value)}
+							disabled={isLockedOut}
+							autoComplete="email"
+							className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600 disabled:opacity-40"
+						/>
+					</div>
+
+					<div className="mb-4">
+						<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+							Password
+						</label>
+						<input
+							type="password"
+							placeholder="••••••••"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							disabled={isLockedOut}
+							autoComplete="current-password"
+							className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600 disabled:opacity-40"
+						/>
+					</div>
+
+					{error && (
+						<p className="mb-3 text-sm text-red-400">{error}</p>
+					)}
+
+					<button
+						type="submit"
+						disabled={busy || isLockedOut}
+						className="w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+					>
+						{isLockedOut
+							? `Locked — ${formatRemaining(remaining)}`
+							: busy
+								? "Signing in…"
+								: "Sign In"}
+					</button>
+				</form>
 
 				<p className="mt-4 text-center text-xs text-neutral-500">
 					Forgotten your password? Contact your administrator.

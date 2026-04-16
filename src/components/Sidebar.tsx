@@ -7,8 +7,16 @@ interface Props {
 }
 
 export function Sidebar({ onClose }: Props) {
-	const { currentUser, isMaster, isSuperAdmin, logout, business, theme, toggleTheme, exitBusiness } =
-		useApp();
+	const {
+		currentUser,
+		isMaster,
+		isSuperAdmin,
+		logout,
+		business,
+		theme,
+		toggleTheme,
+		exitBusiness,
+	} = useApp();
 	const navigate = useNavigate();
 
 	const activeColor = business.accentColor;
@@ -251,23 +259,26 @@ export function Sidebar({ onClose }: Props) {
 
 			{/* Nav */}
 			<nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-				{hasClient && navItems.map((item) => (
-					<NavLink
-						key={item.to}
-						to={item.to}
-						end={item.to === "/"}
-						className={({ isActive }) => linkClass({ isActive })}
-						style={({ isActive }) =>
-							isActive ? { color: activeColor } : undefined
-						}
-						onClick={onClose}
-					>
-						<span className="w-5 text-center text-base">
-							{item.icon}
-						</span>
-						{item.label}
-					</NavLink>
-				))}
+				{hasClient &&
+					navItems.map((item) => (
+						<NavLink
+							key={item.to}
+							to={item.to}
+							end={item.to === "/"}
+							className={({ isActive }) =>
+								linkClass({ isActive })
+							}
+							style={({ isActive }) =>
+								isActive ? { color: activeColor } : undefined
+							}
+							onClick={onClose}
+						>
+							<span className="w-5 text-center text-base">
+								{item.icon}
+							</span>
+							{item.label}
+						</NavLink>
+					))}
 			</nav>
 
 			{/* Super Admin — always-visible home button */}
@@ -325,7 +336,11 @@ export function Sidebar({ onClose }: Props) {
 							{currentUser.name}
 						</p>
 						<p className="text-xs text-neutral-600">
-							{isSuperAdmin && !hasClient ? "Super Admin" : isMaster ? "Administrator" : "Engineer"}
+							{isSuperAdmin && !hasClient
+								? "Super Admin"
+								: isMaster
+									? "Administrator"
+									: "Engineer"}
 						</p>
 					</div>
 					<button

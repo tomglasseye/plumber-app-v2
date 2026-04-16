@@ -100,7 +100,8 @@ export default function App() {
 			{idleWarning && (
 				<div className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-between gap-3 bg-amber-900/95 border-b border-amber-700 px-5 py-3 shadow-2xl">
 					<span className="text-sm text-amber-200">
-						You've been inactive for a while. You'll be signed out in 1 minute.
+						You've been inactive for a while. You'll be signed out
+						in 1 minute.
 					</span>
 					<button
 						onClick={dismissIdleWarning}
@@ -177,7 +178,7 @@ export default function App() {
 				<main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
 					<Routes>
 						<Route path="/login" element={<LoginPage />} />
-					<Route path="/about" element={<AboutPage />} />
+						<Route path="/about" element={<AboutPage />} />
 						<Route
 							path="/"
 							element={
@@ -278,11 +279,14 @@ export default function App() {
 								</RequireAuth>
 							}
 						/>
-						<Route path="*" element={
-							<RequireClient>
-								<Navigate to="/" replace />
-							</RequireClient>
-						} />
+						<Route
+							path="*"
+							element={
+								<RequireClient>
+									<Navigate to="/" replace />
+								</RequireClient>
+							}
+						/>
 					</Routes>
 				</main>
 			</div>

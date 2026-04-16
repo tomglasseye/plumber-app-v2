@@ -72,8 +72,8 @@ const PLANS = [
 		features: [
 			"Everything in Starter",
 			"SMS notifications to customers",
-			"\"En Route\" text — customers know when you're coming",
-			"\"Job Completed\" confirmation SMS",
+			'"En Route" text — customers know when you\'re coming',
+			'"Job Completed" confirmation SMS',
 			"Day-before appointment reminders",
 			"Rescheduled-job alerts",
 			"Twilio integration (pay-as-you-go SMS cost included)",
@@ -114,7 +114,9 @@ export function AboutPage() {
 					<span className="text-orange-400">One calendar.</span>
 				</h1>
 				<p className="text-lg text-neutral-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-					PipeLine gives plumbing and heating businesses a clean, fast way to schedule jobs, manage their team, and send invoices — without the spreadsheet chaos.
+					PipeLine gives plumbing and heating businesses a clean, fast
+					way to schedule jobs, manage their team, and send invoices —
+					without the spreadsheet chaos.
 				</p>
 				<div className="flex items-center justify-center gap-4 flex-wrap">
 					<button
@@ -136,7 +138,14 @@ export function AboutPage() {
 			<section className="border-t border-neutral-800 py-4 overflow-hidden">
 				<div className="max-w-6xl mx-auto px-6">
 					<div className="flex flex-wrap justify-center gap-6 text-xs text-neutral-600 uppercase tracking-widest">
-						{["Drag & drop scheduling", "Xero integration", "Per-engineer views", "Real-time notifications", "Mobile ready", "Holiday tracking"].map((f) => (
+						{[
+							"Drag & drop scheduling",
+							"Xero integration",
+							"Per-engineer views",
+							"Real-time notifications",
+							"Mobile ready",
+							"Holiday tracking",
+						].map((f) => (
 							<span key={f} className="flex items-center gap-1.5">
 								<span className="w-1 h-1 rounded-full bg-orange-700 inline-block" />
 								{f}
@@ -153,7 +162,8 @@ export function AboutPage() {
 						Everything your team needs
 					</h2>
 					<p className="text-neutral-500 max-w-xl mx-auto">
-						Built specifically for field service teams. No bloat, no learning curve — just the tools you actually use.
+						Built specifically for field service teams. No bloat, no
+						learning curve — just the tools you actually use.
 					</p>
 				</div>
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -184,9 +194,21 @@ export function AboutPage() {
 					</div>
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 						{[
-							{ step: "01", title: "Book the job", body: "Log a new job with the customer details, address, category, and priority. Assign it to an engineer and pick a date — or drop it in the unscheduled queue to plan later." },
-							{ step: "02", title: "Engineers get to work", body: "Each engineer sees their own daily view with time-slotted jobs. They update status from On Site to Completed, log materials used, and add site notes — all from their phone." },
-							{ step: "03", title: "Invoice without the admin", body: "When you approve a completed job it goes straight to Xero as a draft invoice. One tap, no copy-pasting — your books stay up to date automatically." },
+							{
+								step: "01",
+								title: "Book the job",
+								body: "Log a new job with the customer details, address, category, and priority. Assign it to an engineer and pick a date — or drop it in the unscheduled queue to plan later.",
+							},
+							{
+								step: "02",
+								title: "Engineers get to work",
+								body: "Each engineer sees their own daily view with time-slotted jobs. They update status from On Site to Completed, log materials used, and add site notes — all from their phone.",
+							},
+							{
+								step: "03",
+								title: "Invoice without the admin",
+								body: "When you approve a completed job it goes straight to Xero as a draft invoice. One tap, no copy-pasting — your books stay up to date automatically.",
+							},
 						].map((s) => (
 							<div key={s.step} className="flex gap-5">
 								<span className="text-3xl font-bold text-neutral-800 leading-none pt-1 flex-shrink-0">
@@ -288,7 +310,8 @@ export function AboutPage() {
 						Ready to get organised?
 					</h2>
 					<p className="text-neutral-500 mb-8">
-						Set up takes minutes. Your team will wonder how they managed without it.
+						Set up takes minutes. Your team will wonder how they
+						managed without it.
 					</p>
 					<button
 						onClick={() => navigate("/login")}
@@ -302,9 +325,12 @@ export function AboutPage() {
 			{/* Footer */}
 			<footer className="border-t border-neutral-900 py-8">
 				<div className="max-w-6xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
-					<span className="text-sm font-bold text-orange-400">PipeLine</span>
+					<span className="text-sm font-bold text-orange-400">
+						PipeLine
+					</span>
 					<p className="text-xs text-neutral-500">
-						© {new Date().getFullYear()} PipeLine. Field service management for plumbing & heating teams.
+						© {new Date().getFullYear()} PipeLine. Field service
+						management for plumbing & heating teams.
 					</p>
 				</div>
 			</footer>

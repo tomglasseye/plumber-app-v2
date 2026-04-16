@@ -23,13 +23,19 @@ import type {
 	Status,
 	User,
 } from "./types";
-import { getQueue as getOfflineQueue, clearQueue as clearOfflineQueue } from "./utils/offlineQueue";
+import {
+	getQueue as getOfflineQueue,
+	clearQueue as clearOfflineQueue,
+} from "./utils/offlineQueue";
 import { subscribeToPush } from "./utils/push";
 
 interface AppCtx {
 	loading: boolean;
 	currentUser: User | null;
-	login: (email: string, password: string) => Promise<{ role: Role; superAdmin: boolean } | null>;
+	login: (
+		email: string,
+		password: string,
+	) => Promise<{ role: Role; superAdmin: boolean } | null>;
 	logout: () => void;
 	business: Business;
 	saveBusiness: (b: Business) => void;
@@ -531,9 +537,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			if (!queue.length) return;
 			for (const m of queue) {
 				if (m.operation === "update") {
-					await supabase.from(m.table).update(m.fields).eq("id", m.id);
+					await supabase
+						.from(m.table)
+						.update(m.fields)
+						.eq("id", m.id);
 				} else if (m.operation === "insert") {
-					await supabase.from(m.table).insert({ id: m.id, ...m.fields });
+					await supabase
+						.from(m.table)
+						.insert({ id: m.id, ...m.fields });
 				}
 			}
 			clearOfflineQueue();
@@ -593,7 +604,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			.select("*")
 			.eq("id", userId)
 			.maybeSingle();
-		console.log("[auth] profile lookup:", { found: !!profile, profileError });
+		console.log("[auth] profile lookup:", {
+			found: !!profile,
+			profileError,
+		});
 
 		// Super admins without a profile get a synthetic master identity
 		if (!profile && isSA) {
@@ -614,14 +628,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			};
 			setCurrentUser(syntheticUser);
 			// Don't auto-load any business — SA starts on the admin dashboard
-			setBusiness({ ...INITIAL_BUSINESS, id: "", name: "Select a Client", logoInitials: "SA" });
+			setBusiness({
+				...INITIAL_BUSINESS,
+				id: "",
+				name: "Select a Client",
+				logoInitials: "SA",
+			});
 
 			subscribeToPush(userId).catch(() => {});
 			return "master";
 		}
 
 		if (!profile) {
-			console.log("[auth] no profile and not super admin — login rejected");
+			console.log(
+				"[auth] no profile and not super admin — login rejected",
+			);
 			return null;
 		}
 		if (profile.locked) {
@@ -801,7 +822,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			p_action: "job.field_updated",
 			p_target_type: "job",
 			p_target_id: id,
-			p_details: { field: String(field), old_value: String(prev_val ?? ""), new_value: String(value ?? "") },
+			p_details: {
+				field: String(field),
+				old_value: String(prev_val ?? ""),
+				new_value: String(value ?? ""),
+			},
 		});
 	}
 
@@ -1546,27 +1571,68 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	async function switchBusiness(businessId: string) {
-		const [bizRes, jobsRes, profilesRes, catsRes, holsRes, notifsRes, custRes] =
-			await Promise.all([
-				supabase.from("businesses").select("*").eq("id", businessId).single(),
-				supabase.from("jobs").select("*").eq("business_id", businessId).order("date", { ascending: false }).limit(1000),
-				supabase.from("profiles").select("*").eq("business_id", businessId),
-				supabase.from("categories").select("*").eq("business_id", businessId).order("sort_order", { ascending: true }),
-				supabase.from("team_holidays").select("*").eq("business_id", businessId).order("date", { ascending: true }),
-				supabase.from("notifications").select("*").eq("business_id", businessId).eq("read", false).eq("for_role", "master").order("created_at", { ascending: false }).limit(20),
-				supabase.from("customers").select("*").eq("business_id", businessId).order("name", { ascending: true }),
-			]);
+		const [
+			bizRes,
+			jobsRes,
+			profilesRes,
+			catsRes,
+			holsRes,
+			notifsRes,
+			custRes,
+		] = await Promise.all([
+			supabase
+				.from("businesses")
+				.select("*")
+				.eq("id", businessId)
+				.single(),
+			supabase
+				.from("jobs")
+				.select("*")
+				.eq("business_id", businessId)
+				.order("date", { ascending: false })
+				.limit(1000),
+			supabase.from("profiles").select("*").eq("business_id", businessId),
+			supabase
+				.from("categories")
+				.select("*")
+				.eq("business_id", businessId)
+				.order("sort_order", { ascending: true }),
+			supabase
+				.from("team_holidays")
+				.select("*")
+				.eq("business_id", businessId)
+				.order("date", { ascending: true }),
+			supabase
+				.from("notifications")
+				.select("*")
+				.eq("business_id", businessId)
+				.eq("read", false)
+				.eq("for_role", "master")
+				.order("created_at", { ascending: false })
+				.limit(20),
+			supabase
+				.from("customers")
+				.select("*")
+				.eq("business_id", businessId)
+				.order("name", { ascending: true }),
+		]);
 		if (bizRes.data) setBusiness(mapBusiness(bizRes.data));
 		if (jobsRes.data) setJobs(jobsRes.data.map(mapJob));
 		if (profilesRes.data) setUsers(profilesRes.data.map(mapProfile));
 		if (catsRes.data) setCategories(catsRes.data.map(mapCategory));
 		if (holsRes.data) setHolidays(holsRes.data.map(mapHoliday));
-		if (notifsRes.data) setNotifications(notifsRes.data.map(mapNotification));
+		if (notifsRes.data)
+			setNotifications(notifsRes.data.map(mapNotification));
 		if (custRes.data) setCustomers(custRes.data.map(mapCustomer));
 	}
 
 	function exitBusiness() {
-		setBusiness({ ...INITIAL_BUSINESS, id: "", name: "Select a Client", logoInitials: "SA" });
+		setBusiness({
+			...INITIAL_BUSINESS,
+			id: "",
+			name: "Select a Client",
+			logoInitials: "SA",
+		});
 		setJobs([]);
 		setUsers([]);
 		setCategories([]);
