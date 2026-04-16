@@ -982,6 +982,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			ref,
 			status: "Scheduled",
 			materials: "",
+			materialsCost: 0,
 			notes: "",
 			timeSpent: 0,
 			readyToInvoice: false,

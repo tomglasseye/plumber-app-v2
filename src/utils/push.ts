@@ -25,9 +25,10 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
 
 	const registration = await navigator.serviceWorker.ready;
 
+	const keyArray = urlBase64ToUint8Array(vapidKey);
 	const subscription = await registration.pushManager.subscribe({
 		userVisibleOnly: true,
-		applicationServerKey: urlBase64ToUint8Array(vapidKey),
+		applicationServerKey: keyArray.buffer as ArrayBuffer,
 	});
 
 	const p256dh = subscription.getKey("p256dh");
