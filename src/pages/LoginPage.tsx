@@ -76,10 +76,14 @@ export function LoginPage() {
 			// If the function is unreachable (local dev), silently continue
 		}
 
-		const role = await login(email, password);
+		const result = await login(email, password);
 		setBusy(false);
-		if (role) {
-			navigate(role === "engineer" ? "/my-day" : "/");
+		if (result) {
+			if (result.superAdmin) {
+				navigate("/admin");
+			} else {
+				navigate(result.role === "engineer" ? "/my-day" : "/");
+			}
 		} else {
 			const next = attempts + 1;
 			setAttempts(next);
@@ -113,6 +117,7 @@ export function LoginPage() {
 					Job management for trades teams
 				</p>
 
+			<form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-0">
 				<div className="mb-4">
 					<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
 						Work Email
@@ -122,8 +127,8 @@ export function LoginPage() {
 						placeholder="you@yourcompany.co.uk"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
-						onKeyDown={(e) => e.key === "Enter" && handleLogin()}
 						disabled={isLockedOut}
+						autoComplete="email"
 						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600 disabled:opacity-40"
 					/>
 				</div>
@@ -137,8 +142,8 @@ export function LoginPage() {
 						placeholder="••••••••"
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
-						onKeyDown={(e) => e.key === "Enter" && handleLogin()}
 						disabled={isLockedOut}
+						autoComplete="current-password"
 						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600 disabled:opacity-40"
 					/>
 				</div>
@@ -146,7 +151,7 @@ export function LoginPage() {
 				{error && <p className="mb-3 text-sm text-red-400">{error}</p>}
 
 				<button
-					onClick={handleLogin}
+					type="submit"
 					disabled={busy || isLockedOut}
 					className="w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
 				>
@@ -156,8 +161,9 @@ export function LoginPage() {
 							? "Signing in…"
 							: "Sign In"}
 				</button>
+			</form>
 
-				<p className="mt-4 text-center text-xs text-neutral-700">
+				<p className="mt-4 text-center text-xs text-neutral-500">
 					Forgotten your password? Contact your administrator.
 				</p>
 			</div>

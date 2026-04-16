@@ -51,8 +51,8 @@ function EngineerDashboard() {
 	);
 
 	return (
-		<div className="p-5 md:p-7 max-w-5xl">
-			<div className="flex items-start justify-between mb-5 gap-4 flex-wrap">
+		<div className="p-6 md:p-8 max-w-5xl">
+			<div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
 				<div>
 					<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
 						My Jobs
@@ -70,7 +70,7 @@ function EngineerDashboard() {
 			{todayJobs.length > 0 && (
 				<div
 					onClick={() => navigate("/my-day")}
-					className={`mb-5 flex cursor-pointer items-center gap-4 rounded-xl border px-4 py-3 transition-colors ${
+					className={`mb-6 flex cursor-pointer items-center gap-4 rounded-xl border px-4 py-3 transition-colors ${
 						hasEmergency
 							? "border-red-800/50 bg-red-950/40"
 							: "border-orange-800/30 bg-orange-950/20"
@@ -135,7 +135,7 @@ function EngineerDashboard() {
 				</select>
 			</div>
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 				{displayJobs.length === 0 && (
 					<p className="col-span-full py-12 text-center text-neutral-600">
 						{search || statusFilter !== "All"
@@ -314,9 +314,9 @@ function MasterDashboard() {
 	}
 
 	return (
-		<div className="p-5 md:p-7 max-w-5xl">
+		<div className="p-6 md:p-8 max-w-5xl">
 			{/* Header */}
-			<div className="flex items-start justify-between mb-5 gap-4 flex-wrap">
+			<div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
 				<div>
 					<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
 						Dashboard
@@ -342,7 +342,7 @@ function MasterDashboard() {
 			{pendingHolidays.length > 0 && (
 				<div
 					onClick={() => navigate("/holidays")}
-					className="mb-5 flex cursor-pointer items-center gap-4 rounded-xl border border-amber-800/30 bg-amber-950/20 px-4 py-3 transition-colors hover:bg-amber-950/30"
+					className="mb-6 flex cursor-pointer items-center gap-4 rounded-xl border border-amber-800/30 bg-amber-950/20 px-4 py-3 transition-colors hover:bg-amber-950/30"
 				>
 					<span className="text-2xl">🏖️</span>
 					<div className="flex-1">
@@ -364,11 +364,11 @@ function MasterDashboard() {
 			)}
 
 			{/* Today at a Glance */}
-			<section className="mb-6">
-				<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-3">
+			<section className="mb-8">
+				<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-4">
 					Today at a Glance
 				</h2>
-				<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 					{[
 						{
 							label: "Today's Jobs",
@@ -394,7 +394,7 @@ function MasterDashboard() {
 					].map((card) => (
 						<div
 							key={card.label}
-							className={`rounded-xl border px-4 py-3 ${card.accent ? "border-orange-800/30 bg-orange-950/10" : "border-neutral-800 bg-neutral-900"}`}
+							className={`rounded-xl border px-5 py-4 ${card.accent ? "border-orange-800/30 bg-orange-950/10" : "border-neutral-800 bg-neutral-900"}`}
 						>
 							<div className="flex items-center gap-2 mb-1">
 								<span className="text-base">{card.emoji}</span>
@@ -414,11 +414,11 @@ function MasterDashboard() {
 
 			{/* Upcoming Recurring Jobs */}
 			{upcomingRecurring.length > 0 && (
-				<section className="mb-6">
-					<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-3">
+				<section className="mb-8">
+					<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-4">
 						Recurring Jobs Due Soon
 					</h2>
-					<div className="space-y-2">
+					<div className="space-y-3">
 						{upcomingRecurring.map((j) => {
 							const eng = users.find(
 								(u) => u.id === j.assignedTo,
@@ -435,7 +435,7 @@ function MasterDashboard() {
 							return (
 								<div
 									key={j.id}
-									className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 flex-wrap"
+									className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-5 py-4 flex-wrap"
 								>
 									<span className="text-lg">🔁</span>
 									<div className="flex-1 min-w-0">
@@ -469,18 +469,18 @@ function MasterDashboard() {
 
 			{/* Upcoming Team Holidays */}
 			{upcomingHolidays.length > 0 && (
-				<section className="mb-6">
-					<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-3">
+				<section className="mb-8">
+					<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-4">
 						Team Holidays — Next 2 Weeks
 					</h2>
-					<div className="space-y-1.5">
+					<div className="space-y-2.5">
 						{upcomingHolidays.map((h) => {
 							const eng = users.find((u) => u.id === h.profileId);
 							const cfg = HOLIDAY_TYPE_CONFIG[h.type];
 							return (
 								<div
 									key={h.id}
-									className="flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-2"
+									className="flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900 px-5 py-3"
 								>
 									<span className="text-base">
 										{cfg.emoji}
@@ -508,11 +508,11 @@ function MasterDashboard() {
 			)}
 
 			{/* This Week Overview */}
-			<section className="mb-6">
-				<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-3">
+			<section className="mb-8">
+				<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-4">
 					This Week
 				</h2>
-				<div className="grid grid-cols-7 gap-2">
+				<div className="grid grid-cols-7 gap-3">
 					{weekDays.map((ds) => {
 						const dayJobs = jobs.filter((j) => j.date === ds);
 						const engCount = new Set(
@@ -524,7 +524,7 @@ function MasterDashboard() {
 							<div
 								key={ds}
 								onClick={() => navigate("/calendar")}
-								className={`rounded-lg border p-2 text-center cursor-pointer transition-colors ${
+								className={`rounded-lg border p-3 text-center cursor-pointer transition-colors ${
 									isToday
 										? "border-orange-700/50 bg-orange-950/20"
 										: bankHol
@@ -546,7 +546,7 @@ function MasterDashboard() {
 								>
 									{dayJobs.length}
 								</p>
-								<p className="text-[9px] text-neutral-600">
+								<p className="text-[10px] text-neutral-500">
 									{engCount} eng
 								</p>
 								{bankHol && (
@@ -567,7 +567,7 @@ function MasterDashboard() {
 			<section>
 				<button
 					onClick={() => setAllJobsOpen((v) => !v)}
-					className="flex items-center gap-2 text-sm text-neutral-400 uppercase tracking-wider mb-3 cursor-pointer bg-transparent border-0 p-0 hover:text-neutral-200 transition-colors"
+					className="flex items-center gap-2 text-sm text-neutral-400 uppercase tracking-wider mb-4 cursor-pointer bg-transparent border-0 p-0 hover:text-neutral-200 transition-colors"
 				>
 					<span
 						className={`text-xs transition-transform ${allJobsOpen ? "rotate-90" : ""}`}
@@ -634,7 +634,7 @@ function MasterDashboard() {
 						</div>
 
 						{/* Stats row */}
-						<div className="mb-4 flex gap-2.5 flex-wrap">
+						<div className="mb-5 flex gap-3 flex-wrap">
 							{STATUSES.map((s) => {
 								const count = displayJobs.filter(
 									(j) => j.status === s,
@@ -648,7 +648,7 @@ function MasterDashboard() {
 												statusFilter === s ? "All" : s,
 											)
 										}
-										className={`flex-1 min-w-[80px] rounded-xl border px-3 py-2 cursor-pointer transition-opacity ${sc.bg} ${sc.border} ${statusFilter === s ? "opacity-100 ring-1 ring-white/20" : "opacity-80 hover:opacity-100"}`}
+										className={`flex-1 min-w-[80px] rounded-xl border px-4 py-3 cursor-pointer transition-opacity ${sc.bg} ${sc.border} ${statusFilter === s ? "opacity-100 ring-1 ring-white/20" : "opacity-80 hover:opacity-100"}`}
 									>
 										<p
 											className={`text-2xl font-bold ${sc.text}`}
@@ -664,7 +664,7 @@ function MasterDashboard() {
 						</div>
 
 						{/* Job grid */}
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 							{displayJobs.length === 0 && (
 								<p className="col-span-full py-12 text-center text-neutral-600">
 									{search || statusFilter !== "All"

@@ -176,9 +176,9 @@ export function MyDayPage() {
 	}
 
 	return (
-		<div className="p-4 md:p-7 md:max-w-xl">
+		<div className="p-5 md:p-8 md:max-w-xl">
 			{/* Header */}
-			<div className="flex items-start justify-between mb-4 gap-3 flex-wrap">
+			<div className="flex items-start justify-between mb-5 gap-3 flex-wrap">
 				<div>
 					<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
 						My Day
@@ -206,7 +206,7 @@ export function MyDayPage() {
 
 			{/* Phase 3: Progress bar */}
 			{totalCount > 0 && (
-				<div className="mb-4">
+				<div className="mb-5">
 					<div className="flex items-center justify-between text-xs text-neutral-500 mb-1.5">
 						<span>
 							{completedCount} of {totalCount} jobs completed
@@ -232,7 +232,7 @@ export function MyDayPage() {
 			) : (
 				<>
 					{/* Priority legend */}
-					<div className="mb-4 flex flex-wrap gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2.5">
+					<div className="mb-5 flex flex-wrap gap-4 rounded-xl border border-neutral-800 bg-neutral-900 px-5 py-3">
 						{PRIORITIES.map((p) => (
 							<div
 								key={p}
@@ -336,7 +336,7 @@ export function MyDayPage() {
 												isOpen ? null : job.id,
 											)
 										}
-										className={`rounded-xl border bg-neutral-900 p-4 cursor-pointer transition-all ${
+										className={`rounded-xl border bg-neutral-900 p-5 cursor-pointer transition-all ${
 											isDone
 												? "border-neutral-800 opacity-50"
 												: isActive
@@ -420,7 +420,7 @@ export function MyDayPage() {
 													</p>
 												)}
 												{job.materials && (
-													<p className="mt-1 text-[10px] text-neutral-700">
+													<p className="mt-1 text-[10px] text-neutral-500">
 														🔧 {job.materials}
 													</p>
 												)}
@@ -634,7 +634,7 @@ export function MyDayPage() {
 
 			{/* ── Phase 4: Available Jobs ─────────────────────────── */}
 			{availableJobs.length > 0 && (
-				<div className="mt-6 rounded-xl border border-neutral-800 bg-neutral-900 overflow-hidden">
+				<div className="mt-8 rounded-xl border border-neutral-800 bg-neutral-900 overflow-hidden">
 					<button
 						onClick={() => setAvailExpanded((v) => !v)}
 						className="w-full flex items-center justify-between px-4 py-3 text-sm cursor-pointer hover:bg-neutral-800/50 transition-colors border-0 bg-transparent text-left min-h-[44px]"
@@ -653,7 +653,7 @@ export function MyDayPage() {
 					</button>
 
 					{availExpanded && (
-						<div className="border-t border-neutral-800 px-4 py-3 space-y-3">
+						<div className="border-t border-neutral-800 px-5 py-4 space-y-4">
 							{/* Near me button */}
 							<button
 								onClick={handleNearMe}
@@ -689,7 +689,7 @@ export function MyDayPage() {
 								return (
 									<div
 										key={job.id}
-										className={`rounded-lg border p-3.5 ${isFlagged ? "border-amber-800/50 bg-amber-950/20" : "border-neutral-700 bg-neutral-800/50"}`}
+										className={`rounded-lg border p-4 ${isFlagged ? "border-amber-800/50 bg-amber-950/20" : "border-neutral-700 bg-neutral-800/50"}`}
 									>
 										<div className="flex items-start justify-between gap-2">
 											<div className="min-w-0 flex-1">

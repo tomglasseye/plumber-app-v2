@@ -48,31 +48,36 @@ const PLANS = [
 		name: "Starter",
 		price: "£120",
 		period: "/month",
-		users: "1 – 6 users",
-		desc: "Perfect for small teams getting organised.",
+		users: "Up to 6–8 users",
+		desc: "Everything a small team needs to get organised.",
 		features: [
 			"Full calendar & scheduling",
 			"Job management & tracking",
 			"Customer database",
 			"Xero invoicing integration",
+			"Per-engineer day columns",
+			"Holiday & absence management",
 			"Mobile-ready for engineers",
+			"Real-time push notifications",
 			"Email support",
 		],
 		highlight: false,
 	},
 	{
-		name: "Business",
+		name: "Pro",
 		price: "£159",
 		period: "/month",
-		users: "6 – 12 users",
-		desc: "Built for growing teams with more engineers on the road.",
+		users: "Up to 6–8 users",
+		desc: "For teams that want automated customer SMS built in.",
 		features: [
 			"Everything in Starter",
-			"Up to 12 engineers",
-			"Per-engineer day columns",
-			"Holiday & absence management",
-			"Priority support",
-			"Onboarding assistance",
+			"SMS notifications to customers",
+			"\"En Route\" text — customers know when you're coming",
+			"\"Job Completed\" confirmation SMS",
+			"Day-before appointment reminders",
+			"Rescheduled-job alerts",
+			"Twilio integration (pay-as-you-go SMS cost included)",
+			"Priority support & onboarding",
 		],
 		highlight: true,
 	},
@@ -270,7 +275,7 @@ export function AboutPage() {
 							</div>
 						))}
 					</div>
-					<p className="text-center text-xs text-neutral-700 mt-8">
+					<p className="text-center text-xs text-neutral-500 mt-8">
 						Prices exclude VAT. Annual billing available on request.
 					</p>
 				</div>
@@ -298,7 +303,7 @@ export function AboutPage() {
 			<footer className="border-t border-neutral-900 py-8">
 				<div className="max-w-6xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
 					<span className="text-sm font-bold text-orange-400">PipeLine</span>
-					<p className="text-xs text-neutral-700">
+					<p className="text-xs text-neutral-500">
 						© {new Date().getFullYear()} PipeLine. Field service management for plumbing & heating teams.
 					</p>
 				</div>

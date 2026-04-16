@@ -96,54 +96,49 @@ function xmlRow(cells: string[]): string {
 	);
 }
 
-function buildWorkbook(
-	jobs: Job[],
-	users: User[],
-): string {
-	const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
+const EXPORT_HEADERS = [
+	"Ref", "Customer", "Address", "Description", "Assigned To",
+	"Status", "Priority", "Date", "Start Time", "End Time",
+	"Category", "Materials", "Materials Cost", "Notes",
+	"Time Spent (hrs)", "Ready to Invoice",
+];
 
-	const jobHeader = [
-		"Ref",
-		"Customer",
-		"Address",
-		"Description",
-		"Assigned To",
-		"Status",
-		"Priority",
-		"Date",
-		"Start Time",
-		"End Time",
-		"Materials",
-		"Notes",
-		"Time Spent (hrs)",
-		"Ready to Invoice",
+function exportRow(j: Job, userMap: Record<string, string>, catMap: Record<string, string>): string[] {
+	return [
+		j.ref, j.customer, j.address, j.description,
+		userMap[j.assignedTo] || j.assignedTo,
+		j.status, j.priority, j.date,
+		j.startTime ?? "", j.endTime ?? "",
+		catMap[j.categoryId ?? ""] || "",
+		j.materials, String(j.materialsCost ?? 0),
+		j.notes, String(j.timeSpent),
+		j.readyToInvoice ? "Yes" : "No",
 	];
-	const jobRows = jobs.map((j) =>
-		xmlRow([
-			j.ref,
-			j.customer,
-			j.address,
-			j.description,
-			userMap[j.assignedTo] || j.assignedTo,
-			j.status,
-			j.priority,
-			j.date,
-			j.startTime ?? "",
-			j.endTime ?? "",
-			j.materials,
-			j.notes,
-			String(j.timeSpent),
-			j.readyToInvoice ? "Yes" : "No",
-		]),
-	);
+}
+
+function buildWorkbook(jobs: Job[], users: User[], categories: Category[]): string {
+	const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
+	const catMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
+	const jobRows = jobs.map((j) => xmlRow(exportRow(j, userMap, catMap)));
 
 	return `<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 <Styles><Style ss:ID="hdr"><Font ss:Bold="1"/></Style></Styles>
-<Worksheet ss:Name="Jobs"><Table>${xmlRow(jobHeader).replace("<Row>", '<Row ss:StyleID="hdr">')}${jobRows.join("")}</Table></Worksheet>
+<Worksheet ss:Name="Jobs"><Table>${xmlRow(EXPORT_HEADERS).replace("<Row>", '<Row ss:StyleID="hdr">')}${jobRows.join("")}</Table></Worksheet>
 </Workbook>`;
+}
+
+function buildCSV(jobs: Job[], users: User[], categories: Category[]): string {
+	const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
+	const catMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
+	const rows = jobs.map((j) =>
+		exportRow(j, userMap, catMap)
+			.map((v) => `"${v.replace(/"/g, '""')}"`)
+			.join(","),
+	);
+	return [EXPORT_HEADERS.join(","), ...rows].join("\n");
 }
 
 function downloadXML(xml: string, filename: string) {
@@ -161,10 +156,12 @@ function downloadXML(xml: string, filename: string) {
 function ExportPanel({
 	jobs,
 	users,
+	categories,
 	accent,
 }: {
 	jobs: Job[];
 	users: User[];
+	categories: Category[];
 	accent: string;
 }) {
 	const thirtyDaysAgo = fmtDate(new Date(Date.now() - 30 * 86_400_000));
@@ -177,10 +174,21 @@ function ExportPanel({
 	const totalRows = filteredJobs.length;
 
 	function handleExport() {
-		const xml = buildWorkbook(filteredJobs, users);
+		const xml = buildWorkbook(filteredJobs, users, categories);
 		downloadXML(xml, `export_${from}_to_${to}.xls`);
 		setExported(true);
 		setTimeout(() => setExported(false), 2000);
+	}
+
+	function handleCSV() {
+		const csv = buildCSV(filteredJobs, users, categories);
+		const blob = new Blob([csv], { type: "text/csv" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `export_${from}_to_${to}.csv`;
+		a.click();
+		URL.revokeObjectURL(url);
 	}
 
 	const inputClass =
@@ -238,14 +246,23 @@ function ExportPanel({
 						<span className="text-neutral-200">{totalRows}</span>
 					</div>
 				</div>
-				<button
-					onClick={handleExport}
-					disabled={totalRows === 0}
-					className="w-full rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-all disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
-					style={{ background: exported ? "#16a34a" : accent }}
-				>
-					{exported ? "✓ Downloaded" : "Export Spreadsheet"}
-				</button>
+				<div className="flex gap-3">
+					<button
+						onClick={handleExport}
+						disabled={totalRows === 0}
+						className="flex-1 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-all disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+						style={{ background: exported ? "#16a34a" : accent }}
+					>
+						{exported ? "✓ Downloaded" : "Export Excel"}
+					</button>
+					<button
+						onClick={handleCSV}
+						disabled={totalRows === 0}
+						className="rounded-lg border border-neutral-700 bg-neutral-800 px-5 py-2.5 text-sm text-neutral-300 hover:border-neutral-600 transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+					>
+						CSV
+					</button>
+				</div>
 			</div>
 		</div>
 	);
@@ -456,7 +473,7 @@ function CategoriesPanel({ accent }: { accent: string }) {
 					<p className="text-sm text-neutral-600">
 						No categories yet.
 					</p>
-					<p className="text-xs text-neutral-700 mt-1">
+					<p className="text-xs text-neutral-500 mt-1">
 						Add categories like Gas, Installs, Service, Emergency…
 					</p>
 				</div>
@@ -513,6 +530,7 @@ export function AccountPage() {
 		toggleTheme,
 		jobs,
 		users,
+		categories,
 	} = useApp();
 	const [form, setForm] = useState<Business>(business);
 	const [tab, setTab] = useState<
@@ -542,7 +560,7 @@ export function AccountPage() {
 	];
 
 	return (
-		<div className="p-5 md:p-7 max-w-4xl">
+		<div className="p-6 md:p-8 max-w-4xl">
 			<div className="mb-5">
 				<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
 					Account Settings
@@ -753,7 +771,7 @@ export function AccountPage() {
 									</select>
 								</div>
 							</div>
-							<p className="mt-2 text-[10px] text-neutral-700">Controls the calendar time grid and time slot options when creating jobs.</p>
+							<p className="mt-2 text-[10px] text-neutral-500">Controls the calendar time grid and time slot options when creating jobs.</p>
 						</div>
 
 						<button
@@ -794,6 +812,7 @@ export function AccountPage() {
 				<ExportPanel
 					jobs={jobs}
 					users={users}
+					categories={categories}
 					accent={form.accentColor}
 				/>
 			)}

@@ -18,13 +18,13 @@ export function JobCard({ job }: Props) {
 	return (
 		<div
 			onClick={() => navigate(`/job/${job.id}`)}
-			className={`rounded-xl border bg-neutral-900 p-4 cursor-pointer hover:border-neutral-700 transition-colors ${
+			className={`rounded-xl border bg-neutral-900 p-5 cursor-pointer hover:border-neutral-700 transition-colors ${
 				job.priority === "Emergency"
 					? "border-red-900/50"
 					: "border-neutral-800"
 			}`}
 		>
-			<div className="flex items-center justify-between mb-2 gap-2">
+			<div className="flex items-center justify-between mb-3 gap-2">
 				<div className="flex items-center gap-2 min-w-0">
 					<span className="text-[10px] text-neutral-600 uppercase tracking-widest flex-shrink-0">
 						{job.ref}
@@ -47,16 +47,16 @@ export function JobCard({ job }: Props) {
 				</span>
 			</div>
 
-			<h3 className="text-base text-neutral-100 font-normal mb-0.5">
+			<h3 className="text-base text-neutral-100 font-normal mb-1">
 				{job.customer}
 			</h3>
 			{cat && (
-				<p className="text-sm mb-3" style={{ color: cat.color }}>
+				<p className="text-sm mb-4" style={{ color: cat.color }}>
 					{cat.name}
 				</p>
 			)}
 
-			<div className="flex flex-wrap gap-3 items-center">
+			<div className="flex flex-wrap gap-4 items-center mt-1">
 				<span className="text-xs text-neutral-600">
 					📍 {job.address.split(",").slice(-2).join(",").trim()}
 				</span>

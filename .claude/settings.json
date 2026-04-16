@@ -4,7 +4,10 @@
       "Bash(find c:UserssmkglDocumentsLocalSitesplumber-app-v2 -name tailwind.config.* -o -name vite.config.*)",
       "Bash(npx vite:*)",
       "Bash(xxd)",
-      "Bash(find c:UserssmkglDocumentsLocalSitesplumber-app-v2 -name *.sql -o -name *policy* -o -name *rls*)"
+      "Bash(find c:UserssmkglDocumentsLocalSitesplumber-app-v2 -name *.sql -o -name *policy* -o -name *rls*)",
+      "Bash(grep -l \"photo\\\\|storage\" /c/Users/smkgl/Documents/LocalSites/plumber-app-v2/supabase/*.sql)",
+      "Bash(grep -n \"materials_cost\\\\|materialsCost\" /c/Users/smkgl/Documents/LocalSites/plumber-app-v2/supabase/*.sql)",
+      "Bash(xargs grep *)"
     ]
   }
 }

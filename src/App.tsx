@@ -10,7 +10,10 @@ import { useApp } from "./AppContext";
 import { NotificationBell } from "./components/NotificationBell";
 import { PushBanner } from "./components/PushBanner";
 import { Sidebar } from "./components/Sidebar";
+import { IosInstallPrompt } from "./components/IosInstallPrompt";
+import { OfflineBanner } from "./components/OfflineBanner";
 import { AccountPage } from "./pages/AccountPage";
+import { AdminPage } from "./pages/AdminPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
@@ -21,6 +24,7 @@ import { TeamPage } from "./pages/TeamPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { AboutPage } from "./pages/AboutPage";
 import { HolidaysPage } from "./pages/HolidaysPage";
+import { HowToUsePage } from "./pages/HowToUsePage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
 	const { currentUser } = useApp();
@@ -33,6 +37,19 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 function RequireMaster({ children }: { children: React.ReactNode }) {
 	const { isMaster } = useApp();
 	if (!isMaster) return <Navigate to="/" replace />;
+	return <>{children}</>;
+}
+
+function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
+	const { isSuperAdmin } = useApp();
+	if (!isSuperAdmin) return <Navigate to="/" replace />;
+	return <>{children}</>;
+}
+
+/** Redirect SA to /admin if they haven't entered a client yet */
+function RequireClient({ children }: { children: React.ReactNode }) {
+	const { isSuperAdmin, business } = useApp();
+	if (isSuperAdmin && !business.id) return <Navigate to="/admin" replace />;
 	return <>{children}</>;
 }
 
@@ -76,6 +93,8 @@ export default function App() {
 	return (
 		<div className="flex min-h-screen bg-neutral-950 font-sans text-neutral-100">
 			<PushBanner push={pushBanner} onDismiss={dismissPush} />
+			<OfflineBanner />
+			<IosInstallPrompt />
 
 			{/* Idle warning banner */}
 			{idleWarning && (
@@ -126,7 +145,7 @@ export default function App() {
 			{/* Main */}
 			<div className="flex-1 min-w-0 md:ml-56 flex flex-col min-h-screen">
 				{/* Mobile header */}
-				<header className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900 px-4 py-3 md:hidden sticky top-0 z-30">
+				<header className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900 px-5 py-4 md:hidden sticky top-0 z-30">
 					<button
 						onClick={() => setSidebarOpen(true)}
 						className="text-xl text-neutral-300 border-0 bg-transparent cursor-pointer p-1"
@@ -147,7 +166,7 @@ export default function App() {
 				</header>
 
 				{/* Desktop top bar */}
-				<div className="hidden md:flex items-center justify-end border-b border-neutral-800 bg-neutral-950 px-6 py-2 sticky top-0 z-30">
+				<div className="hidden md:flex items-center justify-end border-b border-neutral-800 bg-neutral-950 px-6 py-3 sticky top-0 z-30">
 					<NotificationBell
 						notifications={myNotifs}
 						onClear={clearNotifs}
@@ -163,7 +182,9 @@ export default function App() {
 							path="/"
 							element={
 								<RequireAuth>
-									<DashboardPage />
+									<RequireClient>
+										<DashboardPage />
+									</RequireClient>
 								</RequireAuth>
 							}
 						/>
@@ -239,7 +260,29 @@ export default function App() {
 								</RequireAuth>
 							}
 						/>
-						<Route path="*" element={<Navigate to="/" replace />} />
+						<Route
+							path="/admin"
+							element={
+								<RequireAuth>
+									<RequireSuperAdmin>
+										<AdminPage />
+									</RequireSuperAdmin>
+								</RequireAuth>
+							}
+						/>
+						<Route
+							path="/how-to-use"
+							element={
+								<RequireAuth>
+									<HowToUsePage />
+								</RequireAuth>
+							}
+						/>
+						<Route path="*" element={
+							<RequireClient>
+								<Navigate to="/" replace />
+							</RequireClient>
+						} />
 					</Routes>
 				</main>
 			</div>

@@ -197,7 +197,7 @@ export function UnscheduledPanel({ jobs, categories, onPointerDragStart }: Props
 								);
 							})}
 						</div>
-						<p className="text-[10px] text-neutral-700 mt-2">
+						<p className="text-[10px] text-neutral-500 mt-2">
 							Drag a card onto the calendar to schedule it
 						</p>
 					</div>

@@ -60,6 +60,7 @@ export interface Job {
 	endTime?: string; // 'HH:MM' e.g. '10:30'
 	categoryId?: string;
 	materials: string;
+	materialsCost: number;
 	notes: string;
 	timeSpent: number;
 	readyToInvoice: boolean;
@@ -120,3 +121,12 @@ export interface NewJobForm {
 }
 
 export type RepeatFrequency = "annually" | "biannually" | "quarterly";
+
+export interface JobPhoto {
+	id: string;
+	jobId: string;
+	storagePath: string;
+	caption: string;
+	uploadedBy: string;
+	createdAt: string;
+}

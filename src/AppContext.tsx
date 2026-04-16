@@ -23,11 +23,13 @@ import type {
 	Status,
 	User,
 } from "./types";
+import { getQueue as getOfflineQueue, clearQueue as clearOfflineQueue } from "./utils/offlineQueue";
+import { subscribeToPush } from "./utils/push";
 
 interface AppCtx {
 	loading: boolean;
 	currentUser: User | null;
-	login: (email: string, password: string) => Promise<Role | null>;
+	login: (email: string, password: string) => Promise<{ role: Role; superAdmin: boolean } | null>;
 	logout: () => void;
 	business: Business;
 	saveBusiness: (b: Business) => void;
@@ -35,6 +37,7 @@ interface AppCtx {
 	jobs: Job[];
 	myJobs: Job[];
 	isMaster: boolean;
+	isSuperAdmin: boolean;
 	saveUser: (user: User) => Promise<void>;
 	lockUser: (id: string) => void;
 	unlockUser: (id: string) => void;
@@ -98,6 +101,10 @@ interface AppCtx {
 		assignedTo?: string,
 	) => void;
 	resizeJobTime: (jobId: string, startTime: string, endTime: string) => void;
+	// Super admin: switch to a different business
+	switchBusiness: (businessId: string) => Promise<void>;
+	// Super admin: exit back to admin dashboard (no client loaded)
+	exitBusiness: () => void;
 }
 
 const Ctx = createContext<AppCtx>(null!);
@@ -117,6 +124,7 @@ const JOB_COL: Partial<Record<keyof Job, string>> = {
 	endTime: "end_time",
 	endDate: "end_date",
 	repeatFrequency: "repeat_frequency",
+	materialsCost: "materials_cost",
 };
 function jobCol(field: keyof Job): string {
 	return JOB_COL[field] ?? field;
@@ -140,6 +148,7 @@ function mapJob(r: any): Job {
 		endTime: r.end_time ?? undefined,
 		categoryId: r.category_id ?? undefined,
 		materials: r.materials ?? "",
+		materialsCost: r.materials_cost ?? 0,
 		notes: r.notes ?? "",
 		timeSpent: r.time_spent ?? 0,
 		readyToInvoice: r.ready_to_invoice ?? false,
@@ -270,6 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	const [customers, setCustomers] = useState<Customer[]>([]);
 	const [categories, setCategories] = useState<Category[]>([]);
 	const [holidays, setHolidays] = useState<Holiday[]>([]);
+	const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 	const pendingMutations = useRef<Set<string>>(new Set());
 	const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const warnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -514,6 +524,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		};
 	}, [currentUser]);
 
+	// ── Offline queue flush ──────────────────────────────────────
+	useEffect(() => {
+		async function flush() {
+			const queue = getOfflineQueue();
+			if (!queue.length) return;
+			for (const m of queue) {
+				if (m.operation === "update") {
+					await supabase.from(m.table).update(m.fields).eq("id", m.id);
+				} else if (m.operation === "insert") {
+					await supabase.from(m.table).insert({ id: m.id, ...m.fields });
+				}
+			}
+			clearOfflineQueue();
+		}
+		window.addEventListener("online", flush);
+		return () => window.removeEventListener("online", flush);
+	}, []);
+
 	// ── DB write helpers ──────────────────────────────────────────
 
 	// Fire-and-forget with one automatic retry after 1s.
@@ -550,12 +578,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	async function loadUserData(userId: string): Promise<Role | null> {
-		const { data: profile } = await supabase
+		// Check super admin status first
+		const { data: saRow, error: saError } = await supabase
+			.from("super_admins")
+			.select("id")
+			.eq("id", userId)
+			.maybeSingle();
+		const isSA = !!saRow;
+		setIsSuperAdmin(isSA);
+		console.log("[auth] super_admin check:", { isSA, saRow, saError });
+
+		const { data: profile, error: profileError } = await supabase
 			.from("profiles")
 			.select("*")
 			.eq("id", userId)
-			.single();
-		if (!profile) return null;
+			.maybeSingle();
+		console.log("[auth] profile lookup:", { found: !!profile, profileError });
+
+		// Super admins without a profile get a synthetic master identity
+		if (!profile && isSA) {
+			const { data: authUser } = await supabase.auth.getUser();
+			const saEmail = authUser?.user?.email ?? "admin";
+
+			const syntheticUser: User = {
+				id: userId,
+				name: "Super Admin",
+				email: saEmail,
+				role: "master",
+				avatar: "SA",
+				home: "",
+				phone: "",
+				color: "#f97316",
+				locked: false,
+				holidayAllowance: 0,
+			};
+			setCurrentUser(syntheticUser);
+			// Don't auto-load any business — SA starts on the admin dashboard
+			setBusiness({ ...INITIAL_BUSINESS, id: "", name: "Select a Client", logoInitials: "SA" });
+
+			subscribeToPush(userId).catch(() => {});
+			return "master";
+		}
+
+		if (!profile) {
+			console.log("[auth] no profile and not super admin — login rejected");
+			return null;
+		}
 		if (profile.locked) {
 			await supabase.auth.signOut();
 			return null;
@@ -623,19 +691,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				.order("name", { ascending: true });
 			if (custData) setCustomers(custData.map(mapCustomer));
 		}
-		return profile.role as Role;
+
+		// Super admin status already set at top of loadUserData
+		// For profile-based users, also treat them as master if they're a super admin
+		if (isSA && profile.role !== "master") {
+			setCurrentUser({ ...user, role: "master" });
+		}
+
+		// Subscribe to push notifications (non-blocking)
+		subscribeToPush(userId).catch(() => {});
+
+		return isSA ? "master" : (profile.role as Role);
 	}
 
 	async function login(
 		email: string,
 		password: string,
-	): Promise<Role | null> {
+	): Promise<{ role: Role; superAdmin: boolean } | null> {
+		console.log("[auth] attempting signIn for:", email);
 		const { data, error } = await supabase.auth.signInWithPassword({
 			email,
 			password,
 		});
-		if (error || !data.user) return null;
-		return loadUserData(data.user.id);
+		if (error) {
+			console.error("[auth] signIn error:", error.message, error.status);
+			return null;
+		}
+		if (!data.user) {
+			console.error("[auth] signIn returned no user");
+			return null;
+		}
+		console.log("[auth] signIn success, userId:", data.user.id);
+		const role = await loadUserData(data.user.id);
+		if (!role) return null;
+		return { role, superAdmin: isSuperAdmin };
 	}
 
 	function logout() {
@@ -708,6 +797,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					),
 				),
 		);
+		supabase.rpc("log_audit_event", {
+			p_action: "job.field_updated",
+			p_target_type: "job",
+			p_target_id: id,
+			p_details: { field: String(field), old_value: String(prev_val ?? ""), new_value: String(value ?? "") },
+		});
 	}
 
 	function changeStatus(id: string, status: Job["status"]) {
@@ -755,6 +850,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				jobId: id,
 			});
 		}
+		supabase.rpc("log_audit_event", {
+			p_action: "job.status_changed",
+			p_target_type: "job",
+			p_target_id: id,
+			p_details: { old: prevStatus, new: status, ref: job.ref },
+		});
 	}
 
 	function changePriority(id: string, priority: Job["priority"]) {
@@ -782,6 +883,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				jobId: id,
 			});
 		}
+		supabase.rpc("log_audit_event", {
+			p_action: "job.priority_changed",
+			p_target_type: "job",
+			p_target_id: id,
+			p_details: { old: prevPriority, new: priority, ref: job.ref },
+		});
 	}
 
 	function finalComplete(id: string) {
@@ -831,6 +938,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				repeatFrequency: job.repeatFrequency,
 			});
 		}
+		supabase.rpc("log_audit_event", {
+			p_action: "job.final_completed",
+			p_target_type: "job",
+			p_target_id: id,
+			p_details: { ref: job.ref, customer: job.customer },
+		});
 	}
 
 	async function createJob(form: NewJobForm) {
@@ -887,6 +1000,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			message: `New job ${ref} assigned to you — ${form.customer}`,
 			for: form.assignedTo,
 			jobId: newJob.id,
+		});
+		supabase.rpc("log_audit_event", {
+			p_action: "job.created",
+			p_target_type: "job",
+			p_target_id: newJob.id,
+			p_details: { ref, customer: form.customer },
 		});
 	}
 
@@ -1362,6 +1481,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				});
 			}
 		}
+		supabase.rpc("log_audit_event", {
+			p_action: "job.rescheduled",
+			p_target_type: "job",
+			p_target_id: jobId,
+			p_details: { old_date: prev?.date, new_date: date, ref: job?.ref },
+		});
 	}
 
 	// Single-call resize (start + end time together)
@@ -1420,6 +1545,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		);
 	}
 
+	async function switchBusiness(businessId: string) {
+		const [bizRes, jobsRes, profilesRes, catsRes, holsRes, notifsRes, custRes] =
+			await Promise.all([
+				supabase.from("businesses").select("*").eq("id", businessId).single(),
+				supabase.from("jobs").select("*").eq("business_id", businessId).order("date", { ascending: false }).limit(1000),
+				supabase.from("profiles").select("*").eq("business_id", businessId),
+				supabase.from("categories").select("*").eq("business_id", businessId).order("sort_order", { ascending: true }),
+				supabase.from("team_holidays").select("*").eq("business_id", businessId).order("date", { ascending: true }),
+				supabase.from("notifications").select("*").eq("business_id", businessId).eq("read", false).eq("for_role", "master").order("created_at", { ascending: false }).limit(20),
+				supabase.from("customers").select("*").eq("business_id", businessId).order("name", { ascending: true }),
+			]);
+		if (bizRes.data) setBusiness(mapBusiness(bizRes.data));
+		if (jobsRes.data) setJobs(jobsRes.data.map(mapJob));
+		if (profilesRes.data) setUsers(profilesRes.data.map(mapProfile));
+		if (catsRes.data) setCategories(catsRes.data.map(mapCategory));
+		if (holsRes.data) setHolidays(holsRes.data.map(mapHoliday));
+		if (notifsRes.data) setNotifications(notifsRes.data.map(mapNotification));
+		if (custRes.data) setCustomers(custRes.data.map(mapCustomer));
+	}
+
+	function exitBusiness() {
+		setBusiness({ ...INITIAL_BUSINESS, id: "", name: "Select a Client", logoInitials: "SA" });
+		setJobs([]);
+		setUsers([]);
+		setCategories([]);
+		setHolidays([]);
+		setNotifications([]);
+		setCustomers([]);
+	}
+
 	return (
 		<Ctx.Provider
 			value={{
@@ -1433,6 +1588,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				jobs,
 				myJobs,
 				isMaster: !!isMaster,
+				isSuperAdmin,
 				saveUser,
 				lockUser,
 				unlockUser,
@@ -1472,6 +1628,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				declineHoliday,
 				rescheduleJob,
 				resizeJobTime,
+				switchBusiness,
+				exitBusiness,
 			}}
 		>
 			{children}

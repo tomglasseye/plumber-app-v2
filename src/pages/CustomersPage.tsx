@@ -85,7 +85,7 @@ export function CustomersPage() {
 		"w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600";
 
 	return (
-		<div className="p-5 md:p-7 max-w-4xl">
+		<div className="p-6 md:p-8 max-w-4xl">
 			<div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
 				<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
 					Customers
@@ -122,9 +122,9 @@ export function CustomersPage() {
 							<h2 className="text-lg font-medium text-neutral-100 mb-4">
 								{editId ? "Edit Customer" : "New Customer"}
 							</h2>
-							<div className="space-y-3">
+							<div className="space-y-4">
 								<div>
-									<label className="mb-1 block text-xs uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
 										Name *
 									</label>
 									<input
@@ -139,7 +139,7 @@ export function CustomersPage() {
 									/>
 								</div>
 								<div>
-									<label className="mb-1 block text-xs uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
 										Email *
 									</label>
 									<input
@@ -153,7 +153,7 @@ export function CustomersPage() {
 									/>
 								</div>
 								<div>
-									<label className="mb-1 block text-xs uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
 										Phone *
 									</label>
 									<input
@@ -168,7 +168,7 @@ export function CustomersPage() {
 									/>
 								</div>
 								<div>
-									<label className="mb-1 block text-xs uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
 										Default Address *
 									</label>
 									<input
@@ -183,7 +183,7 @@ export function CustomersPage() {
 									/>
 								</div>
 								<div>
-									<label className="mb-1 block text-xs uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
 										Notes
 									</label>
 									<textarea
@@ -198,7 +198,7 @@ export function CustomersPage() {
 									/>
 								</div>
 								<div>
-									<label className="mb-1 block text-xs uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
 										Xero Contact ID
 									</label>
 									<input
@@ -253,11 +253,11 @@ export function CustomersPage() {
 						: "No customers match your search."}
 				</div>
 			) : (
-				<div className="space-y-2">
+				<div className="space-y-3">
 					{filtered.map((c) => (
 						<div
 							key={c.id}
-							className="group flex items-center gap-4 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 hover:border-neutral-700 transition-colors"
+							className="group flex items-center gap-4 rounded-xl border border-neutral-800 bg-neutral-900 px-5 py-4 hover:border-neutral-700 transition-colors"
 						>
 							{/* Avatar */}
 							<div

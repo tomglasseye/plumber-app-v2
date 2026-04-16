@@ -175,7 +175,7 @@ export function TeamPage() {
 		"w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500";
 
 	return (
-		<div className="p-5 md:p-7 max-w-3xl">
+		<div className="p-6 md:p-8 max-w-3xl">
 			<div className="flex items-center justify-between mb-6 gap-4">
 				<div>
 					<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
@@ -198,11 +198,11 @@ export function TeamPage() {
 
 			{/* Masters section */}
 			{masters.length > 0 && (
-				<section className="mb-6">
-					<h2 className="text-[11px] uppercase tracking-wider text-neutral-600 mb-3">
+				<section className="mb-8">
+					<h2 className="text-[11px] uppercase tracking-wider text-neutral-600 mb-4">
 						Administrators
 					</h2>
-					<div className="space-y-2">
+					<div className="space-y-3">
 						{masters.map((u) => (
 							<MemberRow key={u.id} user={u} accent={u.color ?? business.accentColor} isSelf={u.id === currentUser?.id} canEdit={isMaster} onEdit={() => openEdit(u)} onLock={() => lockUser(u.id)} onUnlock={() => unlockUser(u.id)} />
 						))}
@@ -212,16 +212,16 @@ export function TeamPage() {
 
 			{/* Engineers section */}
 			<section>
-				<h2 className="text-[11px] uppercase tracking-wider text-neutral-600 mb-3">
+				<h2 className="text-[11px] uppercase tracking-wider text-neutral-600 mb-4">
 					Engineers
 				</h2>
 				{engineers.length === 0 ? (
 					<div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900/50 py-10 text-center">
 						<p className="text-sm text-neutral-600">No engineers yet</p>
-						<p className="text-xs text-neutral-700 mt-1">Add team members from Account settings</p>
+						<p className="text-xs text-neutral-500 mt-1">Add team members from Account settings</p>
 					</div>
 				) : (
-					<div className="space-y-2">
+					<div className="space-y-3">
 						{engineers.map((u) => (
 							<MemberRow key={u.id} user={u} accent={userColor(u.id, users)} isSelf={u.id === currentUser?.id} canEdit={isMaster} onEdit={() => openEdit(u)} onLock={() => lockUser(u.id)} onUnlock={() => unlockUser(u.id)} />
 						))}
@@ -424,7 +424,7 @@ export function TeamPage() {
 										Delete Team Member
 									</button>
 								) : (
-									<div className="space-y-2">
+									<div className="space-y-3">
 										<p className="text-xs text-red-400">This removes their profile permanently. Their jobs remain assigned to them. Are you sure?</p>
 										<div className="flex gap-2">
 											<button

@@ -7,12 +7,14 @@ interface Props {
 }
 
 export function Sidebar({ onClose }: Props) {
-	const { currentUser, isMaster, logout, business, theme, toggleTheme } =
+	const { currentUser, isMaster, isSuperAdmin, logout, business, theme, toggleTheme, exitBusiness } =
 		useApp();
 	const navigate = useNavigate();
 
 	const activeColor = business.accentColor;
 	const avatarColor = currentUser?.color ?? business.accentColor;
+	// SA with no client loaded — hide regular nav
+	const hasClient = !isSuperAdmin || business.id !== "";
 
 	function handleLogout() {
 		logout();
@@ -193,10 +195,30 @@ export function Sidebar({ onClose }: Props) {
 					},
 				]
 			: []),
+		{
+			to: "/how-to-use",
+			label: "How to Use",
+			icon: (
+				<svg
+					className={S}
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					strokeWidth={1.8}
+				>
+					<path
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 18h.01"
+					/>
+					<circle cx="12" cy="12" r="9" />
+				</svg>
+			),
+		},
 	];
 
 	const linkClass = ({ isActive }: { isActive: boolean }) =>
-		`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors w-full text-left ${
+		`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-colors w-full text-left ${
 			isActive
 				? "bg-neutral-800 font-medium"
 				: "text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800/60"
@@ -205,24 +227,31 @@ export function Sidebar({ onClose }: Props) {
 	return (
 		<aside className="flex h-full w-full flex-col bg-neutral-900 border-r border-neutral-800">
 			{/* Logo */}
-			<div className="flex items-center gap-3 border-b border-neutral-800 px-4 py-4">
+			<div className="flex items-center gap-3 border-b border-neutral-800 px-4 py-5">
 				<div
 					className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
 					style={{ backgroundColor: business.accentColor }}
 				>
 					{business.logoInitials}
 				</div>
-				<span className="text-sm text-neutral-200 truncate">
-					{business.name.split(" ")[0]}
-					<strong>
-						{" " + business.name.split(" ").slice(1).join(" ")}
-					</strong>
-				</span>
+				<div className="min-w-0">
+					<span className="text-sm text-neutral-200 truncate block">
+						{business.name.split(" ")[0]}
+						<strong>
+							{" " + business.name.split(" ").slice(1).join(" ")}
+						</strong>
+					</span>
+					{isSuperAdmin && (
+						<span className="text-[10px] text-orange-500 uppercase tracking-wider">
+							Super Admin
+						</span>
+					)}
+				</div>
 			</div>
 
 			{/* Nav */}
-			<nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-				{navItems.map((item) => (
+			<nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+				{hasClient && navItems.map((item) => (
 					<NavLink
 						key={item.to}
 						to={item.to}
@@ -241,9 +270,46 @@ export function Sidebar({ onClose }: Props) {
 				))}
 			</nav>
 
+			{/* Super Admin — always-visible home button */}
+			{isSuperAdmin && (
+				<div className="px-3 pb-2">
+					<NavLink
+						to="/admin"
+						className={({ isActive }) =>
+							`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-colors w-full text-left ${
+								isActive
+									? "bg-orange-900/40 border border-orange-800 font-medium text-orange-300"
+									: "text-orange-400 hover:bg-orange-900/30 hover:text-orange-300 border border-transparent"
+							}`
+						}
+						onClick={() => {
+							exitBusiness();
+							onClose?.();
+						}}
+					>
+						<span className="w-5 text-center">
+							<svg
+								className={S}
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={1.8}
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+								/>
+							</svg>
+						</span>
+						Admin Home
+					</NavLink>
+				</div>
+			)}
+
 			{/* User footer */}
 			{currentUser && (
-				<div className="flex items-center gap-3 border-t border-neutral-800 px-4 py-3">
+				<div className="flex items-center gap-3 border-t border-neutral-800 px-4 py-4">
 					<div
 						className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium"
 						style={{
@@ -259,7 +325,7 @@ export function Sidebar({ onClose }: Props) {
 							{currentUser.name}
 						</p>
 						<p className="text-xs text-neutral-600">
-							{isMaster ? "Administrator" : "Engineer"}
+							{isSuperAdmin && !hasClient ? "Super Admin" : isMaster ? "Administrator" : "Engineer"}
 						</p>
 					</div>
 					<button

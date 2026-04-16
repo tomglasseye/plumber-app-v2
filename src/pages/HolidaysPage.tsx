@@ -103,7 +103,7 @@ export function HolidaysPage() {
 	// ── Master View ──────────────────────────────────────────────
 	if (isMaster) {
 		return (
-			<div className="p-5 md:p-7 max-w-5xl">
+			<div className="p-6 md:p-8 max-w-5xl">
 				<div className="flex items-center justify-between mb-6 flex-wrap gap-3">
 					<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
 						Team Holidays
@@ -129,8 +129,8 @@ export function HolidaysPage() {
 
 				{/* Pending Requests */}
 				{pendingRequests.length > 0 && (
-					<section className="mb-6">
-						<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-3">
+					<section className="mb-8">
+						<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-4">
 							Pending Requests ({pendingRequests.length})
 						</h2>
 						<div className="space-y-2">
@@ -174,8 +174,8 @@ export function HolidaysPage() {
 				)}
 
 				{/* Team Stats Table */}
-				<section className="mb-6">
-					<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-3">
+				<section className="mb-8">
+					<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-4">
 						Team Stats — {selectedYear}
 					</h2>
 					<div className="overflow-x-auto rounded-xl border border-neutral-800">
@@ -257,7 +257,7 @@ export function HolidaysPage() {
 
 				{/* Holiday List */}
 				<section>
-					<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-3">
+					<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-4">
 						All Holidays — {selectedYear}
 					</h2>
 					{(() => {
@@ -312,7 +312,7 @@ export function HolidaysPage() {
 		.sort((a, b) => a.date.localeCompare(b.date));
 
 	return (
-		<div className="p-5 md:p-7 max-w-3xl">
+		<div className="p-6 md:p-8 max-w-3xl">
 			<div className="flex items-center justify-between mb-6 flex-wrap gap-3">
 				<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
 					My Holidays
@@ -454,7 +454,7 @@ export function HolidaysPage() {
 
 			{/* My Holidays List */}
 			<section>
-				<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-3">
+				<h2 className="text-sm text-neutral-400 uppercase tracking-wider mb-4">
 					My Holidays — {selectedYear}
 				</h2>
 				{myHolidays.length === 0 ? (

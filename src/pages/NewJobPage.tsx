@@ -120,7 +120,7 @@ export function NewJobPage() {
 		"rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 placeholder:text-neutral-600";
 
 	return (
-		<div className="p-5 md:p-7 max-w-2xl">
+		<div className="p-6 md:p-8 max-w-2xl">
 			<button
 				onClick={() => navigate(-1)}
 				className="mb-5 text-sm text-neutral-600 hover:text-neutral-300 transition-colors border-0 bg-transparent p-0 cursor-pointer block"
@@ -131,9 +131,9 @@ export function NewJobPage() {
 				Create New Job
 			</h1>
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 				{/* Customer autocomplete */}
-				<div className="flex flex-col gap-1.5 relative" ref={custRef}>
+				<div className="flex flex-col gap-2 relative" ref={custRef}>
 					<label className="text-xs uppercase tracking-wider text-neutral-600">
 						Customer Name *
 					</label>
@@ -195,7 +195,7 @@ export function NewJobPage() {
 				</div>
 
 				{/* Phone */}
-				<div className="flex flex-col gap-1.5">
+				<div className="flex flex-col gap-2">
 					<label className="text-xs uppercase tracking-wider text-neutral-600">
 						Phone Number *
 					</label>
@@ -210,7 +210,7 @@ export function NewJobPage() {
 				</div>
 
 				{/* Address */}
-				<div className="flex flex-col gap-1.5 sm:col-span-2">
+				<div className="flex flex-col gap-2 sm:col-span-2">
 					<label className="text-xs uppercase tracking-wider text-neutral-600">
 						Address *
 					</label>
@@ -226,7 +226,7 @@ export function NewJobPage() {
 
 				{/* Category */}
 				{categories.length > 0 && (
-					<div className="flex flex-col gap-1.5">
+					<div className="flex flex-col gap-2">
 						<label className="text-xs uppercase tracking-wider text-neutral-600">
 							Category
 						</label>
@@ -282,7 +282,7 @@ export function NewJobPage() {
 				)}
 
 				{/* Date */}
-				<div className="flex flex-col gap-1.5">
+				<div className="flex flex-col gap-2">
 					<label className="text-xs uppercase tracking-wider text-neutral-600">
 						Start Date *
 					</label>
@@ -299,7 +299,7 @@ export function NewJobPage() {
 				</div>
 
 				{/* End Date */}
-				<div className="flex flex-col gap-1.5">
+				<div className="flex flex-col gap-2">
 					<label className="text-xs uppercase tracking-wider text-neutral-600">
 						End Date
 					</label>
@@ -310,11 +310,11 @@ export function NewJobPage() {
 						onChange={(e) => f("endDate", e.target.value)}
 						className={inputClass}
 					/>
-					<p className="text-[10px] text-neutral-700">Leave blank for single day</p>
+					<p className="text-[10px] text-neutral-500">Leave blank for single day</p>
 				</div>
 
 				{/* Time slots */}
-				<div className="flex flex-col gap-1.5 sm:col-span-2">
+				<div className="flex flex-col gap-2 sm:col-span-2">
 					<label className="text-xs uppercase tracking-wider text-neutral-600">
 						Time Slot
 					</label>
@@ -352,13 +352,13 @@ export function NewJobPage() {
 							))}
 						</select>
 					</div>
-					<p className="text-[10px] text-neutral-700">
+					<p className="text-[10px] text-neutral-500">
 						Min 1 hour — leave blank for all-day
 					</p>
 				</div>
 
 				{/* Assign To */}
-				<div className="flex flex-col gap-1.5">
+				<div className="flex flex-col gap-2">
 					<label className="text-xs uppercase tracking-wider text-neutral-600">
 						Assign To *
 					</label>
@@ -377,7 +377,7 @@ export function NewJobPage() {
 				</div>
 
 				{/* Priority */}
-				<div className="flex flex-col gap-1.5">
+				<div className="flex flex-col gap-2">
 					<label className="text-xs uppercase tracking-wider text-neutral-600">
 						Priority
 					</label>
@@ -395,7 +395,7 @@ export function NewJobPage() {
 				</div>
 
 				{/* Description */}
-				<div className="sm:col-span-2 flex flex-col gap-1.5">
+				<div className="sm:col-span-2 flex flex-col gap-2">
 					<label className="text-xs uppercase tracking-wider text-neutral-600">
 						Job Description
 					</label>
@@ -411,7 +411,7 @@ export function NewJobPage() {
 			</div>
 
 			{/* Recurring */}
-			<div className="flex flex-col gap-1.5 mt-4">
+			<div className="flex flex-col gap-2 mt-4">
 				<label className="text-xs uppercase tracking-wider text-neutral-600">
 					Recurring
 				</label>

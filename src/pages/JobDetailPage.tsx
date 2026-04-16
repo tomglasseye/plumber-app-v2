@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useApp } from "../AppContext";
 import { CategoryIcon } from "./AccountPage";
+import { ActivityLog } from "../components/ActivityLog";
+import { JobPhotos } from "../components/JobPhotos";
 import {
 	PRIORITIES,
 	PRIORITY_COLORS,
@@ -81,8 +83,12 @@ export function JobDetailPage() {
 	const [draftTimeSpent, setDraftTimeSpent] = useState(
 		job?.timeSpent ?? 0,
 	);
+	const [draftMaterialsCost, setDraftMaterialsCost] = useState(
+		job?.materialsCost ?? 0,
+	);
 	const [draftRepeatFrequency, setDraftRepeatFrequency] = useState<RepeatFrequency | undefined>(job?.repeatFrequency);
 	const [saved, setSaved] = useState(false);
+	const [activityOpen, setActivityOpen] = useState(false);
 
 	// Re-sync draft if navigating to a different job
 	useEffect(() => {
@@ -102,6 +108,7 @@ export function JobDetailPage() {
 		setDraftNotes(job.notes);
 		setDraftMaterials(job.materials);
 		setDraftTimeSpent(job.timeSpent);
+		setDraftMaterialsCost(job.materialsCost);
 		setDraftRepeatFrequency(job.repeatFrequency);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [job?.id]);
@@ -131,6 +138,7 @@ export function JobDetailPage() {
 		draftPriority !== job.priority ||
 		draftNotes !== job.notes ||
 		draftMaterials !== job.materials ||
+		draftMaterialsCost !== job.materialsCost ||
 		draftTimeSpent !== job.timeSpent;
 
 	function handleSave() {
@@ -187,12 +195,15 @@ export function JobDetailPage() {
 		if (draftNotes !== job.notes) updateJob(job.id, "notes", draftNotes);
 		if (draftMaterials !== job.materials)
 			updateJob(job.id, "materials", draftMaterials);
+		if (draftMaterialsCost !== job.materialsCost)
+			updateJob(job.id, "materialsCost", draftMaterialsCost);
 		if (draftTimeSpent !== job.timeSpent)
 			updateJob(job.id, "timeSpent", draftTimeSpent);
 		if (
 			!isMaster &&
 			(draftNotes !== job.notes ||
 				draftMaterials !== job.materials ||
+				draftMaterialsCost !== job.materialsCost ||
 				draftTimeSpent !== job.timeSpent)
 		) {
 			addNotification({
@@ -217,7 +228,7 @@ export function JobDetailPage() {
 		"w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500";
 
 	return (
-		<div className="p-5 md:p-7">
+		<div className="p-6 md:p-8">
 			<button
 				onClick={() => navigate(-1)}
 				className="mb-5 text-sm text-neutral-600 hover:text-neutral-300 transition-colors border-0 bg-transparent p-0 cursor-pointer block"
@@ -318,12 +329,12 @@ export function JobDetailPage() {
 				</span>
 			</div>
 
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 				{/* Left column: Details + Priority */}
-				<div className="flex flex-col gap-4 h-full">
+				<div className="flex flex-col gap-5 h-full">
 				{/* Details */}
 				<div className="flex-1 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-					<h4 className="mb-3 text-[10px] uppercase tracking-widest text-neutral-600">
+					<h4 className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
 						Job Details
 					</h4>
 					{isMaster ? (
@@ -362,7 +373,7 @@ export function JobDetailPage() {
 								][]
 							).map(([label, val, setter, type]) => (
 								<div key={label}>
-									<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-[10px] uppercase tracking-wider text-neutral-600">
 										{label}
 									</label>
 									<input
@@ -377,7 +388,7 @@ export function JobDetailPage() {
 							{/* Dates */}
 							<div className="grid grid-cols-2 gap-3">
 								<div>
-									<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-[10px] uppercase tracking-wider text-neutral-600">
 										Start Date
 									</label>
 									<input
@@ -390,7 +401,7 @@ export function JobDetailPage() {
 									/>
 								</div>
 								<div>
-									<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-[10px] uppercase tracking-wider text-neutral-600">
 										End Date
 									</label>
 									<input
@@ -408,7 +419,7 @@ export function JobDetailPage() {
 							{/* Time slots */}
 							<div className="grid grid-cols-2 gap-3">
 								<div>
-									<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-[10px] uppercase tracking-wider text-neutral-600">
 										Start Time
 									</label>
 									<select
@@ -430,7 +441,7 @@ export function JobDetailPage() {
 									</select>
 								</div>
 								<div>
-									<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
+									<label className="mb-1.5 block text-[10px] uppercase tracking-wider text-neutral-600">
 										End Time
 									</label>
 									<select
@@ -531,7 +542,7 @@ export function JobDetailPage() {
 							</div>
 
 							<div>
-								<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
+								<label className="mb-1.5 block text-[10px] uppercase tracking-wider text-neutral-600">
 									Assigned To
 								</label>
 								<select
@@ -634,7 +645,7 @@ export function JobDetailPage() {
 				{/* Priority + Status */}
 				{canEdit && (
 					<div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-						<h4 className="mb-3 text-[10px] uppercase tracking-widest text-neutral-600">
+						<h4 className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
 							Priority
 						</h4>
 						<div className="flex flex-wrap gap-2 mb-4">
@@ -655,7 +666,7 @@ export function JobDetailPage() {
 								);
 							})}
 						</div>
-						<h4 className="mb-3 text-[10px] uppercase tracking-widest text-neutral-600">
+						<h4 className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
 							Update Status
 						</h4>
 						<div className="flex flex-wrap gap-2">
@@ -703,7 +714,7 @@ export function JobDetailPage() {
 				<div className="flex flex-col gap-4 h-full">
 				{/* Notes */}
 				<div className="flex-1 flex flex-col rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-					<h4 className="mb-3 text-[10px] uppercase tracking-widest text-neutral-600">
+					<h4 className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
 						Site Notes
 					</h4>
 					<textarea
@@ -718,7 +729,7 @@ export function JobDetailPage() {
 
 				{/* Materials */}
 				<div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-					<h4 className="mb-3 text-[10px] uppercase tracking-widest text-neutral-600">
+					<h4 className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
 						Materials Used
 					</h4>
 					<textarea
@@ -730,25 +741,52 @@ export function JobDetailPage() {
 						maxLength={5000}
 						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 resize-y placeholder:text-neutral-600"
 					/>
-					<div className="mt-3">
-						<label className="mb-1 block text-[10px] uppercase tracking-wider text-neutral-600">
-							Time Spent (hrs)
-						</label>
-						<input
-							type="number"
-							step="0.5"
-							min="0"
-							value={draftTimeSpent}
-							readOnly={!canEdit}
-							onChange={(e) =>
-								setDraftTimeSpent(
-									parseFloat(e.target.value) || 0,
-								)
-							}
-							className="w-28 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-						/>
+					<div className="mt-4 grid grid-cols-2 gap-4">
+						<div>
+							<label className="mb-1.5 block text-[10px] uppercase tracking-wider text-neutral-600">
+								Materials Cost
+							</label>
+							<div className="relative w-full">
+								<span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">£</span>
+								<input
+									type="number"
+									step="0.01"
+									min="0"
+									value={draftMaterialsCost || ""}
+									readOnly={!canEdit}
+									onChange={(e) =>
+										setDraftMaterialsCost(
+											parseFloat(e.target.value) || 0,
+										)
+									}
+									placeholder="0.00"
+									className="w-full rounded-lg border border-neutral-700 bg-neutral-800 pl-7 pr-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 placeholder:text-neutral-600"
+								/>
+							</div>
+						</div>
+						<div>
+							<label className="mb-1.5 block text-[10px] uppercase tracking-wider text-neutral-600">
+								Time Spent (hrs)
+							</label>
+							<input
+								type="number"
+								step="0.5"
+								min="0"
+								value={draftTimeSpent}
+								readOnly={!canEdit}
+								onChange={(e) =>
+									setDraftTimeSpent(
+										parseFloat(e.target.value) || 0,
+									)
+								}
+								className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+							/>
+						</div>
 					</div>
 				</div>
+
+				{/* Photos */}
+				<JobPhotos jobId={job.id} canEdit={canEdit} />
 				</div>
 
 				{/* Save bar */}
@@ -827,6 +865,26 @@ export function JobDetailPage() {
 								? "Send to Xero"
 								: "Connect Xero first"}
 						</button>
+					</div>
+				)}
+
+				{/* Activity Log (master only) */}
+				{isMaster && (
+					<div className="md:col-span-2 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+						<button
+							onClick={() => setActivityOpen((v) => !v)}
+							className="flex items-center gap-2 w-full text-left cursor-pointer bg-transparent border-0 p-0"
+						>
+							<span className={`text-xs text-neutral-500 transition-transform ${activityOpen ? "rotate-90" : ""}`}>›</span>
+							<h4 className="text-[10px] uppercase tracking-widest text-neutral-600">
+								Activity History
+							</h4>
+						</button>
+						{activityOpen && (
+							<div className="mt-3">
+								<ActivityLog jobId={job.id} limit={20} />
+							</div>
+						)}
 					</div>
 				)}
 			</div>

@@ -368,6 +368,7 @@ export const INITIAL_JOBS: Job[] = [
 		materials: "Boiler filter x1, gasket set",
 		notes: "Service completed.",
 		timeSpent: 2.5,
+		materialsCost: 0,
 		readyToInvoice: false,
 	},
 	{
@@ -384,6 +385,7 @@ export const INITIAL_JOBS: Job[] = [
 		materials: "",
 		notes: "",
 		timeSpent: 0,
+		materialsCost: 0,
 		readyToInvoice: false,
 	},
 	{
@@ -401,6 +403,7 @@ export const INITIAL_JOBS: Job[] = [
 		materials: "",
 		notes: "",
 		timeSpent: 0,
+		materialsCost: 0,
 		readyToInvoice: false,
 	},
 	{
@@ -417,6 +420,7 @@ export const INITIAL_JOBS: Job[] = [
 		materials: "",
 		notes: "",
 		timeSpent: 0,
+		materialsCost: 0,
 		readyToInvoice: false,
 	},
 	{
@@ -433,6 +437,7 @@ export const INITIAL_JOBS: Job[] = [
 		materials: "",
 		notes: "",
 		timeSpent: 0,
+		materialsCost: 0,
 		readyToInvoice: false,
 	},
 	{
@@ -449,6 +454,7 @@ export const INITIAL_JOBS: Job[] = [
 		materials: "",
 		notes: "",
 		timeSpent: 0,
+		materialsCost: 0,
 		readyToInvoice: false,
 	},
 ];

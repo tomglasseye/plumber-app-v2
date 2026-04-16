@@ -16,6 +16,10 @@
 	--default-mono-font-family:
 		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		"Liberation Mono", "Courier New", monospace;
+
+	/* Boost muted-text contrast (dark theme) */
+	--color-neutral-500: oklch(0.60 0 0);
+	--color-neutral-600: oklch(0.50 0 0);
 }
 
 html,

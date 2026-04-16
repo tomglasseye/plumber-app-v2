@@ -2648,7 +2648,7 @@ export function CalendarPage() {
 												});
 												setHolidayEndDate(ds);
 											}}
-											className="mt-0.5 text-[9px] text-neutral-700 hover:text-neutral-400 cursor-pointer border-0 bg-transparent block w-full"
+											className="mt-0.5 text-[10px] text-neutral-500 hover:text-neutral-300 cursor-pointer border-0 bg-transparent block w-full"
 										>
 											+ leave
 										</button>
@@ -2662,7 +2662,7 @@ export function CalendarPage() {
 					{showAllDay && (
 						<div className="flex flex-shrink-0 border-b border-neutral-800 min-h-[32px]">
 							<div className="w-14 flex-shrink-0 border-r border-neutral-800 flex items-center justify-end pr-2">
-								<span className="text-[9px] text-neutral-700 uppercase tracking-wider">
+								<span className="text-[10px] text-neutral-500 uppercase tracking-wider">
 									All day
 								</span>
 							</div>
@@ -2854,7 +2854,7 @@ export function CalendarPage() {
 
 	return (
 		<>
-			<div className="p-5 md:p-7 flex flex-col gap-4 max-w-[1400px] w-full overflow-x-hidden">
+			<div className="p-6 md:p-8 flex flex-col gap-5 max-w-[1400px] w-full overflow-x-hidden">
 				{/* Header */}
 				<div className="flex items-start justify-between gap-4 flex-wrap">
 					<div>
