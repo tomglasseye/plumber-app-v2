@@ -50,15 +50,21 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
  * Fire a push notification to a target user via the Netlify Function.
  * Non-blocking — errors are silently ignored.
  */
-export function firePush(
+export async function firePush(
 	userId: string,
 	title: string,
 	body: string,
 	url?: string,
-): void {
+): Promise<void> {
+	const { data: { session } } = await supabase.auth.getSession();
+	if (!session?.access_token) return;
+
 	fetch("/.netlify/functions/send-push", {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${session.access_token}`,
+		},
 		body: JSON.stringify({ userId, title, body, url }),
 	}).catch(() => {});
 }

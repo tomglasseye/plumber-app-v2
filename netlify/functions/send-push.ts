@@ -4,6 +4,7 @@ import webpush from "web-push";
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
 
 const vapidPublic = process.env.VAPID_PUBLIC_KEY!;
 const vapidPrivate = process.env.VAPID_PRIVATE_KEY!;
@@ -28,6 +29,32 @@ export default async (request: Request, _context: Context) => {
 		});
 	}
 
+	// ── Verify the caller is authenticated ──────────────────────
+	const authHeader = request.headers.get("Authorization");
+	if (!authHeader?.startsWith("Bearer ")) {
+		return new Response(JSON.stringify({ error: "Missing auth token" }), {
+			status: 401,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
+	const token = authHeader.slice(7);
+	const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
+		global: { headers: { Authorization: `Bearer ${token}` } },
+	});
+
+	const {
+		data: { user: caller },
+	} = await callerClient.auth.getUser();
+
+	if (!caller) {
+		return new Response(JSON.stringify({ error: "Invalid token" }), {
+			status: 401,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
+	// ── Verify the target user is in the same business ──────────
 	const { userId, title, body, url } = await request.json();
 
 	if (!userId || !title) {
@@ -39,6 +66,30 @@ export default async (request: Request, _context: Context) => {
 
 	const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
+	const { data: callerProfile } = await adminClient
+		.from("profiles")
+		.select("business_id")
+		.eq("id", caller.id)
+		.single();
+
+	const { data: targetProfile } = await adminClient
+		.from("profiles")
+		.select("business_id")
+		.eq("id", userId)
+		.single();
+
+	if (
+		!callerProfile ||
+		!targetProfile ||
+		callerProfile.business_id !== targetProfile.business_id
+	) {
+		return new Response(JSON.stringify({ error: "Forbidden" }), {
+			status: 403,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
+	// ── Send the push ───────────────────────────────────────────
 	const { data: subs } = await adminClient
 		.from("push_subscriptions")
 		.select("*")
