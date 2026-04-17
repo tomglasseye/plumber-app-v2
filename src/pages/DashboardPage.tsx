@@ -254,11 +254,12 @@ function MasterDashboard() {
 			(j) =>
 				j.repeatFrequency &&
 				j.status === "Scheduled" &&
+				j.date &&
 				j.date >= TODAY &&
 				j.date <= cutoff30 &&
 				!dismissed.has(j.id),
 		)
-		.sort((a, b) => a.date.localeCompare(b.date));
+		.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
 
 	// Upcoming holidays (next 14 days)
 	const fourteenOut = new Date();
@@ -443,7 +444,7 @@ function MasterDashboard() {
 											{j.customer}
 										</p>
 										<p className="text-xs text-neutral-500">
-											{freq} · {formatDate(j.date)}
+											{freq}{j.date ? ` · ${formatDate(j.date)}` : ""}
 											{cat ? ` · ${cat.name}` : ""}
 											{eng ? ` · ${eng.name}` : ""}
 										</p>

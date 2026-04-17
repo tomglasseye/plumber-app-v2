@@ -101,7 +101,7 @@ interface AppCtx {
 	// Atomic scheduling helpers (single DB call)
 	rescheduleJob: (
 		jobId: string,
-		date: string,
+		date: string | undefined,
 		startTime?: string,
 		endTime?: string,
 		assignedTo?: string,
@@ -867,7 +867,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		);
 		// Only notify engineer when master changes their job status
 		// (engineer→master status changes are now visible via live sync)
-		if (isMaster) {
+		if (isMaster && job.assignedTo) {
 			addNotification({
 				icon: "📋",
 				message: `HQ updated your job ${job.ref} (${job.customer}) to ${status}`,
@@ -900,7 +900,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					),
 				),
 		);
-		if (isMaster && priority === "Emergency") {
+		if (isMaster && priority === "Emergency" && job.assignedTo) {
 			addNotification({
 				icon: "🚨",
 				message: `URGENT: HQ changed ${job.ref} (${job.customer}) to Emergency`,
@@ -935,14 +935,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			for: "master",
 			jobId: id,
 		});
-		addNotification({
-			icon: "✅",
-			message: `HQ approved your job ${job.ref} (${job.customer}) — invoice will be raised`,
-			for: job.assignedTo,
-			jobId: id,
-		});
+		if (job.assignedTo) {
+			addNotification({
+				icon: "✅",
+				message: `HQ approved your job ${job.ref} (${job.customer}) — invoice will be raised`,
+				for: job.assignedTo,
+				jobId: id,
+			});
+		}
 		// Auto-schedule next occurrence for recurring jobs
-		if (job.repeatFrequency) {
+		if (job.repeatFrequency && job.date) {
 			const next = new Date(job.date + "T00:00:00");
 			if (job.repeatFrequency === "annually")
 				next.setFullYear(next.getFullYear() + 1);
@@ -1441,7 +1443,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	// Single-call reschedule (date + times together — avoids 3 separate DB round-trips)
 	function rescheduleJob(
 		jobId: string,
-		date: string,
+		date: string | undefined,
 		startTime?: string,
 		endTime?: string,
 		assignedTo?: string,
@@ -1462,7 +1464,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				j.id === jobId
 					? {
 							...j,
-							date,
+							date: date ?? undefined,
 							startTime,
 							endTime,
 							...(assignedTo ? { assignedTo } : {}),
@@ -1475,7 +1477,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				supabase
 					.from("jobs")
 					.update({
-						date,
+						date: date ?? null,
 						start_time: startTime ?? null,
 						end_time: endTime ?? null,
 						...(assignedTo ? { assigned_to: assignedTo } : {}),

@@ -61,14 +61,14 @@ export function JobCard({ job }: Props) {
 					📍 {job.address.split(",").slice(-2).join(",").trim()}
 				</span>
 				<span className="text-xs text-neutral-600">
-					📅 {new Date(job.date).toLocaleDateString("en-GB")}
+					📅 {job.date ? new Date(job.date).toLocaleDateString("en-GB") : "No date"}
 				</span>
 				{isMaster && (
 					<span
 						className="ml-auto flex h-6 w-6 items-center justify-center rounded-full text-xs"
 						style={{
-							background: userColor(job.assignedTo, users) + "22",
-							color: userColor(job.assignedTo, users),
+							background: userColor(job.assignedTo ?? "", users) + "22",
+							color: userColor(job.assignedTo ?? "", users),
 						}}
 					>
 						{eng?.avatar}

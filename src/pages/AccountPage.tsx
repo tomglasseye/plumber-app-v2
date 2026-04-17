@@ -106,8 +106,8 @@ const EXPORT_HEADERS = [
 function exportRow(j: Job, userMap: Record<string, string>, catMap: Record<string, string>): string[] {
 	return [
 		j.ref, j.customer, j.address, j.description,
-		userMap[j.assignedTo] || j.assignedTo,
-		j.status, j.priority, j.date,
+		userMap[j.assignedTo ?? ""] || j.assignedTo || "",
+		j.status, j.priority, j.date ?? "",
 		j.startTime ?? "", j.endTime ?? "",
 		catMap[j.categoryId ?? ""] || "",
 		j.materials, String(j.materialsCost ?? 0),
@@ -170,7 +170,7 @@ function ExportPanel({
 	const [to, setTo] = useState(TODAY);
 	const [exported, setExported] = useState(false);
 
-	const filteredJobs = jobs.filter((j) => j.date >= from && j.date <= to);
+	const filteredJobs = jobs.filter((j) => j.date && j.date >= from && j.date <= to);
 	const totalRows = filteredJobs.length;
 
 	function handleExport() {

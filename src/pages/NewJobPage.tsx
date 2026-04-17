@@ -106,7 +106,7 @@ export function NewJobPage() {
 		// Strip empty optional strings
 		if (!jobForm.startTime) jobForm = { ...jobForm, startTime: undefined };
 		if (!jobForm.endTime) jobForm = { ...jobForm, endTime: undefined };
-		if (!jobForm.endDate || jobForm.endDate <= jobForm.date) jobForm = { ...jobForm, endDate: undefined };
+		if (!jobForm.endDate || (jobForm.date && jobForm.endDate <= jobForm.date)) jobForm = { ...jobForm, endDate: undefined };
 		if (!jobForm.categoryId) jobForm = { ...jobForm, categoryId: undefined };
 		createJob(jobForm);
 		navigate("/");

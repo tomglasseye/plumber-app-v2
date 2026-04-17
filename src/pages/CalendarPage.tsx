@@ -1487,7 +1487,7 @@ export function CalendarPage() {
 	const [undoAction, setUndoAction] = useState<{
 		jobId: string;
 		description: string;
-		prevDate: string;
+		prevDate?: string;
 		prevStartTime?: string;
 		prevEndTime?: string;
 		prevAssignedTo?: string;
@@ -1503,7 +1503,7 @@ export function CalendarPage() {
 		pendingScrollRestore.current = gridScrollRef.current?.scrollTop ?? null;
 		rescheduleJob(
 			undoAction.jobId,
-			undoAction.prevDate,
+			undoAction.prevDate ?? undefined,
 			undoAction.prevStartTime,
 			undoAction.prevEndTime,
 			undoAction.prevAssignedTo,
@@ -1813,6 +1813,7 @@ export function CalendarPage() {
 		return allVisible.filter((j) => {
 			if (
 				filterEngineers.length > 0 &&
+				j.assignedTo &&
 				!filterEngineers.includes(j.assignedTo)
 			)
 				return false;
@@ -2253,7 +2254,7 @@ export function CalendarPage() {
 							<div className="flex flex-col gap-0.5">
 								{cell.dayJobs.slice(0, 3).map((j) => {
 									const sc = STATUS_COLORS[j.status];
-									const uc = userColor(j.assignedTo, users);
+									const uc = userColor(j.assignedTo ?? "", users);
 									const cat = categories.find(
 										(c) => c.id === j.categoryId,
 									);
@@ -3100,7 +3101,7 @@ export function CalendarPage() {
 												const sc =
 													STATUS_COLORS[j.status];
 												const uc = userColor(
-													j.assignedTo,
+													j.assignedTo ?? "",
 													users,
 												);
 												const cat = categories.find(
@@ -3874,7 +3875,7 @@ export function CalendarPage() {
 			{ptrGhost &&
 				(() => {
 					const sc = STATUS_COLORS[ptrGhost.job.status];
-					const uc = userColor(ptrGhost.job.assignedTo, users);
+					const uc = userColor(ptrGhost.job.assignedTo ?? "", users);
 					return (
 						<div
 							className={`fixed pointer-events-none z-[9999] rounded ${sc.bg}`}

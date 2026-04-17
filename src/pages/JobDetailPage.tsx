@@ -97,8 +97,8 @@ export function JobDetailPage() {
 		setDraftAddress(job.address);
 		setDraftPhone(job.phone ?? "");
 			setDraftDescription(job.description);
-		setDraftAssignedTo(job.assignedTo);
-		setDraftDate(job.date);
+		setDraftAssignedTo(job.assignedTo ?? "");
+		setDraftDate(job.date ?? "");
 		setDraftEndDate(job.endDate ?? "");
 		setDraftStartTime(job.startTime ?? "");
 		setDraftEndTime(job.endTime ?? "");
