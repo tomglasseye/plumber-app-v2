@@ -51,10 +51,10 @@ export interface Job {
 	phone: string;
 	address: string;
 	description: string;
-	assignedTo: string;
+	assignedTo?: string;
 	status: Status;
 	priority: Priority;
-	date: string; // ISO date 'YYYY-MM-DD' (start date)
+	date?: string; // ISO date 'YYYY-MM-DD' (start date)
 	endDate?: string; // ISO date — for multi-day or early-completion
 	startTime?: string; // 'HH:MM' e.g. '09:00'
 	endTime?: string; // 'HH:MM' e.g. '10:30'
@@ -109,8 +109,8 @@ export interface NewJobForm {
 	phone: string;
 	address: string;
 	description: string;
-	assignedTo: string;
-	date: string;
+	assignedTo?: string;
+	date?: string;
 	endDate?: string;
 	priority: Priority;
 	customerId?: string;

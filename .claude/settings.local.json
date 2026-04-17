@@ -4,7 +4,8 @@
       "Bash(npm run:*)",
       "Bash(python3 -c \":*)",
       "Bash(python3:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(wc -l /c/Users/smkgl/Documents/LocalSites/plumber-app-v2/src/pages/*.tsx /c/Users/smkgl/Documents/LocalSites/plumber-app-v2/src/components/*.tsx)"
     ]
   }
 }

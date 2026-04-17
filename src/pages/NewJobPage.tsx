@@ -89,9 +89,7 @@ export function NewJobPage() {
 		if (
 			!form.customer ||
 			!form.phone ||
-			!form.address ||
-			!form.date ||
-			!form.assignedTo
+			!form.address
 		)
 			return;
 		let jobForm = form;
@@ -450,9 +448,7 @@ export function NewJobPage() {
 					disabled={
 						!form.customer ||
 						!form.phone ||
-						!form.address ||
-						!form.date ||
-						!form.assignedTo
+						!form.address
 					}
 					className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
 					style={{ backgroundColor: business.accentColor }}

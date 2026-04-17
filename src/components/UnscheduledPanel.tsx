@@ -32,7 +32,7 @@ export function UnscheduledPanel({ jobs, categories, onPointerDragStart }: Props
 
 	const unscheduled = jobs.filter(
 		(j) =>
-			!j.startTime &&
+			(!j.startTime || !j.date) &&
 			j.status !== "Completed" &&
 			j.status !== "Invoiced",
 	);
@@ -180,6 +180,9 @@ export function UnscheduledPanel({ jobs, categories, onPointerDragStart }: Props
 													month: "short",
 												})}
 											</p>
+										)}
+										{!job.assignedTo && (
+											<p className="text-[10px] text-amber-600 mt-0.5">Unassigned</p>
 										)}
 										<div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
 											<span

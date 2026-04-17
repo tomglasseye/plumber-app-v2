@@ -294,7 +294,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	const isMaster = currentUser?.role === "master";
 	const myJobs = isMaster
 		? jobs
-		: jobs.filter((j) => j.assignedTo === currentUser?.id);
+		: jobs.filter((j) => j.assignedTo === currentUser?.id || !j.assignedTo);
 	const myNotifs = isMaster
 		? notifications.filter((n) => n.for === "master")
 		: notifications.filter((n) => n.for === currentUser?.id);
@@ -986,7 +986,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			notes: "",
 			timeSpent: 0,
 			readyToInvoice: false,
-			assignedTo: form.assignedTo,
+			assignedTo: form.assignedTo || undefined,
+			date: form.date || undefined,
 		};
 		setJobs((prev) => [...prev, newJob]);
 		// Await the insert so the job exists in DB before the notification FK reference
@@ -998,10 +999,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			phone: form.phone ?? "",
 			address: form.address,
 			description: form.description,
-			assigned_to: form.assignedTo,
+			assigned_to: form.assignedTo || null,
 			status: "Scheduled",
 			priority: form.priority,
-			date: form.date,
+			date: form.date || null,
 			end_date: form.endDate ?? null,
 			category_id: form.categoryId ?? null,
 			start_time: form.startTime ?? null,
@@ -1021,12 +1022,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			setJobs((prev) => prev.filter((j) => j.id !== newJob.id));
 			return;
 		}
-		addNotification({
-			icon: "📋",
-			message: `New job ${ref} assigned to you — ${form.customer}`,
-			for: form.assignedTo,
-			jobId: newJob.id,
-		});
+		if (form.assignedTo) {
+			addNotification({
+				icon: "📋",
+				message: `New job ${ref} assigned to you — ${form.customer}`,
+				for: form.assignedTo,
+				jobId: newJob.id,
+			});
+		}
 		supabase.rpc("log_audit_event", {
 			p_action: "job.created",
 			p_target_type: "job",

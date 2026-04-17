@@ -260,9 +260,7 @@ function AddJobPanel({
 	const canSubmit =
 		form.customer &&
 		form.phone &&
-		form.address &&
-		form.date &&
-		form.assignedTo;
+		form.address;
 
 	const engineers = users.filter((u) => u.role === "engineer");
 	const inputCls =
@@ -558,7 +556,7 @@ function AddJobPanel({
 							startTime: form.startTime || undefined,
 							endTime: form.endTime || undefined,
 							endDate:
-								form.endDate && form.endDate > form.date
+								form.endDate && form.date && form.endDate > form.date
 									? form.endDate
 									: undefined,
 							categoryId: form.categoryId || undefined,
@@ -582,6 +580,7 @@ interface DayColumnProps {
 	ds: string;
 	jobs: Job[];
 	onSlotClick: (time: string) => void;
+	onSlotDragCreate?: (startTime: string, endTime: string) => void;
 	onJobClick: (jobId: string, rect: DOMRect) => void;
 	onResizeJob: (jobId: string, startTime: string, endTime: string) => void;
 	onJobPtrDown: (
@@ -601,12 +600,15 @@ interface DayColumnProps {
 	dragGhostJob?: Job | null;
 	weekMode?: boolean;
 	onNavigateToDay?: () => void;
+	scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+	panelGhost?: { ds: string; engineerId?: string; startTime: string; endTime: string } | null;
 }
 
 function DayColumn({
 	ds,
 	jobs,
 	onSlotClick,
+	onSlotDragCreate,
 	onJobClick,
 	onResizeJob,
 	onJobPtrDown,
@@ -621,6 +623,8 @@ function DayColumn({
 	dragGhostJob,
 	weekMode,
 	onNavigateToDay,
+	scrollContainerRef,
+	panelGhost,
 }: DayColumnProps) {
 	const { users, categories, isMaster } = useApp();
 	const colRef = useRef<HTMLDivElement>(null);
@@ -677,24 +681,105 @@ function DayColumn({
 		Record<string, { startTime?: string; endTime?: string }>
 	>({});
 
-	function getRelY(e: React.MouseEvent): number {
+	function getRelY(e: React.MouseEvent | MouseEvent): number {
 		const rect = colRef.current!.getBoundingClientRect();
 		return e.clientY - rect.top;
 	}
 
-	function handleColumnClick(e: React.MouseEvent) {
+	// ── Drag-to-create state ──
+	const dragCreateRef = useRef<{
+		startY: number;
+		startClientY: number;
+		scrollTop: number;
+		active: boolean;
+	} | null>(null);
+	const [dragCreateRange, setDragCreateRange] = useState<{
+		startTime: string;
+		endTime: string;
+	} | null>(null);
+	const dragCreateRangeRef = useRef(dragCreateRange);
+	dragCreateRangeRef.current = dragCreateRange;
+
+	function handleColumnPointerDown(e: React.PointerEvent) {
+		// Ignore if clicking on a job card, resize handle, or during an existing drag
 		if ((e.target as HTMLElement).closest("[data-job]")) return;
 		if (resizeRef.current) return;
-		onSlotClick(yToTime(getRelY(e)));
+		if (e.button !== 0) return;
+
+		const scrollTop = scrollContainerRef?.current?.scrollTop ?? 0;
+		const relY = getRelY(e) + scrollTop;
+
+		dragCreateRef.current = {
+			startY: relY,
+			startClientY: e.clientY,
+			scrollTop,
+			active: false,
+		};
+
+		const onMove = (ev: MouseEvent) => {
+			const dc = dragCreateRef.current;
+			if (!dc) return;
+			const dy = Math.abs(ev.clientY - dc.startClientY);
+			if (dy < 8 && !dc.active) return;
+
+			dc.active = true;
+			const currentScrollTop = scrollContainerRef?.current?.scrollTop ?? 0;
+			const currentRelY = getRelY(ev) + currentScrollTop;
+
+			const minY = Math.min(dc.startY, currentRelY);
+			const maxY = Math.max(dc.startY, currentRelY);
+			const startTime = yToTime(minY);
+			const endTime = yToTime(maxY);
+
+			// Ensure minimum 15-min range
+			const startMins = timeToMinutes(startTime);
+			const endMins = timeToMinutes(endTime);
+			const finalEnd = endMins <= startMins
+				? minutesToTime(startMins + 15)
+				: endTime;
+
+			setDragCreateRange({ startTime, endTime: finalEnd });
+		};
+
+		const onUp = (ev: MouseEvent) => {
+			document.removeEventListener("mousemove", onMove);
+			document.removeEventListener("mouseup", onUp);
+
+			const dc = dragCreateRef.current;
+			dragCreateRef.current = null;
+
+			if (dc?.active && dragCreateRangeRef.current) {
+				// Drag-create: open panel with the dragged time range
+				const range = { ...dragCreateRangeRef.current };
+				setDragCreateRange(null);
+				if (onSlotDragCreate) {
+					onSlotDragCreate(range.startTime, range.endTime);
+				} else {
+					onSlotClick(range.startTime);
+				}
+			} else {
+				// Simple click: fall back to original behavior
+				setDragCreateRange(null);
+				if (!(ev.target as HTMLElement)?.closest("[data-job]")) {
+					const scrollTop = scrollContainerRef?.current?.scrollTop ?? 0;
+					const rect = colRef.current!.getBoundingClientRect();
+					const relY = ev.clientY - rect.top + scrollTop;
+					onSlotClick(yToTime(relY));
+				}
+			}
+		};
+
+		document.addEventListener("mousemove", onMove);
+		document.addEventListener("mouseup", onUp);
 	}
 
 	return (
 		<div
 			ref={colRef}
 			data-ds={ds}
-			className="flex-1 border-r border-neutral-800 relative"
+			className="flex-1 border-r border-neutral-800 relative select-none"
 			style={{ height: TOTAL_HEIGHT, minWidth: 0, cursor: "crosshair" }}
-			onClick={handleColumnClick}
+			onPointerDown={handleColumnPointerDown}
 		>
 			{/* Hour lines */}
 			{HOURS.map((_, i) => (
@@ -712,6 +797,54 @@ function DayColumn({
 					className="absolute left-0 right-0 border-t border-dashed border-neutral-800/25 pointer-events-none"
 				/>
 			))}
+
+			{/* Drag-to-create highlight */}
+			{dragCreateRange && (() => {
+				const top = timeToY(dragCreateRange.startTime);
+				const bottom = timeToY(dragCreateRange.endTime);
+				const height = Math.max(bottom - top, 8);
+				return (
+					<div
+						style={{
+							position: "absolute",
+							top,
+							left: 2,
+							right: 2,
+							height,
+							zIndex: 12,
+						}}
+						className="rounded-md bg-blue-500/20 border-2 border-blue-500/60 pointer-events-none"
+					>
+						<div className="px-2 py-0.5 text-[10px] font-medium text-blue-300">
+							{formatTime(dragCreateRange.startTime)} – {formatTime(dragCreateRange.endTime)}
+						</div>
+					</div>
+				);
+			})()}
+
+			{/* Ghost outline while add-job panel is open */}
+			{panelGhost && panelGhost.ds === ds && !dragCreateRange && (() => {
+				const top = timeToY(panelGhost.startTime);
+				const bottom = timeToY(panelGhost.endTime);
+				const height = Math.max(bottom - top, 8);
+				return (
+					<div
+						style={{
+							position: "absolute",
+							top,
+							left: 2,
+							right: 2,
+							height,
+							zIndex: 11,
+						}}
+						className="rounded-md border-2 border-dashed border-blue-500/40 pointer-events-none"
+					>
+						<div className="px-2 py-0.5 text-[10px] font-medium text-blue-400/60">
+							{formatTime(panelGhost.startTime)} – {formatTime(panelGhost.endTime)}
+						</div>
+					</div>
+				);
+			})()}
 
 			{/* Current time indicator */}
 			{isToday &&
@@ -873,7 +1006,7 @@ function DayColumn({
 				const w = cols > 0 ? 100 / cols : 100;
 				const l = cols > 0 ? (col / cols) * 100 : 0;
 				const sc = STATUS_COLORS[job.status];
-				const uc = userColor(job.assignedTo, users);
+				const uc = userColor(job.assignedTo ?? "", users);
 				const cat = categories.find((c) => c.id === job.categoryId);
 				const isResizing = resizeRef.current?.jobId === job.id;
 
@@ -1170,6 +1303,133 @@ function DayColumn({
 	);
 }
 
+// ── Mini Calendar Dropdown ────────────────────────────────────────────────────
+
+function MiniCalendar({
+	selectedDate,
+	onSelect,
+	onClose,
+}: {
+	selectedDate: Date;
+	onSelect: (d: Date) => void;
+	onClose: () => void;
+}) {
+	const [viewDate, setViewDate] = useState(
+		new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
+	);
+	const containerRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		function handleClick(e: MouseEvent) {
+			if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+				onClose();
+			}
+		}
+		document.addEventListener("mousedown", handleClick);
+		return () => document.removeEventListener("mousedown", handleClick);
+	}, [onClose]);
+
+	const vYear = viewDate.getFullYear();
+	const vMonth = viewDate.getMonth();
+	const firstDay = new Date(vYear, vMonth, 1);
+	const lastDay = new Date(vYear, vMonth + 1, 0);
+	const startOffset = (firstDay.getDay() + 6) % 7; // Mon=0
+	const totalDays = lastDay.getDate();
+
+	const today = fmtDate(new Date());
+	const selected = fmtDate(selectedDate);
+
+	const cells: Array<{ day: number; date: Date; inMonth: boolean }> = [];
+	// Previous month padding
+	for (let i = startOffset - 1; i >= 0; i--) {
+		const d = new Date(vYear, vMonth, -i);
+		cells.push({ day: d.getDate(), date: d, inMonth: false });
+	}
+	// Current month
+	for (let d = 1; d <= totalDays; d++) {
+		cells.push({ day: d, date: new Date(vYear, vMonth, d), inMonth: true });
+	}
+	// Next month padding to fill 6 rows
+	while (cells.length < 42) {
+		const d = new Date(vYear, vMonth + 1, cells.length - startOffset - totalDays + 1);
+		cells.push({ day: d.getDate(), date: d, inMonth: false });
+	}
+
+	const monthLabel = viewDate.toLocaleString("en-GB", { month: "long", year: "numeric" });
+
+	return (
+		<div
+			ref={containerRef}
+			className="absolute top-full left-0 mt-1 z-50 rounded-xl border border-neutral-700 bg-neutral-900 shadow-xl p-3 select-none"
+			style={{ width: 260 }}
+		>
+			{/* Month navigation */}
+			<div className="flex items-center justify-between mb-2">
+				<button
+					onClick={() => setViewDate(new Date(vYear, vMonth - 1, 1))}
+					className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 cursor-pointer text-sm"
+				>
+					‹
+				</button>
+				<span className="text-xs font-medium text-neutral-200">{monthLabel}</span>
+				<button
+					onClick={() => setViewDate(new Date(vYear, vMonth + 1, 1))}
+					className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 cursor-pointer text-sm"
+				>
+					›
+				</button>
+			</div>
+
+			{/* Day headers */}
+			<div className="grid grid-cols-7 mb-1">
+				{["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
+					<div key={d} className="text-center text-[10px] text-neutral-600 py-0.5">
+						{d}
+					</div>
+				))}
+			</div>
+
+			{/* Day cells */}
+			<div className="grid grid-cols-7">
+				{cells.map((cell, i) => {
+					const ds = fmtDate(cell.date);
+					const isToday = ds === today;
+					const isSelected = ds === selected;
+					return (
+						<button
+							key={i}
+							onClick={() => {
+								onSelect(cell.date);
+								onClose();
+							}}
+							className={`w-8 h-8 flex items-center justify-center rounded-md text-xs cursor-pointer transition-colors
+								${!cell.inMonth ? "text-neutral-700" : "text-neutral-300 hover:bg-neutral-800"}
+								${isToday && !isSelected ? "ring-1 ring-orange-500/60 text-orange-400 font-medium" : ""}
+								${isSelected ? "bg-blue-600 text-white font-medium hover:bg-blue-500" : ""}
+							`}
+						>
+							{cell.day}
+						</button>
+					);
+				})}
+			</div>
+
+			{/* Quick jump to today */}
+			<div className="mt-2 pt-2 border-t border-neutral-800">
+				<button
+					onClick={() => {
+						onSelect(new Date());
+						onClose();
+					}}
+					className="w-full rounded-md py-1 text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 cursor-pointer transition-colors"
+				>
+					Today
+				</button>
+			</div>
+		</div>
+	);
+}
+
 // ── Main CalendarPage ─────────────────────────────────────────────────────────
 
 export function CalendarPage() {
@@ -1201,6 +1461,7 @@ export function CalendarPage() {
 	const [showHolidays, setShowHolidays] = useState(true);
 	const [showAllDay, setShowAllDay] = useState(true);
 	const [showFilters, setShowFilters] = useState(false);
+	const [showMiniCal, setShowMiniCal] = useState(false);
 
 	// Tips
 	const [showTips, setShowTips] = useState(
@@ -1214,6 +1475,13 @@ export function CalendarPage() {
 	// Add job panel
 	const [panelOpen, setPanelOpen] = useState(false);
 	const [panelPrefill, setPanelPrefill] = useState<Partial<NewJobForm>>({});
+	// Ghost outline shown on the calendar while the add-job panel is open
+	const [panelGhost, setPanelGhost] = useState<{
+		ds: string;
+		engineerId?: string;
+		startTime: string;
+		endTime: string;
+	} | null>(null);
 
 	// Undo toast state
 	const [undoAction, setUndoAction] = useState<{
@@ -1243,6 +1511,23 @@ export function CalendarPage() {
 		if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
 		setUndoAction(null);
 	}
+
+	// Day-view drag-to-create state
+	const dayDragCreateRef = useRef<{
+		engineerId: string;
+		startY: number;
+		startClientY: number;
+		scrollTop: number;
+		active: boolean;
+		colEl: HTMLDivElement;
+	} | null>(null);
+	const [dayDragCreateRange, setDayDragCreateRange] = useState<{
+		engineerId: string;
+		startTime: string;
+		endTime: string;
+	} | null>(null);
+	const dayDragCreateRangeRef = useRef(dayDragCreateRange);
+	dayDragCreateRangeRef.current = dayDragCreateRange;
 
 	// Drag state — lives in CalendarPage so it survives TimeGridView re-mounts
 	const [dragOverSlot, setDragOverSlot] = useState<{
@@ -1685,15 +1970,21 @@ export function CalendarPage() {
 		pendingScrollRestore.current = saved;
 	}
 
-	function openAddPanel(prefill: Partial<NewJobForm>) {
+	function openAddPanel(prefill: Partial<NewJobForm>, ghost?: { ds: string; engineerId?: string; startTime: string; endTime: string }) {
 		preserveScroll(() => {
 			setPanelPrefill(prefill);
 			setPanelOpen(true);
+			setPanelGhost(ghost ?? (prefill.date && prefill.startTime && prefill.endTime
+				? { ds: prefill.date, engineerId: prefill.assignedTo, startTime: prefill.startTime, endTime: prefill.endTime }
+				: null));
 		});
 	}
 
 	function closePanel() {
-		preserveScroll(() => setPanelOpen(false));
+		preserveScroll(() => {
+			setPanelOpen(false);
+			setPanelGhost(null);
+		});
 	}
 
 	function handleAddHoliday() {
@@ -2290,26 +2581,82 @@ export function CalendarPage() {
 											height: TOTAL_HEIGHT,
 											cursor: "crosshair",
 										}}
-										className="border-r border-neutral-800"
-										onClick={(e) => {
-											const rect =
-												e.currentTarget.getBoundingClientRect();
-											const scrollTop =
-												gridScrollRef.current
-													?.scrollTop ?? 0;
-											const time = yToTime(
-												e.clientY -
-													rect.top +
-													scrollTop,
-											);
-											openAddPanel({
-												date: ds,
-												assignedTo: eng.id,
-												startTime: time,
-												endTime: minutesToTime(
-													timeToMinutes(time) + 60,
-												),
-											});
+										className="border-r border-neutral-800 select-none"
+										onPointerDown={(e) => {
+											if ((e.target as HTMLElement).closest("[data-job]")) return;
+											if (e.button !== 0) return;
+											const colEl = e.currentTarget as HTMLDivElement;
+											const rect = colEl.getBoundingClientRect();
+											const scrollTop = gridScrollRef.current?.scrollTop ?? 0;
+											const relY = e.clientY - rect.top + scrollTop;
+
+											dayDragCreateRef.current = {
+												engineerId: eng.id,
+												startY: relY,
+												startClientY: e.clientY,
+												scrollTop,
+												active: false,
+												colEl,
+											};
+
+											const onMove = (ev: MouseEvent) => {
+												const dc = dayDragCreateRef.current;
+												if (!dc) return;
+												const dy = Math.abs(ev.clientY - dc.startClientY);
+												if (dy < 8 && !dc.active) return;
+
+												dc.active = true;
+												const curScrollTop = gridScrollRef.current?.scrollTop ?? 0;
+												const curRect = dc.colEl.getBoundingClientRect();
+												const curRelY = ev.clientY - curRect.top + curScrollTop;
+
+												const minY = Math.min(dc.startY, curRelY);
+												const maxY = Math.max(dc.startY, curRelY);
+												const sTime = yToTime(minY);
+												const eTime = yToTime(maxY);
+												const sMins = timeToMinutes(sTime);
+												const eMins = timeToMinutes(eTime);
+
+												setDayDragCreateRange({
+													engineerId: dc.engineerId,
+													startTime: sTime,
+													endTime: eMins <= sMins ? minutesToTime(sMins + 15) : eTime,
+												});
+											};
+
+											const onUp = (ev: MouseEvent) => {
+												document.removeEventListener("mousemove", onMove);
+												document.removeEventListener("mouseup", onUp);
+												const dc = dayDragCreateRef.current;
+												dayDragCreateRef.current = null;
+
+												if (dc?.active) {
+													const range = dayDragCreateRangeRef.current;
+													setDayDragCreateRange(null);
+													if (range) {
+														openAddPanel({
+															date: ds,
+															assignedTo: dc.engineerId,
+															startTime: range.startTime,
+															endTime: range.endTime,
+														});
+													}
+												} else {
+													setDayDragCreateRange(null);
+													const curScrollTop = gridScrollRef.current?.scrollTop ?? 0;
+													const curRect = colEl.getBoundingClientRect();
+													const time = yToTime(ev.clientY - curRect.top + curScrollTop);
+													openAddPanel({
+														date: ds,
+														assignedTo: eng.id,
+														startTime: time,
+														endTime: minutesToTime(timeToMinutes(time) + 60),
+													});
+												}
+											};
+
+											document.addEventListener("mousemove", onMove);
+											document.addEventListener("mouseup", onUp);
 										}}
 									>
 										{HOURS.map((h, i) => (
@@ -2324,6 +2671,52 @@ export function CalendarPage() {
 												className="border-t border-neutral-800/50"
 											/>
 										))}
+										{/* Drag-to-create highlight */}
+										{dayDragCreateRange && dayDragCreateRange.engineerId === eng.id && (() => {
+											const top = timeToY(dayDragCreateRange.startTime);
+											const bottom = timeToY(dayDragCreateRange.endTime);
+											const height = Math.max(bottom - top, 8);
+											return (
+												<div
+													style={{
+														position: "absolute",
+														top,
+														left: 2,
+														right: 2,
+														height,
+														zIndex: 12,
+													}}
+													className="rounded-md bg-blue-500/20 border-2 border-blue-500/60 pointer-events-none"
+												>
+													<div className="px-2 py-0.5 text-[10px] font-medium text-blue-300">
+														{formatTime(dayDragCreateRange.startTime)} – {formatTime(dayDragCreateRange.endTime)}
+													</div>
+												</div>
+											);
+										})()}
+										{/* Ghost outline while add-job panel is open */}
+										{panelGhost && panelGhost.ds === ds && panelGhost.engineerId === eng.id && !dayDragCreateRange && (() => {
+											const top = timeToY(panelGhost.startTime);
+											const bottom = timeToY(panelGhost.endTime);
+											const height = Math.max(bottom - top, 8);
+											return (
+												<div
+													style={{
+														position: "absolute",
+														top,
+														left: 2,
+														right: 2,
+														height,
+														zIndex: 11,
+													}}
+													className="rounded-md border-2 border-dashed border-blue-500/40 pointer-events-none"
+												>
+													<div className="px-2 py-0.5 text-[10px] font-medium text-blue-400/60">
+														{formatTime(panelGhost.startTime)} – {formatTime(panelGhost.endTime)}
+													</div>
+												</div>
+											);
+										})()}
 										{/* Current time line across column */}
 										{ds === TODAY && (
 											<div
@@ -2812,6 +3205,14 @@ export function CalendarPage() {
 											),
 										})
 									}
+									onSlotDragCreate={(startTime, endTime) =>
+										openAddPanel({
+											date: ds,
+											startTime,
+											endTime,
+										})
+									}
+									scrollContainerRef={gridScrollRef}
 									onJobClick={(id, rect) =>
 										setJobPopover({ jobId: id, rect })
 									}
@@ -2856,6 +3257,7 @@ export function CalendarPage() {
 										setCalDate(new Date(ds + "T00:00:00"));
 										setViewPersisted("day");
 									}}
+									panelGhost={panelGhost}
 								/>
 							))}
 						</div>
@@ -2879,13 +3281,26 @@ export function CalendarPage() {
 			<div className="p-6 md:p-8 flex flex-col gap-5 max-w-[1400px] w-full overflow-x-hidden">
 				{/* Header */}
 				<div className="flex items-start justify-between gap-4 flex-wrap">
-					<div>
+					<div className="relative">
 						<h1 className="text-2xl font-normal text-neutral-100 tracking-tight">
 							Calendar
 						</h1>
-						<p className="mt-0.5 text-sm text-neutral-600">
+						<button
+							onClick={() => setShowMiniCal((v) => !v)}
+							className="mt-0.5 text-sm text-neutral-600 hover:text-neutral-400 cursor-pointer transition-colors flex items-center gap-1"
+						>
 							{viewLabel}
-						</p>
+							<svg width="10" height="10" viewBox="0 0 10 10" className={`transition-transform ${showMiniCal ? "rotate-180" : ""}`}>
+								<path d="M2 4l3 3 3-3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+							</svg>
+						</button>
+						{showMiniCal && (
+							<MiniCalendar
+								selectedDate={calDate}
+								onSelect={(d) => setCalDate(d)}
+								onClose={() => setShowMiniCal(false)}
+							/>
+						)}
 					</div>
 					<div className="flex items-center gap-2 flex-wrap">
 						{isMaster && (
