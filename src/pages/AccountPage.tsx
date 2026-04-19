@@ -1,25 +1,73 @@
 import { useState } from "react";
 import {
 	AlertTriangle,
+	AlertOctagon,
+	Archive,
 	Bath,
+	Battery,
+	Bolt,
+	BookOpen,
+	Building,
 	Building2,
+	Cable,
+	CheckCircle,
+	ChefHat,
+	Clipboard,
 	Clock,
+	Cog,
+	Construction,
+	Container,
+	Cpu,
 	Droplets,
+	Drill,
+	Fan,
+	FileText,
+	Filter,
 	Flame,
+	Flashlight,
+	Fuel,
 	Gauge,
+	HardHat,
 	Hammer,
+	Heater,
 	Home,
 	Layers,
+	Leaf,
+	Lightbulb,
+	Lock,
+	Map,
+	Milestone,
+	Paintbrush,
 	Package,
+	Pipette,
 	Plug,
+	Power,
+	Ruler,
+	Scissors,
 	Settings,
+	Shield,
+	ShowerHead,
+	Shovel,
+	Sliders,
+	Snowflake,
+	Sofa,
 	Star,
 	Tag,
 	Thermometer,
+	Timer,
+	ToggleLeft,
+	Toilet,
+	Toolbox,
+	Trash2,
+	Truck,
+	Tv,
+	Unplug,
+	Warehouse,
 	Waves,
 	Wind,
 	Wrench,
 	Zap,
+	ZapOff,
 } from "lucide-react";
 import { useApp } from "../AppContext";
 import { ACCENT_OPTIONS, TODAY, fmtDate } from "../data";
@@ -34,26 +82,83 @@ type IconComponent = React.ComponentType<{
 }>;
 
 export const CATEGORY_ICONS: Record<string, IconComponent> = {
+	// Plumbing & Water
 	Wrench,
-	Flame,
 	Droplets,
+	Waves,
+	Pipette,
+	ShowerHead,
+	Toilet,
+	Bath,
+	Filter,
+	// Gas & Heating
+	Flame,
 	Thermometer,
+	Heater,
+	Fuel,
+	Snowflake,
+	Fan,
+	// Electrical
 	Zap,
+	ZapOff,
+	Plug,
+	Unplug,
+	Bolt,
+	Lightbulb,
+	Cable,
+	Power,
+	Battery,
+	// Building & Structure
 	Home,
-	AlertTriangle,
-	Settings,
+	Building,
+	Building2,
+	Warehouse,
+	Construction,
+	HardHat,
+	Shovel,
+	// Tools & Equipment
 	Hammer,
-	Package,
+	Drill,
+	Toolbox,
+	Ruler,
+	Scissors,
+	Paintbrush,
+	Flashlight,
+	// HVAC & Mechanical
 	Wind,
 	Gauge,
-	Building2,
-	Plug,
-	Bath,
-	Waves,
-	Star,
+	Cog,
+	Settings,
+	Sliders,
+	ToggleLeft,
+	Cpu,
+	// Jobs & Admin
+	Clipboard,
+	FileText,
+	BookOpen,
+	Timer,
 	Clock,
-	Tag,
+	CheckCircle,
+	AlertTriangle,
+	AlertOctagon,
+	Shield,
+	// Logistics
+	Package,
+	Truck,
+	Archive,
+	Container,
 	Layers,
+	// General
+	Star,
+	Tag,
+	Map,
+	Milestone,
+	Lock,
+	Leaf,
+	Tv,
+	Sofa,
+	ChefHat,
+	Trash2,
 };
 
 export const ICON_NAMES = Object.keys(CATEGORY_ICONS);
@@ -289,6 +394,7 @@ function CategoriesPanel({ accent }: { accent: string }) {
 
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [showNew, setShowNew] = useState(false);
+	const [iconSearch, setIconSearch] = useState("");
 	const [form, setForm] = useState({
 		name: "",
 		icon: "Wrench",
@@ -354,8 +460,17 @@ function CategoriesPanel({ accent }: { accent: string }) {
 					<label className="mb-2 block text-[10px] uppercase tracking-wider text-neutral-600">
 						Icon
 					</label>
-					<div className="grid grid-cols-10 gap-1.5">
-						{ICON_NAMES.map((name) => (
+					<input
+						type="text"
+						value={iconSearch}
+						onChange={(e) => setIconSearch(e.target.value)}
+						placeholder="Search icons…"
+						className="mb-2 w-full rounded-lg bg-neutral-900 px-3 py-1.5 text-sm text-neutral-200 placeholder-neutral-600 outline-none ring-1 ring-neutral-700 focus:ring-neutral-500"
+					/>
+					<div className="grid grid-cols-10 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+						{ICON_NAMES.filter((n) =>
+							n.toLowerCase().includes(iconSearch.toLowerCase())
+						).map((name) => (
 							<button
 								key={name}
 								type="button"
