@@ -690,7 +690,6 @@ function DayColumn({
 	const dragCreateRef = useRef<{
 		startY: number;
 		startClientY: number;
-		scrollTop: number;
 		active: boolean;
 	} | null>(null);
 	const [dragCreateRange, setDragCreateRange] = useState<{
@@ -706,13 +705,11 @@ function DayColumn({
 		if (resizeRef.current) return;
 		if (e.button !== 0) return;
 
-		const scrollTop = scrollContainerRef?.current?.scrollTop ?? 0;
-		const relY = getRelY(e) + scrollTop;
+		const relY = getRelY(e);
 
 		dragCreateRef.current = {
 			startY: relY,
 			startClientY: e.clientY,
-			scrollTop,
 			active: false,
 		};
 
@@ -723,8 +720,7 @@ function DayColumn({
 			if (dy < 8 && !dc.active) return;
 
 			dc.active = true;
-			const currentScrollTop = scrollContainerRef?.current?.scrollTop ?? 0;
-			const currentRelY = getRelY(ev) + currentScrollTop;
+			const currentRelY = getRelY(ev);
 
 			const minY = Math.min(dc.startY, currentRelY);
 			const maxY = Math.max(dc.startY, currentRelY);
@@ -761,9 +757,8 @@ function DayColumn({
 				// Simple click: fall back to original behavior
 				setDragCreateRange(null);
 				if (!(ev.target as HTMLElement)?.closest("[data-job]")) {
-					const scrollTop = scrollContainerRef?.current?.scrollTop ?? 0;
 					const rect = colRef.current!.getBoundingClientRect();
-					const relY = ev.clientY - rect.top + scrollTop;
+					const relY = ev.clientY - rect.top;
 					onSlotClick(yToTime(relY));
 				}
 			}
@@ -1517,7 +1512,6 @@ export function CalendarPage() {
 		engineerId: string;
 		startY: number;
 		startClientY: number;
-		scrollTop: number;
 		active: boolean;
 		colEl: HTMLDivElement;
 	} | null>(null);
@@ -2588,14 +2582,12 @@ export function CalendarPage() {
 											if (e.button !== 0) return;
 											const colEl = e.currentTarget as HTMLDivElement;
 											const rect = colEl.getBoundingClientRect();
-											const scrollTop = gridScrollRef.current?.scrollTop ?? 0;
-											const relY = e.clientY - rect.top + scrollTop;
+											const relY = e.clientY - rect.top;
 
 											dayDragCreateRef.current = {
 												engineerId: eng.id,
 												startY: relY,
 												startClientY: e.clientY,
-												scrollTop,
 												active: false,
 												colEl,
 											};
@@ -2607,9 +2599,8 @@ export function CalendarPage() {
 												if (dy < 8 && !dc.active) return;
 
 												dc.active = true;
-												const curScrollTop = gridScrollRef.current?.scrollTop ?? 0;
 												const curRect = dc.colEl.getBoundingClientRect();
-												const curRelY = ev.clientY - curRect.top + curScrollTop;
+												const curRelY = ev.clientY - curRect.top;
 
 												const minY = Math.min(dc.startY, curRelY);
 												const maxY = Math.max(dc.startY, curRelY);
@@ -2644,9 +2635,8 @@ export function CalendarPage() {
 													}
 												} else {
 													setDayDragCreateRange(null);
-													const curScrollTop = gridScrollRef.current?.scrollTop ?? 0;
 													const curRect = colEl.getBoundingClientRect();
-													const time = yToTime(ev.clientY - curRect.top + curScrollTop);
+													const time = yToTime(ev.clientY - curRect.top);
 													openAddPanel({
 														date: ds,
 														assignedTo: eng.id,
