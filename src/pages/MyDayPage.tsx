@@ -32,6 +32,7 @@ export function MyDayPage() {
 	const {
 		currentUser,
 		jobs,
+		business,
 		categories,
 		changeStatus,
 		updateJob,
@@ -340,11 +341,24 @@ export function MyDayPage() {
 											isDone
 												? "border-neutral-800 opacity-50"
 												: isActive
-													? "border-l-4 border-l-orange-500 border-t border-r border-b border-t-orange-500/30 border-r-orange-500/30 border-b-orange-500/30 shadow-[0_0_12px_rgba(249,115,22,0.15)]"
+													? "border-l-4 border-t border-r border-b"
 													: isOpen
-														? "border-orange-500/50"
+														? "border"
 														: "border-neutral-800 hover:border-neutral-700"
 										}`}
+										style={
+											!isDone && isActive
+												? {
+														borderLeftColor: business.accentColor,
+														borderTopColor: business.accentColor + "4D",
+														borderRightColor: business.accentColor + "4D",
+														borderBottomColor: business.accentColor + "4D",
+														boxShadow: `0 0 12px ${business.accentColor}26`,
+													}
+												: !isDone && isOpen
+													? { borderColor: business.accentColor + "80" }
+													: undefined
+										}
 									>
 										{/* Top row: order badge + customer + status */}
 										<div className="flex gap-3">
@@ -372,7 +386,10 @@ export function MyDayPage() {
 																{job.priority}
 															</span>
 															{isActive && (
-																<span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-950 text-orange-300 font-semibold">
+																<span
+																	className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+																	style={{ backgroundColor: business.accentColor + "20", color: business.accentColor }}
+																>
 																	ACTIVE
 																</span>
 															)}

@@ -2206,15 +2206,17 @@ export function CalendarPage() {
 							}}
 							className={`min-h-[88px] rounded-lg border p-1.5 cursor-pointer transition-colors ${
 								isToday
-									? "border-orange-700/50 bg-orange-950/30 hover:border-orange-600/60"
+									? ""
 									: bankHol
 										? "border-emerald-800/40 bg-emerald-950/20 hover:border-emerald-700/50"
 										: "border-neutral-800 bg-neutral-900 hover:border-neutral-700"
 							}`}
+							style={isToday ? { borderColor: business.accentColor + "80", backgroundColor: business.accentColor + "1A" } : undefined}
 						>
 							<div className="flex items-center justify-between mb-1">
 								<span
-									className={`text-xs ${isToday ? "font-bold text-orange-400" : "text-neutral-600"}`}
+									className={`text-xs ${isToday ? "font-bold" : "text-neutral-600"}`}
+									style={isToday ? { color: business.accentColor } : undefined}
 								>
 									{cell.d}
 								</span>
@@ -2962,21 +2964,24 @@ export function CalendarPage() {
 							return (
 								<div
 									key={ds}
-									className={`flex-1 border-r border-neutral-800 px-2 py-2 text-center cursor-pointer hover:bg-neutral-800/50 transition-colors ${isToday ? "bg-orange-950/20" : ""}`}
+									className={`flex-1 border-r border-neutral-800 px-2 py-2 text-center cursor-pointer hover:bg-neutral-800/50 transition-colors`}
+									style={isToday ? { backgroundColor: business.accentColor + "1A" } : undefined}
 									onClick={() => {
 										setCalDate(date);
 										setViewPersisted("day");
 									}}
 								>
 									<p
-										className={`text-[10px] uppercase tracking-widest ${isToday ? "text-orange-400" : "text-neutral-500"}`}
+										className={`text-[10px] uppercase tracking-widest ${isToday ? "" : "text-neutral-500"}`}
+										style={isToday ? { color: business.accentColor } : undefined}
 									>
 										{date.toLocaleDateString("en-GB", {
 											weekday: "short",
 										})}
 									</p>
 									<div
-										className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium ${isToday ? "bg-orange-500 text-white" : "text-neutral-300"}`}
+										className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium ${isToday ? "text-white" : "text-neutral-300"}`}
+										style={isToday ? { backgroundColor: business.accentColor } : undefined}
 									>
 										{date.getDate()}
 									</div>

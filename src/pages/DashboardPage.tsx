@@ -527,14 +527,16 @@ function MasterDashboard() {
 								onClick={() => navigate("/calendar")}
 								className={`rounded-lg border p-3 text-center cursor-pointer transition-colors ${
 									isToday
-										? "border-orange-700/50 bg-orange-950/20"
+										? ""
 										: bankHol
 											? "border-emerald-800/40 bg-emerald-950/20 hover:border-emerald-700/50"
 											: "border-neutral-800 bg-neutral-900 hover:border-neutral-700"
 								}`}
+								style={isToday ? { borderColor: business.accentColor + "80", backgroundColor: business.accentColor + "1A" } : undefined}
 							>
 								<p
-									className={`text-[10px] uppercase ${isToday ? "text-orange-400" : "text-neutral-600"}`}
+									className={`text-[10px] uppercase ${isToday ? "" : "text-neutral-600"}`}
+									style={isToday ? { color: business.accentColor } : undefined}
 								>
 									{new Date(
 										ds + "T00:00:00",
@@ -543,7 +545,8 @@ function MasterDashboard() {
 									})}
 								</p>
 								<p
-									className={`text-lg font-medium ${isToday ? "text-orange-400" : "text-neutral-300"}`}
+									className={`text-lg font-medium ${isToday ? "" : "text-neutral-300"}`}
+									style={isToday ? { color: business.accentColor } : undefined}
 								>
 									{dayJobs.length}
 								</p>
