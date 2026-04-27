@@ -243,7 +243,7 @@ export function AdminPage() {
 								Brand Colour
 							</label>
 							<div className="flex flex-wrap gap-1.5">
-								{ACCENT_OPTIONS.slice(0, 12).map((c) => (
+								{ACCENT_OPTIONS.map((c) => (
 									<button
 										key={c}
 										type="button"
