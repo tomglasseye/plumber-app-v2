@@ -600,7 +600,6 @@ interface DayColumnProps {
 	dragGhostJob?: Job | null;
 	weekMode?: boolean;
 	onNavigateToDay?: () => void;
-	scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 	panelGhost?: { ds: string; engineerId?: string; startTime: string; endTime: string } | null;
 }
 
@@ -623,7 +622,6 @@ function DayColumn({
 	dragGhostJob,
 	weekMode,
 	onNavigateToDay,
-	scrollContainerRef,
 	panelGhost,
 }: DayColumnProps) {
 	const { users, categories, isMaster } = useApp();
@@ -3203,7 +3201,6 @@ export function CalendarPage() {
 											endTime,
 										})
 									}
-									scrollContainerRef={gridScrollRef}
 									onJobClick={(id, rect) =>
 										setJobPopover({ jobId: id, rect })
 									}
