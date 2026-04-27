@@ -4,7 +4,7 @@
 
 This document covers connecting the app to Xero so completed, HQ-approved jobs can be pushed as draft invoices with a single click.
 
-This is the **final phase** of the build — the app should be stable with Supabase auth, real job data, and PWA support before tackling Xero.
+This is the **final phase** of the build — the app should be stable with Supabase auth, real job data, and PWA support before tackling Xero. See [LAUNCH.md](LAUNCH.md) for where Xero fits in the overall rollout sequence (Phase 4) and per-client onboarding checklist.
 
 ---
 
@@ -425,7 +425,159 @@ The materials field is currently free text. To invoice materials properly, eithe
 
 ---
 
-## 7. Required Netlify environment variables (production)
+## 7. Customer / Contact Sync
+
+The app stores customers in its own `customers` table. Xero stores them as Contacts. These two need to stay linked via `xero_contact_id` on the `customers` row.
+
+### 7a. Import on connect — Xero → app
+
+When a business first connects Xero (OAuth callback), pull all existing Xero contacts and match them against app customers by name. Any matches get their `xero_contact_id` stamped; unmatched contacts can optionally be imported as new customers.
+
+Add to `xero-callback.ts` after saving tokens:
+
+```ts
+// Fetch all Xero contacts
+const contactsRes = await fetch("https://api.xero.com/api.xro/2.0/Contacts?where=IsCustomer==true", {
+  headers: {
+    Authorization: `Bearer ${tokens.access_token}`,
+    "Xero-Tenant-Id": tenant.tenantId,
+  },
+});
+const { Contacts } = await contactsRes.json();
+
+// Fetch existing app customers for this business
+const { data: appCustomers } = await supabase
+  .from("customers")
+  .select("id, name")
+  .eq("business_id", businessId);
+
+// Match by name (case-insensitive) and stamp xero_contact_id
+for (const xeroContact of Contacts) {
+  const match = appCustomers?.find(
+    (c) => c.name.toLowerCase().trim() === xeroContact.Name.toLowerCase().trim()
+  );
+  if (match) {
+    await supabase
+      .from("customers")
+      .update({ xero_contact_id: xeroContact.ContactID })
+      .eq("id", match.id);
+  }
+}
+```
+
+This runs once silently in the background — no UI changes needed. After this, most customers will already have a `xero_contact_id` so the invoice function skips the lookup step entirely.
+
+### 7b. Create in Xero when adding a customer in the app
+
+When HQ creates a new customer in the app, immediately create a matching Contact in Xero and save the returned `ContactID`.
+
+Create `netlify/functions/xero-create-contact.ts`:
+
+```ts
+import type { Handler } from "@netlify/functions";
+import { createClient } from "@supabase/supabase-js";
+import { getValidToken } from "./xero-helpers"; // shared token helper
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
+
+export const handler: Handler = async (event) => {
+  const { customerId, businessId } = JSON.parse(event.body ?? "{}");
+
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("name, email, phone, address")
+    .eq("id", customerId)
+    .single();
+
+  const { token, tenantId } = await getValidToken(businessId);
+
+  const res = await fetch("https://api.xero.com/api.xro/2.0/Contacts", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Xero-Tenant-Id": tenantId,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      Contacts: [
+        {
+          Name: customer.name,
+          EmailAddress: customer.email ?? undefined,
+          Phones: customer.phone
+            ? [{ PhoneType: "DEFAULT", PhoneNumber: customer.phone }]
+            : [],
+          Addresses: customer.address
+            ? [{ AddressType: "STREET", AddressLine1: customer.address }]
+            : [],
+        },
+      ],
+    }),
+  });
+
+  const result = await res.json();
+  const xeroContactId = result.Contacts?.[0]?.ContactID;
+
+  if (xeroContactId) {
+    await supabase
+      .from("customers")
+      .update({ xero_contact_id: xeroContactId })
+      .eq("id", customerId);
+  }
+
+  return { statusCode: 200, body: JSON.stringify({ xeroContactId }) };
+};
+```
+
+Call this from the app after a customer is successfully saved:
+
+```ts
+// Only call if the business has Xero connected
+if (business.xeroConnected) {
+  await fetch("/.netlify/functions/xero-create-contact", {
+    method: "POST",
+    body: JSON.stringify({ customerId: newCustomer.id, businessId: business.id }),
+  });
+}
+```
+
+### 7c. Keeping details in sync (optional)
+
+For most trades businesses, full bidirectional sync is overkill. The pragmatic approach:
+
+- **App is the source of truth for job/customer data** — changes made in the app push to Xero
+- **Xero is the source of truth for invoicing/finance** — don't overwrite Xero invoice data from the app
+
+If a customer's name, phone, or address changes in the app, optionally call `POST /Contacts` with their `xero_contact_id` to update the Xero record:
+
+```ts
+// PATCH equivalent — Xero uses POST with the ContactID to update
+body: JSON.stringify({
+  Contacts: [{ ContactID: customer.xero_contact_id, Name: customer.name, ... }]
+})
+```
+
+### Schema addition
+
+Add `xero_contact_id` to the `customers` table:
+
+```sql
+alter table customers
+  add column xero_contact_id text;
+```
+
+### Checklist additions
+
+- [ ] Add `xero_contact_id` column to `customers` table
+- [ ] Run contact import in `xero-callback` on first connect
+- [ ] Call `xero-create-contact` when a new customer is added (if Xero connected)
+- [ ] Extract `getValidToken` into a shared `xero-helpers.ts` module (used by both invoice and contact functions)
+
+---
+
+## 8. Required Netlify environment variables (production)
 
 ```
 XERO_CLIENT_ID=
@@ -443,9 +595,12 @@ APP_URL=https://your-site.netlify.app
 - [ ] Create Xero developer app at developer.xero.com
 - [ ] Add Xero env vars to Netlify
 - [ ] Add `netlify/functions/` directory
-- [ ] Build `xero-callback` function — token exchange
+- [ ] Build `xero-callback` function — token exchange + contact import on first connect
 - [ ] Build `xero-create-invoice` function — invoice creation + token refresh
+- [ ] Build `xero-create-contact` function — create Xero contact when customer added
+- [ ] Extract `getValidToken` into shared `xero-helpers.ts`
 - [ ] Add Xero token columns to `businesses` table in Supabase
+- [ ] Add `xero_contact_id` column to `customers` table
 - [ ] Add configurable hourly rate and materials cost fields to the app
 - [ ] Test with Xero demo company
 - [ ] Go-live sign-off with real Xero organisation

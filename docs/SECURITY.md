@@ -2,6 +2,8 @@
 
 > **Status:** This document covers production security considerations for a multi-tenant SaaS deployment. Most items are configuration or infrastructure changes, not code.
 
+> **See also:** [LAUNCH.md](LAUNCH.md) for the sequenced production rollout — domain setup, env vars, SMTP, sign-off checklist. This doc is the deeper rationale for why those steps matter.
+
 ---
 
 ## SMTP Provider

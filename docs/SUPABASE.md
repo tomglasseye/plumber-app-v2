@@ -2,6 +2,8 @@
 
 The app is fully connected to Supabase for database, authentication, and real-time notifications. This document covers how to set up a new Supabase instance and run the migrations.
 
+> **Production note:** For the end-to-end production rollout (custom domain, SMTP, env vars, sign-off checklist), see [LAUNCH.md](LAUNCH.md). The Site URL section below in particular needs updating when the custom domain goes live.
+
 ---
 
 ## Why Supabase

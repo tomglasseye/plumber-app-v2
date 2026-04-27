@@ -2,6 +2,8 @@
 
 The superadmin system is fully implemented. A super admin can create new client companies, invite master users by email, and switch into any client's app without logging out.
 
+> For the full launch sequence (domain, env vars, sign-off), see [LAUNCH.md](LAUNCH.md). Per-client onboarding via the super admin flow is Phase 5 in that doc.
+
 ---
 
 ## How it works

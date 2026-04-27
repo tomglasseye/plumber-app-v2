@@ -50,6 +50,8 @@ Status/priority change in AppContext
 | `VAPID_MAILTO`      | Netlify        | `mailto:you@example.com`             |
 | `VITE_VAPID_PUBLIC_KEY` | `.env.local` + Netlify | Same public key (browser-safe) |
 
+> **Heads up:** Netlify currently has a `VAPID_EMAIL` variable set, but the code reads `VAPID_MAILTO` (with a fallback to `mailto:admin@example.com`). Rename the Netlify env var to `VAPID_MAILTO` so the correct contact address is sent to push services. See [LAUNCH.md](LAUNCH.md) Phase 3e.
+
 Generate keys once:
 
 ```bash
