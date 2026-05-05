@@ -114,6 +114,22 @@ Masters view the log from the Account Settings page (full business log with filt
 
 ---
 
+## HTTP security headers
+
+Set in `netlify.toml` and applied to every response:
+
+| Header                      | Value                                                    | Why |
+| --------------------------- | -------------------------------------------------------- | --- |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains`                    | Force HTTPS for one year. Only sent over HTTPS, so safe on Netlify previews. |
+| `X-Content-Type-Options`    | `nosniff`                                                | Browser must trust declared MIME types; prevents some script-injection vectors. |
+| `X-Frame-Options`           | `DENY`                                                   | App is never embedded in an iframe — denying clickjacking surface. |
+| `Referrer-Policy`           | `strict-origin-when-cross-origin`                        | Don't leak job URLs / customer IDs to third-party domains via the Referer header. |
+| `Permissions-Policy`        | `geolocation=(self), camera=(self), microphone=(), payment=(self), usb=(), interest-cohort=()` | Allow only what we use (geolocation for distance sort, camera for photo capture). Disable FLoC opt-in. |
+
+**CSP is deliberately not set yet.** A strict Content-Security-Policy is the most impactful header but the hardest to maintain — Supabase realtime, signed Storage URLs, and future Stripe.js all need allowlisting. Add it once the third-party surface stabilises (after Stripe lands), and audit the report-only mode in production for a few days before flipping to enforce.
+
+---
+
 ## RLS Audit
 
 Before going multi-client, run a formal RLS audit:
@@ -136,10 +152,12 @@ Use Supabase's `pgTAP` testing framework to automate these checks as part of CI.
 - [x] Privilege escalation guard — engineers cannot change `role`, `business_id`, or `locked` on their own profile (migration 24)
 - [x] Storage bucket policies scoped to business — photo access requires job ownership (migration 23)
 - [x] `send-push` Netlify Function requires auth + same-business check
-- [ ] Configure SMTP provider in Supabase Auth settings
-- [ ] Review Supabase Auth rate limit settings
-- [ ] Encrypt Xero tokens when integration is built
-- [ ] Draft data processing agreement template
-- [ ] Add "Delete customer" flow with data anonymisation
-- [ ] Run formal RLS audit before multi-client launch
-- [ ] Consider MFA for master users
+- [x] HTTP security headers (HSTS, nosniff, frame-deny, referrer, permissions) in `netlify.toml`
+- [ ] Configure SMTP provider in Supabase Auth settings *(near-launch — needs prod domain)*
+- [ ] Review Supabase Auth rate limit settings *(near-launch — Supabase Dashboard config)*
+- [ ] Encrypt Xero tokens when integration is built *(blocked on Phase 4)*
+- [ ] Draft data processing agreement template *(legal — needs a lawyer's eyes, not just code)*
+- [ ] Add "Delete customer" flow with data anonymisation *(GDPR right-to-erasure — needs a focused build session)*
+- [ ] Run formal RLS audit before multi-client launch *(pgTAP test suite — defer until second client onboards)*
+- [ ] Consider MFA for master users *(needs Supabase plan that supports it)*
+- [ ] Add Content-Security-Policy *(defer until after Stripe lands so the third-party allowlist is stable)*

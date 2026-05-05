@@ -45,6 +45,39 @@ export default defineConfig({
 						},
 					},
 					{
+						urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
+						handler: "NetworkOnly",
+						method: "POST",
+						options: {
+							backgroundSync: {
+								name: "supabase-mutations",
+								options: { maxRetentionTime: 24 * 60 },
+							},
+						},
+					},
+					{
+						urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
+						handler: "NetworkOnly",
+						method: "PATCH",
+						options: {
+							backgroundSync: {
+								name: "supabase-mutations",
+								options: { maxRetentionTime: 24 * 60 },
+							},
+						},
+					},
+					{
+						urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
+						handler: "NetworkOnly",
+						method: "DELETE",
+						options: {
+							backgroundSync: {
+								name: "supabase-mutations",
+								options: { maxRetentionTime: 24 * 60 },
+							},
+						},
+					},
+					{
 						urlPattern:
 							/^https:\/\/.*\.supabase\.co\/storage\/v1\//,
 						handler: "CacheFirst",

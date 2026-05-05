@@ -290,7 +290,7 @@ values ((select id from auth.users where email = 'you@yourapp.com'));
 
 ### job_photos
 
-Photos stored in Supabase Storage, with a reference row here. (Upload not yet wired up — see section 5.)
+Photos stored in Supabase Storage, with a reference row here. Fully wired up via `src/components/JobPhotos.tsx` — see section 5.
 
 ```sql
 create table job_photos (

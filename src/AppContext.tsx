@@ -23,10 +23,6 @@ import type {
 	Status,
 	User,
 } from "./types";
-import {
-	getQueue as getOfflineQueue,
-	clearQueue as clearOfflineQueue,
-} from "./utils/offlineQueue";
 import { subscribeToPush } from "./utils/push";
 
 interface AppCtx {
@@ -529,29 +525,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			supabase.removeChannel(channel);
 		};
 	}, [currentUser]);
-
-	// ── Offline queue flush ──────────────────────────────────────
-	useEffect(() => {
-		async function flush() {
-			const queue = getOfflineQueue();
-			if (!queue.length) return;
-			for (const m of queue) {
-				if (m.operation === "update") {
-					await supabase
-						.from(m.table)
-						.update(m.fields)
-						.eq("id", m.id);
-				} else if (m.operation === "insert") {
-					await supabase
-						.from(m.table)
-						.insert({ id: m.id, ...m.fields });
-				}
-			}
-			clearOfflineQueue();
-		}
-		window.addEventListener("online", flush);
-		return () => window.removeEventListener("online", flush);
-	}, []);
 
 	// ── DB write helpers ──────────────────────────────────────────
 

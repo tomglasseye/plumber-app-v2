@@ -5,3 +5,16 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# ── Security headers ──────────────────────────────────────────────
+# Applied to every response. CSP is intentionally omitted for now —
+# Supabase realtime + storage signed URLs + future Stripe.js make a
+# strict policy easy to break; revisit when the surface stabilises.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(self), camera=(self), microphone=(), payment=(self), usb=(), interest-cohort=()"

@@ -94,7 +94,6 @@ plumber-app-v2/
 │   ├── hooks/
 │   │   └── useOnlineStatus.ts  # navigator.onLine + window events
 │   ├── utils/
-│   │   ├── offlineQueue.ts   # localStorage mutation queue (flush on reconnect)
 │   │   └── push.ts           # subscribeToPush(), firePush() — Web Push helpers
 │   ├── components/
 │   │   ├── Sidebar.tsx       # Desktop sidebar + mobile hamburger

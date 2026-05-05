@@ -15,9 +15,9 @@ The app is a full PWA: `vite-plugin-pwa` with Workbox caching strategies, a cust
 | Supabase Storage cache  | Done   | CacheFirst, 7-day expiry, 200 entries |
 | Push event handler      | Done   | `public/sw-push.js` (importScripts) |
 | Offline banner          | Done   | `src/components/OfflineBanner.tsx` |
-| Offline mutation queue  | Done   | `src/utils/offlineQueue.ts`      |
+| Offline mutation queue  | Done   | Workbox BackgroundSync (IndexedDB-backed, see below) |
 | iOS install prompt      | Done   | `src/components/IosInstallPrompt.tsx` |
-| Background sync         | Not yet | Workbox BackgroundSync plugin   |
+| Background sync         | Done   | Workbox BackgroundSync plugin (`vite.config.ts`) |
 
 ---
 
@@ -54,27 +54,42 @@ The SVG icon (`public/icon.svg`) is sized `any` and marked `maskable`, which sat
 
 ## Offline mutation queue
 
-`src/utils/offlineQueue.ts` provides a simple `localStorage`-backed queue for mutations made while offline.
+Mutations sent while offline are queued by the **service worker** using Workbox's BackgroundSync plugin, which stores failed requests in IndexedDB and replays them when the browser regains connectivity. This works whether the tab is open, backgrounded, or fully closed — the browser fires a `sync` event to the SW when the network returns.
+
+Configured in `vite.config.ts`:
 
 ```ts
-import { queueMutation, getQueue, clearQueue } from "./utils/offlineQueue";
-
-// Queue a mutation when offline
-queueMutation({ table: "jobs", operation: "update", id: jobId, fields: { status }, timestamp: Date.now() });
-
-// Flush on reconnect (in AppContext)
-window.addEventListener("online", async () => {
-  const queue = getQueue();
-  for (const item of queue) {
-    if (item.operation === "update") {
-      await supabase.from(item.table).update(item.fields).eq("id", item.id);
-    }
-  }
-  clearQueue();
-});
+// One route per HTTP write method — Workbox routes are method-specific.
+{
+  urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
+  handler: "NetworkOnly",
+  method: "POST",   // also PATCH and DELETE — three identical routes
+  options: {
+    backgroundSync: {
+      name: "supabase-mutations",
+      options: { maxRetentionTime: 24 * 60 }, // minutes — drop after 24h
+    },
+  },
+}
 ```
 
-The `OfflineBanner` component (`src/components/OfflineBanner.tsx`) uses `src/hooks/useOnlineStatus.ts` to display a fixed bottom banner when `navigator.onLine` is false.
+GETs against the same URL still hit the `supabase-api` NetworkFirst cache — the BackgroundSync routes only catch writes.
+
+The `OfflineBanner` component (`src/components/OfflineBanner.tsx`) uses `src/hooks/useOnlineStatus.ts` to display a fixed bottom banner when `navigator.onLine` is false. The banner is purely informational; the actual queueing is handled by the SW.
+
+### Behaviour while offline
+
+1. App calls `supabase.from('jobs').update(...)` — Supabase JS makes a `PATCH` to the REST endpoint
+2. Service worker intercepts the PATCH, network is unavailable, BackgroundSync stores the request in IndexedDB
+3. SW responds to the page with a network error — Supabase JS surfaces this as `error` in the response
+4. App's `dbSave` retry logic (in `AppContext.tsx`) sees the error and stops retrying after one attempt
+5. When network returns, the SW fires the queued request automatically — the user doesn't need to reopen the app
+
+### Caveats
+
+- Realtime subscription updates won't fire from the queued mutation, so other connected clients won't see the change until the queued request actually replays.
+- If a queued mutation is rejected by the server when it eventually replays (RLS denial, validation error, stale row), there's no in-app surfacing — the request just gets dropped from the queue silently. For now we accept this; revisit if it bites in practice.
+- Queued requests use the auth token captured at queue time. If the JWT expired before replay, the request 401s and is discarded. Mutations made within the standard JWT lifetime (1 hour by default) will succeed.
 
 ---
 
@@ -94,29 +109,8 @@ In Chrome DevTools:
 1. **Application → Service Workers** — verify the SW is registered and active
 2. **Application → Cache Storage** — check `workbox-precache-v2` and `supabase-api` caches are populated
 3. **Network → Offline throttling** — reload the app; it should load from cache
-4. Make a status change — check it queues in `localStorage` under `offline-mutation-queue`
-5. Re-enable network — verify the queue flushes and Supabase updates
-
----
-
-## Still to do
-
-- **Workbox BackgroundSync** — use the native Workbox `BackgroundSyncPlugin` instead of the manual localStorage queue. This gives automatic retries via the browser's Background Sync API, which is more reliable than the `window.online` event.
-
-```ts
-// In vite.config.ts workbox.runtimeCaching:
-{
-  urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/jobs/,
-  method: "PATCH",
-  handler: "NetworkOnly",
-  options: {
-    backgroundSync: {
-      name: "job-mutations-queue",
-      options: { maxRetentionTime: 24 * 60 },
-    },
-  },
-}
-```
+4. Make a status change while offline — DevTools → Application → IndexedDB → `workbox-background-sync` should show the queued request
+5. Re-enable network — verify the queue replays automatically and Supabase rows update (also visible in DevTools → Network as a fresh request fired by the SW)
 
 ---
 
@@ -127,9 +121,8 @@ In Chrome DevTools:
 - [x] SVG icon at `public/icon.svg` (any size, maskable)
 - [x] Workbox runtime caching for Supabase REST API (NetworkFirst) and Storage (CacheFirst)
 - [x] Push event handler in `public/sw-push.js`
-- [x] Offline mutation queue (`src/utils/offlineQueue.ts`)
+- [x] Offline mutation queue via Workbox BackgroundSync (POST/PATCH/DELETE on Supabase REST)
 - [x] Online status hook (`src/hooks/useOnlineStatus.ts`)
 - [x] Offline banner component (`src/components/OfflineBanner.tsx`)
 - [x] iOS install prompt (`src/components/IosInstallPrompt.tsx`)
-- [ ] Replace localStorage queue with Workbox BackgroundSync
 - [ ] Test "Add to Home Screen" on Android and iOS
