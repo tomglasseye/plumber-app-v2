@@ -349,7 +349,7 @@ This avoids orphan contacts building up in the client's Xero org.
 
 ### Name mismatch when a `xero_contact_id` is already stored
 
-When a customer already has a `xero_contact_id` saved in PipeLine, the push flow should **not blindly use it**. If the name in the app differs from the name on that contact in Xero (e.g. due to a rename in Xero, a manual typo in the stored ID, or a tenant switch), the invoice will silently land against the wrong person — Xero resolves by ID only and ignores the name you supply.
+When a customer already has a `xero_contact_id` saved in HiveQ, the push flow should **not blindly use it**. If the name in the app differs from the name on that contact in Xero (e.g. due to a rename in Xero, a manual typo in the stored ID, or a tenant switch), the invoice will silently land against the wrong person — Xero resolves by ID only and ignores the name you supply.
 
 **Validate before pushing:**
 
@@ -366,7 +366,7 @@ if (!xeroContact) {
 	if (xeroName !== appName) {
 		// Return a warning payload — let the UI ask the master to confirm
 		return {
-			warning: `Name mismatch: PipeLine has "${customer.name}", Xero contact is "${xeroContact.Name}". Proceed or update the contact?`,
+			warning: `Name mismatch: HiveQ has "${customer.name}", Xero contact is "${xeroContact.Name}". Proceed or update the contact?`,
 			xeroName: xeroContact.Name,
 		};
 	}
@@ -406,7 +406,7 @@ Xero access tokens expire after 30 minutes. The `getValidToken()` function in `x
 
 ### tenantId — unique per Xero organisation
 
-Every API request must include the `Xero-Tenant-Id` header. This is captured during the OAuth callback and stored per business in `businesses.xero_tenant_id`. Since each PipeLine client connects their own Xero org, each business row holds its own tenantId.
+Every API request must include the `Xero-Tenant-Id` header. This is captured during the OAuth callback and stored per business in `businesses.xero_tenant_id`. Since each HiveQ client connects their own Xero org, each business row holds its own tenantId.
 
 ### Materials cost
 

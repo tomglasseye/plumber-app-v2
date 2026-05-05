@@ -66,7 +66,7 @@ Injected into the Workbox service worker via `vite.config.ts` → `workbox.impor
 self.addEventListener("push", (event) => {
   const data = event.data?.json() ?? {};
   event.waitUntil(
-    self.registration.showNotification(data.title ?? "PipeLine", {
+    self.registration.showNotification(data.title ?? "HiveQ", {
       body: data.body ?? "",
       icon: "/icon.svg",
       tag: data.tag ?? "general",

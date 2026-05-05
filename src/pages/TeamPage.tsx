@@ -56,13 +56,27 @@ export function TeamPage() {
 	// Add member modal
 	const [showAdd, setShowAdd] = useState(false);
 	const [addForm, setAddForm] = useState<AddForm>({
-		name: "", email: "", password: "", confirmPassword: "", phone: "", home: "", role: "engineer",
+		name: "",
+		email: "",
+		password: "",
+		confirmPassword: "",
+		phone: "",
+		home: "",
+		role: "engineer",
 	});
 	const [addSaving, setAddSaving] = useState(false);
 	const [addError, setAddError] = useState<string | null>(null);
 
 	function openAdd() {
-		setAddForm({ name: "", email: "", password: "", confirmPassword: "", phone: "", home: "", role: "engineer" });
+		setAddForm({
+			name: "",
+			email: "",
+			password: "",
+			confirmPassword: "",
+			phone: "",
+			home: "",
+			role: "engineer",
+		});
 		setAddError(null);
 		setShowAdd(true);
 	}
@@ -73,10 +87,22 @@ export function TeamPage() {
 	}
 
 	async function handleAdd() {
-		if (!addForm.name.trim()) { setAddError("Name is required."); return; }
-		if (!addForm.email.trim()) { setAddError("Email is required."); return; }
-		if (addForm.password.length < 8) { setAddError("Password must be at least 8 characters."); return; }
-		if (addForm.password !== addForm.confirmPassword) { setAddError("Passwords do not match."); return; }
+		if (!addForm.name.trim()) {
+			setAddError("Name is required.");
+			return;
+		}
+		if (!addForm.email.trim()) {
+			setAddError("Email is required.");
+			return;
+		}
+		if (addForm.password.length < 8) {
+			setAddError("Password must be at least 8 characters.");
+			return;
+		}
+		if (addForm.password !== addForm.confirmPassword) {
+			setAddError("Passwords do not match.");
+			return;
+		}
 		setAddSaving(true);
 		setAddError(null);
 		const err = await inviteUser({
@@ -88,7 +114,11 @@ export function TeamPage() {
 			homeAddress: addForm.home.trim(),
 		});
 		setAddSaving(false);
-		if (err) { setAddError(err); } else { closeAdd(); }
+		if (err) {
+			setAddError(err);
+		} else {
+			closeAdd();
+		}
 	}
 
 	function openEdit(u: User) {
@@ -204,7 +234,16 @@ export function TeamPage() {
 					</h2>
 					<div className="space-y-3">
 						{masters.map((u) => (
-							<MemberRow key={u.id} user={u} accent={u.color ?? business.accentColor} isSelf={u.id === currentUser?.id} canEdit={isMaster} onEdit={() => openEdit(u)} onLock={() => lockUser(u.id)} onUnlock={() => unlockUser(u.id)} />
+							<MemberRow
+								key={u.id}
+								user={u}
+								accent={u.color ?? business.accentColor}
+								isSelf={u.id === currentUser?.id}
+								canEdit={isMaster}
+								onEdit={() => openEdit(u)}
+								onLock={() => lockUser(u.id)}
+								onUnlock={() => unlockUser(u.id)}
+							/>
 						))}
 					</div>
 				</section>
@@ -217,13 +256,26 @@ export function TeamPage() {
 				</h2>
 				{engineers.length === 0 ? (
 					<div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-900/50 py-10 text-center">
-						<p className="text-sm text-neutral-600">No engineers yet</p>
-						<p className="text-xs text-neutral-500 mt-1">Add team members from Account settings</p>
+						<p className="text-sm text-neutral-600">
+							No engineers yet
+						</p>
+						<p className="text-xs text-neutral-500 mt-1">
+							Add team members from Account settings
+						</p>
 					</div>
 				) : (
 					<div className="space-y-3">
 						{engineers.map((u) => (
-							<MemberRow key={u.id} user={u} accent={userColor(u.id, users)} isSelf={u.id === currentUser?.id} canEdit={isMaster} onEdit={() => openEdit(u)} onLock={() => lockUser(u.id)} onUnlock={() => unlockUser(u.id)} />
+							<MemberRow
+								key={u.id}
+								user={u}
+								accent={userColor(u.id, users)}
+								isSelf={u.id === currentUser?.id}
+								canEdit={isMaster}
+								onEdit={() => openEdit(u)}
+								onLock={() => lockUser(u.id)}
+								onUnlock={() => unlockUser(u.id)}
+							/>
 						))}
 					</div>
 				)}
@@ -236,58 +288,158 @@ export function TeamPage() {
 					onClick={(e) => e.target === e.currentTarget && closeAdd()}
 				>
 					<div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-6 my-4">
-						<h2 className="mb-1 text-lg text-neutral-100">Add Team Member</h2>
+						<h2 className="mb-1 text-lg text-neutral-100">
+							Add Team Member
+						</h2>
 						<p className="mb-5 text-xs text-neutral-600">
 							Set their login details and share them directly.
 						</p>
 
 						<div className="space-y-4">
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Full Name</label>
-								<input type="text" value={addForm.name} onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="e.g. Tom Briggs" />
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Full Name
+								</label>
+								<input
+									type="text"
+									value={addForm.name}
+									onChange={(e) =>
+										setAddForm((f) => ({
+											...f,
+											name: e.target.value,
+										}))
+									}
+									className={inputCls}
+									placeholder="e.g. Tom Briggs"
+								/>
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Work Email</label>
-								<input type="email" value={addForm.email} onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} placeholder="tom@yourcompany.co.uk" />
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Work Email
+								</label>
+								<input
+									type="email"
+									value={addForm.email}
+									onChange={(e) =>
+										setAddForm((f) => ({
+											...f,
+											email: e.target.value,
+										}))
+									}
+									className={inputCls}
+									placeholder="tom@yourcompany.co.uk"
+								/>
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Role</label>
-								<select value={addForm.role} onChange={(e) => setAddForm((f) => ({ ...f, role: e.target.value as Role }))} className={inputCls}>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Role
+								</label>
+								<select
+									value={addForm.role}
+									onChange={(e) =>
+										setAddForm((f) => ({
+											...f,
+											role: e.target.value as Role,
+										}))
+									}
+									className={inputCls}
+								>
 									<option value="engineer">Engineer</option>
-									<option value="master">Master (Admin)</option>
+									<option value="master">
+										Master (Admin)
+									</option>
 								</select>
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Phone</label>
-								<input type="tel" value={addForm.phone} onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="07700 900000" />
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Phone
+								</label>
+								<input
+									type="tel"
+									value={addForm.phone}
+									onChange={(e) =>
+										setAddForm((f) => ({
+											...f,
+											phone: e.target.value,
+										}))
+									}
+									className={inputCls}
+									placeholder="07700 900000"
+								/>
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Home Address</label>
-								<input type="text" value={addForm.home} onChange={(e) => setAddForm((f) => ({ ...f, home: e.target.value }))} className={inputCls} placeholder="Optional" />
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Home Address
+								</label>
+								<input
+									type="text"
+									value={addForm.home}
+									onChange={(e) =>
+										setAddForm((f) => ({
+											...f,
+											home: e.target.value,
+										}))
+									}
+									className={inputCls}
+									placeholder="Optional"
+								/>
 							</div>
 							<div className="border-t border-neutral-800 pt-4">
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Password</label>
-								<input type="password" value={addForm.password} onChange={(e) => setAddForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} placeholder="Min. 8 characters" />
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Password
+								</label>
+								<input
+									type="password"
+									value={addForm.password}
+									onChange={(e) =>
+										setAddForm((f) => ({
+											...f,
+											password: e.target.value,
+										}))
+									}
+									className={inputCls}
+									placeholder="Min. 8 characters"
+								/>
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Confirm Password</label>
-								<input type="password" value={addForm.confirmPassword} onChange={(e) => setAddForm((f) => ({ ...f, confirmPassword: e.target.value }))} className={inputCls} placeholder="Repeat password" />
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Confirm Password
+								</label>
+								<input
+									type="password"
+									value={addForm.confirmPassword}
+									onChange={(e) =>
+										setAddForm((f) => ({
+											...f,
+											confirmPassword: e.target.value,
+										}))
+									}
+									className={inputCls}
+									placeholder="Repeat password"
+								/>
 							</div>
 						</div>
 
 						{addError && (
-							<p className="mt-3 text-sm text-red-400">{addError}</p>
+							<p className="mt-3 text-sm text-red-400">
+								{addError}
+							</p>
 						)}
 
 						<div className="mt-6 flex gap-3">
-							<button onClick={closeAdd} className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer">
+							<button
+								onClick={closeAdd}
+								className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer"
+							>
 								Cancel
 							</button>
 							<button
 								onClick={handleAdd}
 								disabled={addSaving}
 								className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
-								style={{ backgroundColor: business.accentColor }}
+								style={{
+									backgroundColor: business.accentColor,
+								}}
 							>
 								{addSaving ? "Creating..." : "Create Member"}
 							</button>
@@ -309,37 +461,111 @@ export function TeamPage() {
 
 						<div className="space-y-4">
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Full Name</label>
-								<input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} />
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Full Name
+								</label>
+								<input
+									type="text"
+									value={form.name}
+									onChange={(e) =>
+										setForm((f) => ({
+											...f,
+											name: e.target.value,
+										}))
+									}
+									className={inputCls}
+								/>
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Initials (2-3 letters)</label>
-								<input type="text" maxLength={3} value={form.avatar} onChange={(e) => setForm((f) => ({ ...f, avatar: e.target.value }))} className={inputCls + " uppercase"} />
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Initials (2-3 letters)
+								</label>
+								<input
+									type="text"
+									maxLength={3}
+									value={form.avatar}
+									onChange={(e) =>
+										setForm((f) => ({
+											...f,
+											avatar: e.target.value,
+										}))
+									}
+									className={inputCls + " uppercase"}
+								/>
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Phone</label>
-								<input type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} />
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Phone
+								</label>
+								<input
+									type="tel"
+									value={form.phone}
+									onChange={(e) =>
+										setForm((f) => ({
+											...f,
+											phone: e.target.value,
+										}))
+									}
+									className={inputCls}
+								/>
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Home Address</label>
-								<input type="text" value={form.home} onChange={(e) => setForm((f) => ({ ...f, home: e.target.value }))} className={inputCls} />
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Home Address
+								</label>
+								<input
+									type="text"
+									value={form.home}
+									onChange={(e) =>
+										setForm((f) => ({
+											...f,
+											home: e.target.value,
+										}))
+									}
+									className={inputCls}
+								/>
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Role</label>
-								<select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))} className={inputCls}>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Role
+								</label>
+								<select
+									value={form.role}
+									onChange={(e) =>
+										setForm((f) => ({
+											...f,
+											role: e.target.value as Role,
+										}))
+									}
+									className={inputCls}
+								>
 									<option value="engineer">Engineer</option>
 									<option value="master">Master</option>
 								</select>
 							</div>
 							<div>
-								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">Accent Colour</label>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Accent Colour
+								</label>
 								<div className="flex flex-wrap gap-2">
 									{ACCENT_OPTIONS.map((c) => (
 										<div
 											key={c}
-											onClick={() => setForm((f) => ({ ...f, color: c }))}
+											onClick={() =>
+												setForm((f) => ({
+													...f,
+													color: c,
+												}))
+											}
 											className="h-7 w-7 cursor-pointer rounded-full transition-transform hover:scale-110"
-											style={{ background: c, outline: form.color === c ? "2px solid white" : "2px solid transparent", outlineOffset: 2 }}
+											style={{
+												background: c,
+												outline:
+													form.color === c
+														? "2px solid white"
+														: "2px solid transparent",
+												outlineOffset: 2,
+											}}
 										/>
 									))}
 								</div>
@@ -347,14 +573,19 @@ export function TeamPage() {
 						</div>
 
 						<div className="mt-6 flex gap-3">
-							<button onClick={closeEdit} className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer">
+							<button
+								onClick={closeEdit}
+								className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer"
+							>
 								Cancel
 							</button>
 							<button
 								onClick={handleSave}
 								disabled={saving || !form.name.trim()}
 								className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
-								style={{ backgroundColor: business.accentColor }}
+								style={{
+									backgroundColor: business.accentColor,
+								}}
 							>
 								{saving ? "Saving..." : "Save Changes"}
 							</button>
@@ -363,18 +594,26 @@ export function TeamPage() {
 						{/* Lock / Unlock — not for self */}
 						{editing.id !== currentUser?.id && (
 							<div className="mt-4 border-t border-neutral-800 pt-4">
-								<p className="mb-2 text-xs uppercase tracking-wider text-neutral-600">Account Access</p>
+								<p className="mb-2 text-xs uppercase tracking-wider text-neutral-600">
+									Account Access
+								</p>
 								{editing.locked ? (
 									<button
-										onClick={() => { unlockUser(editing.id); closeEdit(); }}
+										onClick={() => {
+											unlockUser(editing.id);
+											closeEdit();
+										}}
 										className="w-full rounded-lg border border-green-800 bg-green-950 px-4 py-2.5 text-sm text-green-400 hover:bg-green-900 transition-colors cursor-pointer"
 									>
 										Unlock Account
 									</button>
 								) : (
 									<button
-										onClick={() => { lockUser(editing.id); closeEdit(); }}
-										className="w-full rounded-lg border border-amber-800 bg-amber-950 px-4 py-2.5 text-sm text-amber-400 hover:bg-amber-900 transition-colors cursor-pointer"
+										onClick={() => {
+											lockUser(editing.id);
+											closeEdit();
+										}}
+										className="w-full rounded-lg border border-amber-800 bg-amber-950 px-4 py-2.5 text-sm text-amber-500 hover:bg-amber-900 transition-colors cursor-pointer"
 									>
 										Lock Account
 									</button>
@@ -384,28 +623,46 @@ export function TeamPage() {
 
 						{/* Password section */}
 						<div className="mt-4 border-t border-neutral-800 pt-4">
-							<p className="mb-3 text-xs uppercase tracking-wider text-neutral-600">Reset Password</p>
+							<p className="mb-3 text-xs uppercase tracking-wider text-neutral-600">
+								Reset Password
+							</p>
 							<div className="space-y-3">
 								<input
 									type="password"
 									placeholder="New password (min. 8 chars)"
 									value={newPassword}
-									onChange={(e) => { setNewPassword(e.target.value); setPwError(null); }}
+									onChange={(e) => {
+										setNewPassword(e.target.value);
+										setPwError(null);
+									}}
 									className={inputCls}
 								/>
 								<input
 									type="password"
 									placeholder="Confirm new password"
 									value={confirmPassword}
-									onChange={(e) => { setConfirmPassword(e.target.value); setPwError(null); }}
+									onChange={(e) => {
+										setConfirmPassword(e.target.value);
+										setPwError(null);
+									}}
 									className={inputCls}
 								/>
 							</div>
-							{pwError && <p className="mt-2 text-xs text-red-400">{pwError}</p>}
-							{pwSuccess && <p className="mt-2 text-xs text-emerald-400">Password updated</p>}
+							{pwError && (
+								<p className="mt-2 text-xs text-red-400">
+									{pwError}
+								</p>
+							)}
+							{pwSuccess && (
+								<p className="mt-2 text-xs text-emerald-400">
+									Password updated
+								</p>
+							)}
 							<button
 								onClick={handlePasswordSave}
-								disabled={pwSaving || !newPassword || !confirmPassword}
+								disabled={
+									pwSaving || !newPassword || !confirmPassword
+								}
 								className="mt-3 w-full rounded-lg border border-neutral-700 px-4 py-2.5 text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 transition-colors disabled:opacity-40 cursor-pointer"
 							>
 								{pwSaving ? "Updating..." : "Update Password"}
@@ -415,7 +672,9 @@ export function TeamPage() {
 						{/* Delete — not for self */}
 						{editing.id !== currentUser?.id && (
 							<div className="mt-4 border-t border-neutral-800 pt-4">
-								<p className="mb-2 text-xs uppercase tracking-wider text-neutral-600">Danger Zone</p>
+								<p className="mb-2 text-xs uppercase tracking-wider text-neutral-600">
+									Danger Zone
+								</p>
 								{!confirmDelete ? (
 									<button
 										onClick={() => setConfirmDelete(true)}
@@ -425,10 +684,16 @@ export function TeamPage() {
 									</button>
 								) : (
 									<div className="space-y-3">
-										<p className="text-xs text-red-400">This removes their profile permanently. Their jobs remain assigned to them. Are you sure?</p>
+										<p className="text-xs text-red-400">
+											This removes their profile
+											permanently. Their jobs remain
+											assigned to them. Are you sure?
+										</p>
 										<div className="flex gap-2">
 											<button
-												onClick={() => setConfirmDelete(false)}
+												onClick={() =>
+													setConfirmDelete(false)
+												}
 												className="flex-1 rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-400 hover:text-neutral-200 cursor-pointer"
 											>
 												Cancel
@@ -453,7 +718,15 @@ export function TeamPage() {
 
 // ── Member row component ────────────────────────────────────────────────────
 
-function MemberRow({ user, accent, isSelf, canEdit, onEdit, onLock, onUnlock }: {
+function MemberRow({
+	user,
+	accent,
+	isSelf,
+	canEdit,
+	onEdit,
+	onLock,
+	onUnlock,
+}: {
 	user: User;
 	accent: string;
 	isSelf: boolean;
@@ -463,7 +736,9 @@ function MemberRow({ user, accent, isSelf, canEdit, onEdit, onLock, onUnlock }: 
 	onUnlock: () => void;
 }) {
 	return (
-		<div className={`flex items-center gap-4 rounded-xl border px-4 py-3 transition-colors ${user.locked ? "border-red-900/40 bg-neutral-900/60 opacity-60" : "border-neutral-800 bg-neutral-900"}`}>
+		<div
+			className={`flex items-center gap-4 rounded-xl border px-4 py-3 transition-colors ${user.locked ? "border-red-900/40 bg-neutral-900/60 opacity-60" : "border-neutral-800 bg-neutral-900"}`}
+		>
 			{/* Avatar */}
 			<div
 				className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium"
@@ -475,16 +750,22 @@ function MemberRow({ user, accent, isSelf, canEdit, onEdit, onLock, onUnlock }: 
 			>
 				{user.avatar}
 				{user.locked && (
-					<span className="absolute -top-1 -right-1 text-[10px]">🔒</span>
+					<span className="absolute -top-1 -right-1 text-[10px]">
+						🔒
+					</span>
 				)}
 			</div>
 
 			{/* Info */}
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-2 flex-wrap">
-					<p className="text-sm text-neutral-100 font-medium truncate">{user.name}</p>
+					<p className="text-sm text-neutral-100 font-medium truncate">
+						{user.name}
+					</p>
 					{isSelf && (
-						<span className="text-[9px] px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-500">You</span>
+						<span className="text-[9px] px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-500">
+							You
+						</span>
 					)}
 					{user.role === "master" ? (
 						<span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-orange-950 text-orange-400">
@@ -502,10 +783,14 @@ function MemberRow({ user, accent, isSelf, canEdit, onEdit, onLock, onUnlock }: 
 				</div>
 				<div className="flex items-center gap-3 mt-0.5 flex-wrap">
 					{user.email && (
-						<span className="text-xs text-neutral-600 truncate">{user.email}</span>
+						<span className="text-xs text-neutral-600 truncate">
+							{user.email}
+						</span>
 					)}
 					{user.phone && (
-						<span className="text-xs text-neutral-600">{user.phone}</span>
+						<span className="text-xs text-neutral-600">
+							{user.phone}
+						</span>
 					)}
 				</div>
 			</div>
@@ -515,15 +800,34 @@ function MemberRow({ user, accent, isSelf, canEdit, onEdit, onLock, onUnlock }: 
 				<div className="flex items-center gap-1 flex-shrink-0">
 					{!isSelf && (
 						<button
-							onClick={(e) => { e.stopPropagation(); user.locked ? onUnlock() : onLock(); }}
-							className={`rounded-lg p-2 transition-colors cursor-pointer ${user.locked ? "text-green-600 hover:text-green-400 hover:bg-green-950/50" : "text-neutral-700 hover:text-amber-400 hover:bg-amber-950/50"}`}
-							title={user.locked ? "Unlock account" : "Lock account"}
+							onClick={(e) => {
+								e.stopPropagation();
+								user.locked ? onUnlock() : onLock();
+							}}
+							className={`rounded-lg p-2 transition-colors cursor-pointer ${user.locked ? "text-green-600 hover:text-green-400 hover:bg-green-950/50" : "text-neutral-700 hover:text-amber-500 hover:bg-amber-950/50"}`}
+							title={
+								user.locked ? "Unlock account" : "Lock account"
+							}
 						>
-							<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+							<svg
+								className="h-4 w-4"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={1.5}
+							>
 								{user.locked ? (
-									<path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+									/>
 								) : (
-									<path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+									/>
 								)}
 							</svg>
 						</button>
@@ -533,9 +837,23 @@ function MemberRow({ user, accent, isSelf, canEdit, onEdit, onLock, onUnlock }: 
 						className="rounded-lg p-2 text-neutral-700 hover:text-neutral-300 hover:bg-neutral-800 transition-colors cursor-pointer"
 						title="Edit member"
 					>
-						<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-							<path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-							<path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.125L18 8.625" />
+						<svg
+							className="h-4 w-4"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							strokeWidth={1.5}
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"
+							/>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								d="M19.5 7.125L18 8.625"
+							/>
 						</svg>
 					</button>
 				</div>

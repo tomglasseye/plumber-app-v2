@@ -6,7 +6,11 @@
       "Bash(python3:*)",
       "Bash(npx tsc:*)",
       "Bash(wc -l /c/Users/smkgl/Documents/LocalSites/plumber-app-v2/src/pages/*.tsx /c/Users/smkgl/Documents/LocalSites/plumber-app-v2/src/components/*.tsx)",
-      "Bash(awk 'NR<529 || NR>551 {print}' src/AppContext.tsx)"
+      "Bash(awk 'NR<529 || NR>551 {print}' src/AppContext.tsx)",
+      "Bash(ls \"C:\\\\Users\\\\smkgl\\\\Downloads\\\\HiveQ\")",
+      "Read(//c/Users/smkgl/Downloads/HiveQ/**)",
+      "Bash(Copy-Item \"C:\\\\Users\\\\smkgl\\\\Downloads\\\\HiveQ\\\\HiveQ.svg\" \"C:\\\\Users\\\\smkgl\\\\Documents\\\\LocalSites\\\\plumber-app-v2\\\\public\\\\icon.svg\" -Force)",
+      "Bash(Copy-Item \"C:\\\\Users\\\\smkgl\\\\Downloads\\\\HiveQ\\\\favicon_io\\\\*\" \"C:\\\\Users\\\\smkgl\\\\Documents\\\\LocalSites\\\\plumber-app-v2\\\\public\\\\\" -Force)"
     ]
   }
 }

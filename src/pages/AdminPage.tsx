@@ -136,7 +136,7 @@ export function AdminPage() {
 							key={b.id}
 							className={`flex items-center gap-4 rounded-xl border p-4 transition-colors ${
 								b.id === business.id
-									? "border-orange-700/60 bg-orange-950/20"
+									? "border-amber-700/60 bg-amber-950/20"
 									: "border-neutral-800 bg-neutral-900 hover:border-neutral-700"
 							}`}
 						>
@@ -167,7 +167,7 @@ export function AdminPage() {
 								</p>
 							</div>
 							{b.id === business.id ? (
-								<span className="rounded-lg bg-orange-900/40 border border-orange-800 px-3 py-1.5 text-[11px] font-medium text-orange-300 flex-shrink-0">
+								<span className="rounded-lg bg-amber-900/40 border border-amber-800 px-3 py-1.5 text-[11px] font-medium text-amber-300 flex-shrink-0">
 									Active
 								</span>
 							) : (

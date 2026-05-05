@@ -1,6 +1,6 @@
 # Plumber App v2 — Job Sheet System
 
-A web-based job management system for small trade teams. Engineers access it on their phones, HQ manages jobs from the office. Built with React, Supabase, and Tailwind — deployed to Netlify. Branded as **PipeLine** in the PWA manifest.
+A web-based job management system for small trade teams. Engineers access it on their phones, HQ manages jobs from the office. Built with React, Supabase, and Tailwind — deployed to Netlify. Branded as **HiveQ** in the PWA manifest.
 
 **Live backend** — Supabase PostgreSQL with real-time notifications, email/password auth, and row-level security. Not a prototype.
 

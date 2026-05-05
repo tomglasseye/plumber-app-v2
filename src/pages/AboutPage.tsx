@@ -91,12 +91,15 @@ export function AboutPage() {
 			{/* Nav */}
 			<nav className="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-950/90 backdrop-blur-sm">
 				<div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-					<span className="text-lg font-bold text-orange-400 tracking-tight">
-						PipeLine
-					</span>
+					<div className="flex items-center gap-2">
+						<img src="/icon.svg" alt="HiveQ" className="h-8" />
+						<span className="text-lg font-bold text-amber-500 tracking-tight">
+							HiveQ
+						</span>
+					</div>
 					<button
 						onClick={() => navigate("/login")}
-						className="rounded-lg border border-orange-700 bg-orange-900/40 px-4 py-2 text-sm text-orange-300 hover:bg-orange-800/50 transition-colors cursor-pointer"
+						className="rounded-lg border border-amber-700 bg-amber-900/40 px-4 py-2 text-sm text-amber-300 hover:bg-amber-800/50 transition-colors cursor-pointer"
 					>
 						Sign in →
 					</button>
@@ -105,23 +108,23 @@ export function AboutPage() {
 
 			{/* Hero */}
 			<section className="max-w-6xl mx-auto px-6 pt-20 pb-16 text-center">
-				<p className="text-xs uppercase tracking-widest text-orange-500 mb-4">
+				<p className="text-xs uppercase tracking-widest text-amber-500 mb-4">
 					Field Service Management
 				</p>
 				<h1 className="text-5xl md:text-6xl font-normal tracking-tight text-neutral-100 mb-6 leading-tight">
 					Every job. Every engineer.
 					<br />
-					<span className="text-orange-400">One calendar.</span>
+					<span className="text-amber-500">One calendar.</span>
 				</h1>
 				<p className="text-lg text-neutral-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-					PipeLine gives plumbing and heating businesses a clean, fast
+					HiveQ gives plumbing and heating businesses a clean, fast
 					way to schedule jobs, manage their team, and send invoices —
 					without the spreadsheet chaos.
 				</p>
 				<div className="flex items-center justify-center gap-4 flex-wrap">
 					<button
 						onClick={() => navigate("/login")}
-						className="rounded-xl bg-orange-600 hover:bg-orange-500 transition-colors px-7 py-3.5 text-base font-medium text-white cursor-pointer"
+						className="rounded-xl bg-amber-600 hover:bg-amber-500 transition-colors px-7 py-3.5 text-base font-medium text-white cursor-pointer"
 					>
 						Get started →
 					</button>
@@ -147,7 +150,7 @@ export function AboutPage() {
 							"Holiday tracking",
 						].map((f) => (
 							<span key={f} className="flex items-center gap-1.5">
-								<span className="w-1 h-1 rounded-full bg-orange-700 inline-block" />
+								<span className="w-1 h-1 rounded-full bg-amber-700 inline-block" />
 								{f}
 							</span>
 						))}
@@ -245,12 +248,12 @@ export function AboutPage() {
 								key={plan.name}
 								className={`rounded-2xl border p-8 ${
 									plan.highlight
-										? "border-orange-700/60 bg-orange-950/20"
+										? "border-amber-700/60 bg-amber-950/20"
 										: "border-neutral-800 bg-neutral-900"
 								}`}
 							>
 								{plan.highlight && (
-									<p className="text-[10px] uppercase tracking-widest text-orange-500 mb-3">
+									<p className="text-[10px] uppercase tracking-widest text-amber-500 mb-3">
 										Most popular
 									</p>
 								)}
@@ -268,7 +271,7 @@ export function AboutPage() {
 										{plan.period}
 									</span>
 								</div>
-								<p className="text-xs text-orange-400 mb-6">
+								<p className="text-xs text-amber-500 mb-6">
 									{plan.users}
 								</p>
 								<ul className="space-y-2.5 mb-8">
@@ -277,7 +280,7 @@ export function AboutPage() {
 											key={f}
 											className="flex items-start gap-2 text-sm text-neutral-400"
 										>
-											<span className="text-orange-600 mt-0.5 flex-shrink-0">
+											<span className="text-amber-600 mt-0.5 flex-shrink-0">
 												✓
 											</span>
 											{f}
@@ -288,7 +291,7 @@ export function AboutPage() {
 									onClick={() => navigate("/login")}
 									className={`w-full rounded-xl py-3 text-sm font-medium transition-colors cursor-pointer ${
 										plan.highlight
-											? "bg-orange-600 hover:bg-orange-500 text-white"
+											? "bg-amber-600 hover:bg-amber-500 text-white"
 											: "border border-neutral-700 hover:border-neutral-500 text-neutral-300 bg-transparent"
 									}`}
 								>
@@ -315,7 +318,7 @@ export function AboutPage() {
 					</p>
 					<button
 						onClick={() => navigate("/login")}
-						className="rounded-xl bg-orange-600 hover:bg-orange-500 transition-colors px-8 py-4 text-base font-medium text-white cursor-pointer"
+						className="rounded-xl bg-amber-600 hover:bg-amber-500 transition-colors px-8 py-4 text-base font-medium text-white cursor-pointer"
 					>
 						Sign in to your account →
 					</button>
@@ -325,11 +328,11 @@ export function AboutPage() {
 			{/* Footer */}
 			<footer className="border-t border-neutral-900 py-8">
 				<div className="max-w-6xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
-					<span className="text-sm font-bold text-orange-400">
-						PipeLine
+					<span className="text-sm font-bold text-amber-500">
+						HiveQ
 					</span>
 					<p className="text-xs text-neutral-500">
-						© {new Date().getFullYear()} PipeLine. Field service
+						© {new Date().getFullYear()} HiveQ. Field service
 						management for plumbing & heating teams.
 					</p>
 				</div>

@@ -110,11 +110,8 @@ export function LoginPage() {
 		<div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4 font-sans">
 			<div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-8">
 				{/* Logo */}
-				<div className="flex items-center gap-3 mb-1">
-					<div className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white flex-shrink-0 bg-orange-500">
-						🔧
-					</div>
-					<span className="text-xl text-neutral-100">PipeLine</span>
+				<div className="mb-1">
+					<img src="/icon.svg" alt="HiveQ" className="h-20" />
 				</div>
 				<p className="text-sm text-neutral-600 mb-6">
 					Job management for trades teams
@@ -164,7 +161,7 @@ export function LoginPage() {
 					<button
 						type="submit"
 						disabled={busy || isLockedOut}
-						className="w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+						className="w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
 					>
 						{isLockedOut
 							? `Locked — ${formatRemaining(remaining)}`

@@ -9,12 +9,12 @@ export default defineConfig({
 		tailwindcss(),
 		VitePWA({
 			registerType: "autoUpdate",
-			includeAssets: ["icon.svg"],
+			includeAssets: ["favicon.ico", "apple-touch-icon.png"],
 			manifest: {
-				name: "PipeLine",
-				short_name: "PipeLine",
+				name: "HiveQ",
+				short_name: "HiveQ",
 				description: "Job management for trades teams",
-				theme_color: "#0a0a0a",
+				theme_color: "#fca500",
 				background_color: "#0a0a0a",
 				display: "standalone",
 				orientation: "portrait",
@@ -22,9 +22,14 @@ export default defineConfig({
 				scope: "/",
 				icons: [
 					{
-						src: "icon.svg",
-						sizes: "any",
-						type: "image/svg+xml",
+						src: "android-chrome-192x192.png",
+						sizes: "192x192",
+						type: "image/png",
+					},
+					{
+						src: "android-chrome-512x512.png",
+						sizes: "512x512",
+						type: "image/png",
 						purpose: "any maskable",
 					},
 				],

@@ -2,7 +2,7 @@
 
 > **Status:** Entirely future work. The app currently has no billing layer — clients are onboarded manually by the super admin and there's no subscription gate. The plans are already advertised on [AboutPage.tsx](../src/pages/AboutPage.tsx) (Starter £120/mo, Pro £159/mo) but nothing collects money yet.
 
-This doc covers wiring Stripe up so businesses pay a recurring subscription to use PipeLine. It's a layer above everything else — engineers and customers never see it; only the **master** of a business interacts with billing.
+This doc covers wiring Stripe up so businesses pay a recurring subscription to use HiveQ. It's a layer above everything else — engineers and customers never see it; only the **master** of a business interacts with billing.
 
 See [LAUNCH.md](LAUNCH.md) for where Stripe fits in the rollout sequence (Phase 5) and the high-level checklist.
 
@@ -48,10 +48,10 @@ Ongoing:
 1. Create a Stripe account at [stripe.com](https://stripe.com), complete business verification (a few days for live-mode approval — you can build everything in test mode while waiting)
 2. Stripe Dashboard → Developers → API keys: copy the **Publishable key** (browser-safe) and **Secret key** (server-only). Use **test keys** until ready to go live.
 3. Stripe Dashboard → Products → create two products:
-   - **PipeLine Starter** with two recurring Prices: £120/month and the chosen annual price (e.g. £1,200/year if doing 2-months-free)
-   - **PipeLine Pro** with two recurring Prices: £159/month and the chosen annual price
+   - **HiveQ Starter** with two recurring Prices: £120/month and the chosen annual price (e.g. £1,200/year if doing 2-months-free)
+   - **HiveQ Pro** with two recurring Prices: £159/month and the chosen annual price
 4. Copy all four Price IDs (`price_...`) — these become env vars below
-5. Stripe Dashboard → Settings → Billing → Customer Portal: enable plan switching between PipeLine Starter ↔ Pro, allow payment method updates, allow cancellations (Stripe's portal handles all this UI)
+5. Stripe Dashboard → Settings → Billing → Customer Portal: enable plan switching between HiveQ Starter ↔ Pro, allow payment method updates, allow cancellations (Stripe's portal handles all this UI)
 6. Stripe Dashboard → Settings → Tax: enable Stripe Tax with UK VAT registration if you're charging VAT. The About page lists prices VAT-exclusive — Stripe Tax will gross them up at checkout.
 
 ### Env vars

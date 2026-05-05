@@ -23,15 +23,15 @@ The app is a full PWA: `vite-plugin-pwa` with Workbox caching strategies, a cust
 
 ## Manifest
 
-The app is named **PipeLine** in the manifest. Configured in `vite.config.ts`:
+The app is named **HiveQ** in the manifest. Configured in `vite.config.ts`:
 
 ```ts
 VitePWA({
   registerType: "autoUpdate",
   includeAssets: ["icon.svg"],
   manifest: {
-    name: "PipeLine",
-    short_name: "PipeLine",
+    name: "HiveQ",
+    short_name: "HiveQ",
     description: "Job management for trades teams",
     theme_color: "#0a0a0a",
     background_color: "#0a0a0a",

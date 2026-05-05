@@ -1,6 +1,6 @@
 # Launch Plan
 
-> **Status:** Practical checklist for taking PipeLine from a Netlify preview URL to a production domain with real clients onboarded. Sequenced so each phase unblocks the next.
+> **Status:** Practical checklist for taking HiveQ from a Netlify preview URL to a production domain with real clients onboarded. Sequenced so each phase unblocks the next.
 
 This doc is the single source of truth for going live. Other docs cover the *how* of individual systems — this one covers the *order of operations*.
 

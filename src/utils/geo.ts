@@ -26,7 +26,7 @@ export async function geocodeAddress(
 	try {
 		const res = await fetch(
 			`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=gb`,
-			{ headers: { "User-Agent": "PipeLineApp/1.0" } },
+			{ headers: { "User-Agent": "HiveQApp/1.0" } },
 		);
 		const data = await res.json();
 		if (data.length > 0) {

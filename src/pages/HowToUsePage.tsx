@@ -123,7 +123,7 @@ export function HowToUsePage() {
 						User Guide
 					</p>
 					<h1 className="text-4xl font-normal tracking-tight text-neutral-100 mb-4">
-						How to use PipeLine
+						How to use HiveQ
 					</h1>
 					<p className="text-neutral-400 max-w-2xl leading-relaxed">
 						A quick walkthrough for administrators (masters) and
