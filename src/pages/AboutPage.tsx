@@ -97,12 +97,20 @@ export function AboutPage() {
 							HiveQ
 						</span>
 					</div>
-					<button
-						onClick={() => navigate("/login")}
-						className="rounded-lg border border-amber-700 bg-amber-900/40 px-4 py-2 text-sm text-amber-300 hover:bg-amber-800/50 transition-colors cursor-pointer"
-					>
-						Sign in →
-					</button>
+					<div className="flex items-center gap-3">
+						<a
+							href="mailto:contacthiveq@gmail.com"
+							className="rounded-lg border border-neutral-700 hover:border-neutral-500 px-4 py-2 text-sm text-neutral-300 transition-colors no-underline"
+						>
+							Contact
+						</a>
+						<button
+							onClick={() => navigate("/login")}
+							className="rounded-lg border border-amber-700 bg-amber-900/40 px-4 py-2 text-sm text-amber-300 hover:bg-amber-800/50 transition-colors cursor-pointer"
+						>
+							Sign in →
+						</button>
+					</div>
 				</div>
 			</nav>
 
