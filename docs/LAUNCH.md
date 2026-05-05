@@ -14,7 +14,8 @@ This doc is the single source of truth for going live. Other docs cover the *how
 | 2 | Client testing on Netlify URL | First 1–2 clients | This doc |
 | 3 | Custom domain + production hardening | Before public launch | This doc |
 | 4 | Xero integration rollout | Per-client, after they're stable on the app | [XERO.md](XERO.md) |
-| 5 | Scale-up — additional clients onboarded | Ongoing | [SUPERADMIN.md](SUPERADMIN.md) |
+| 5 | Stripe billing — recurring subscriptions for clients using the app | Before charging anyone | This doc |
+| 6 | Scale-up — additional clients onboarded | Ongoing | [SUPERADMIN.md](SUPERADMIN.md) |
 
 ---
 
@@ -179,7 +180,26 @@ APP_URL=https://yourdomain.com
 
 ---
 
-## Phase 5 — Scale-up
+## Phase 5 — Stripe billing (recurring subscriptions)
+
+**Don't start this until at least one client is happily using the app.** No point wiring up billing for a product nobody's on yet — but it has to land before you charge anyone.
+
+The plans are already public on [AboutPage.tsx](../src/pages/AboutPage.tsx): Starter £120/mo, Pro £159/mo, both 6–8 users (Pro adds customer SMS). Stripe just needs to mirror them.
+
+Full implementation guide is in [STRIPE.md](STRIPE.md). High-level checklist:
+
+- [ ] **Decisions** — annual price for each plan, trial length + card-on-file or not, what happens when a Pro client crosses 8 users
+- [ ] **Stripe account** — create account, complete business verification, set up test-mode Products + Prices for Starter and Pro (monthly + annual = 4 Prices total), enable Customer Portal, configure Stripe Tax for VAT
+- [ ] **Schema** — migration 25 adds `stripe_customer_id`, `stripe_subscription_id`, `stripe_price_id`, `plan`, `subscription_status`, `current_period_end`, `trial_ends_at` to `businesses`; new `billing_events` table for webhook idempotency
+- [ ] **Netlify Functions** — `stripe-create-checkout-session`, `stripe-create-portal-session`, `stripe-webhook` (signature-verified, idempotent)
+- [ ] **Frontend** — Pricing/Subscribe page, Billing tab on Account, trial banner, access gate for `past_due`/`canceled` past `current_period_end`
+- [ ] **Pro feature gating** — SMS UI + function check `business.plan === 'pro'`
+- [ ] **Lifecycle smoke test** — subscribe → trial-end → upgrade → payment-fail → cancel → re-subscribe, all via Stripe CLI test events
+- [ ] **Live-mode cutover** — recreate Products/Prices/webhook in live mode, swap the six Stripe env vars in Netlify, redeploy, verify with a real card
+
+---
+
+## Phase 6 — Scale-up
 
 Once one or two clients are live and stable, additional onboarding follows the existing super admin flow — see [SUPERADMIN.md](SUPERADMIN.md).
 
@@ -215,6 +235,18 @@ Everything that should be set in Netlify before going live. Variables prefixed `
 | Variable    | Value                          |
 | ----------- | ------------------------------ |
 | `APP_URL`   | `https://yourdomain.com`       |
+
+### Required for Phase 5 (Stripe)
+
+| Variable                      | Source                                |
+| ----------------------------- | ------------------------------------- |
+| `STRIPE_SECRET_KEY`           | Stripe API keys — server-only         |
+| `STRIPE_WEBHOOK_SECRET`       | Stripe webhook endpoint — server-only |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Stripe API keys (browser-safe)        |
+| `STRIPE_PRICE_STARTER_MONTHLY` | Stripe Price (Starter £120/mo)       |
+| `STRIPE_PRICE_STARTER_ANNUAL`  | Stripe Price (Starter annual)        |
+| `STRIPE_PRICE_PRO_MONTHLY`     | Stripe Price (Pro £159/mo)           |
+| `STRIPE_PRICE_PRO_ANNUAL`      | Stripe Price (Pro annual)            |
 
 ### Required for Phase 4 (Xero)
 
@@ -266,3 +298,4 @@ A single page to print/screenshot before announcing the app:
 - **Push notifications stop working** — VAPID keys must match between Netlify env vars and client; if rotated, all subscriptions become invalid and need re-subscribing
 - **Xero token rejected** — likely token expired and refresh failed. Check `xero_token_expires_at` and that `xero-create-invoice` is calling `getValidToken()` first
 - **Client says "I added a customer in Xero, it's not in the app"** — current sync is one-way (app → Xero). See section 7c of XERO.md for the polling option
+- **Stripe issues (webhooks not firing, stuck subscriptions, plan column not updating)** — see the troubleshooting section in [STRIPE.md](STRIPE.md)
