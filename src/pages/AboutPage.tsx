@@ -125,9 +125,10 @@ export function AboutPage() {
 					<span className="text-amber-500">One calendar.</span>
 				</h1>
 				<p className="text-lg text-neutral-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-					HiveQ gives plumbing and heating businesses a clean, fast
-					way to schedule jobs, manage their team, and send invoices —
-					without the spreadsheet chaos.
+					HiveQ is built for any trade business with a team out in
+					the field — plumbers, electricians, builders, HVAC, and
+					more. Schedule jobs, manage your crew, and invoice without
+					the spreadsheet chaos.
 				</p>
 				<div className="flex items-center justify-center gap-4 flex-wrap">
 					<button
@@ -341,7 +342,7 @@ export function AboutPage() {
 					</span>
 					<p className="text-xs text-neutral-500">
 						© {new Date().getFullYear()} HiveQ. Field service
-						management for plumbing & heating teams.
+						management for small trade teams.
 					</p>
 				</div>
 			</footer>

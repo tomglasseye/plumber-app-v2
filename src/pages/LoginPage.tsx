@@ -114,7 +114,7 @@ export function LoginPage() {
 					<img src="/icon.svg" alt="HiveQ" className="h-20" />
 				</div>
 				<p className="text-sm text-neutral-600 mb-6">
-					Job management for trades teams
+					Job management for trade teams
 				</p>
 
 				<form
