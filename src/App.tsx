@@ -22,9 +22,9 @@ import { MyDayPage } from "./pages/MyDayPage";
 import { NewJobPage } from "./pages/NewJobPage";
 import { TeamPage } from "./pages/TeamPage";
 import { CustomersPage } from "./pages/CustomersPage";
-import { AboutPage } from "./pages/AboutPage";
 import { HolidaysPage } from "./pages/HolidaysPage";
 import { HowToUsePage } from "./pages/HowToUsePage";
+import { AboutPage } from "./pages/AboutPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
 	const { currentUser } = useApp();
@@ -84,8 +84,9 @@ export default function App() {
 	if (!currentUser) {
 		return (
 			<Routes>
-				<Route path="/about" element={<AboutPage />} />
-				<Route path="*" element={<LoginPage />} />
+				<Route path="/" element={<AboutPage />} />
+				<Route path="/login" element={<LoginPage />} />
+				<Route path="*" element={<Navigate to="/" replace />} />
 			</Routes>
 		);
 	}
@@ -178,7 +179,6 @@ export default function App() {
 				<main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
 					<Routes>
 						<Route path="/login" element={<LoginPage />} />
-						<Route path="/about" element={<AboutPage />} />
 						<Route
 							path="/"
 							element={
