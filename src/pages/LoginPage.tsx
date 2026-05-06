@@ -52,6 +52,33 @@ export function LoginPage() {
 		return m > 0 ? `${m}m ${s}s` : `${s}s`;
 	}
 
+	async function callRateLimit(
+		phase: "check" | "record-failure",
+	): Promise<{ blocked: boolean; message?: string; reachable: boolean }> {
+		try {
+			const res = await fetch("/.netlify/functions/login-rate-limit", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ phase, email }),
+			});
+			if (res.status === 429) {
+				const body = await res.json().catch(() => ({}));
+				return { blocked: true, message: body.message, reachable: true };
+			}
+			if (!res.ok) {
+				// Server error — fail closed so a misconfigured/erroring limiter
+				// doesn't silently disable rate limiting in production.
+				return { blocked: true, reachable: true };
+			}
+			return { blocked: false, reachable: true };
+		} catch {
+			// Network failure (offline, function not running locally) — fail
+			// open so dev still works. Supabase Auth has its own server-side
+			// limits as a backstop.
+			return { blocked: false, reachable: false };
+		}
+	}
+
 	async function handleLogin() {
 		if (isLockedOut) return;
 		if (!email || !password) {
@@ -61,25 +88,21 @@ export function LoginPage() {
 		setBusy(true);
 		setError("");
 
-		// Server-side IP rate limit check
-		try {
-			const rl = await fetch("/.netlify/functions/login-rate-limit", {
-				method: "POST",
-			});
-			if (rl.status === 429) {
-				const body = await rl.json();
-				setBusy(false);
-				setError(
-					body.message ??
-						"Too many login attempts. Please try again later.",
-				);
-				return;
-			}
-		} catch {
-			// If the function is unreachable (local dev), silently continue
+		const check = await callRateLimit("check");
+		if (check.blocked) {
+			setBusy(false);
+			setError(
+				check.message ??
+					"Too many login attempts. Please try again later.",
+			);
+			return;
 		}
 
 		const result = await login(email, password);
+		if (!result && check.reachable) {
+			// Only count failures, never successes.
+			await callRateLimit("record-failure");
+		}
 		setBusy(false);
 		if (result) {
 			if (result.superAdmin) {

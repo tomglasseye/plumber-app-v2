@@ -7,9 +7,17 @@
   status = 200
 
 # ── Security headers ──────────────────────────────────────────────
-# Applied to every response. CSP is intentionally omitted for now —
-# Supabase realtime + storage signed URLs + future Stripe.js make a
-# strict policy easy to break; revisit when the surface stabilises.
+# Applied to every response.
+#
+# CSP notes:
+# - script-src 'self' (no 'unsafe-inline', no 'unsafe-eval') is the line
+#   that actually defends against XSS-token-theft. If a directive needs
+#   loosening, find an alternative before adding 'unsafe-inline' to scripts.
+# - style-src keeps 'unsafe-inline' because Tailwind/React style behaviour
+#   plus odd third-party libs make it impractical to remove pre-launch.
+# - connect-src covers Supabase REST + Realtime WebSocket. When Stripe lands,
+#   add https://js.stripe.com to script-src and https://api.stripe.com to
+#   connect-src and https://js.stripe.com to frame-src for Stripe Elements.
 [[headers]]
   for = "/*"
   [headers.values]
@@ -18,3 +26,4 @@
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(self), camera=(self), microphone=(), payment=(self), usb=(), interest-cohort=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"

@@ -561,26 +561,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		});
 	}
 
-	async function loadUserData(userId: string): Promise<Role | null> {
+	async function loadUserData(
+		userId: string,
+	): Promise<{ role: Role; superAdmin: boolean } | null> {
 		// Check super admin status first
-		const { data: saRow, error: saError } = await supabase
+		const { data: saRow } = await supabase
 			.from("super_admins")
 			.select("id")
 			.eq("id", userId)
 			.maybeSingle();
 		const isSA = !!saRow;
 		setIsSuperAdmin(isSA);
-		console.log("[auth] super_admin check:", { isSA, saRow, saError });
 
-		const { data: profile, error: profileError } = await supabase
+		const { data: profile } = await supabase
 			.from("profiles")
 			.select("*")
 			.eq("id", userId)
 			.maybeSingle();
-		console.log("[auth] profile lookup:", {
-			found: !!profile,
-			profileError,
-		});
 
 		// Super admins without a profile get a synthetic master identity
 		if (!profile && isSA) {
@@ -609,15 +606,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			});
 
 			subscribeToPush(userId).catch(() => {});
-			return "master";
+			return { role: "master", superAdmin: true };
 		}
 
-		if (!profile) {
-			console.log(
-				"[auth] no profile and not super admin — login rejected",
-			);
-			return null;
-		}
+		if (!profile) return null;
 		if (profile.locked) {
 			await supabase.auth.signOut();
 			return null;
@@ -695,30 +687,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		// Subscribe to push notifications (non-blocking)
 		subscribeToPush(userId).catch(() => {});
 
-		return isSA ? "master" : (profile.role as Role);
+		return {
+			role: isSA ? "master" : (profile.role as Role),
+			superAdmin: isSA,
+		};
 	}
 
 	async function login(
 		email: string,
 		password: string,
 	): Promise<{ role: Role; superAdmin: boolean } | null> {
-		console.log("[auth] attempting signIn for:", email);
 		const { data, error } = await supabase.auth.signInWithPassword({
 			email,
 			password,
 		});
-		if (error) {
-			console.error("[auth] signIn error:", error.message, error.status);
-			return null;
-		}
-		if (!data.user) {
-			console.error("[auth] signIn returned no user");
-			return null;
-		}
-		console.log("[auth] signIn success, userId:", data.user.id);
-		const role = await loadUserData(data.user.id);
-		if (!role) return null;
-		return { role, superAdmin: isSuperAdmin };
+		if (error || !data.user) return null;
+		return loadUserData(data.user.id);
 	}
 
 	function logout() {
@@ -1063,32 +1047,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		}
 	}
 
-	function lockUser(id: string) {
-		setUsers((prev) =>
-			prev.map((u) => (u.id === id ? { ...u, locked: true } : u)),
+	async function setUserLocked(id: string, locked: boolean) {
+		const prev = users.find((u) => u.id === id)?.locked ?? false;
+		setUsers((curr) =>
+			curr.map((u) => (u.id === id ? { ...u, locked } : u)),
 		);
-		dbSave(() =>
-			supabase.from("profiles").update({ locked: true }).eq("id", id),
-		);
+		const {
+			data: { session },
+		} = await supabase.auth.getSession();
+		if (!session) {
+			setSaveError("Not authenticated");
+			setUsers((curr) =>
+				curr.map((u) => (u.id === id ? { ...u, locked: prev } : u)),
+			);
+			return;
+		}
+		try {
+			const res = await fetch("/.netlify/functions/admin-lock-user", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${session.access_token}`,
+				},
+				body: JSON.stringify({ userId: id, locked }),
+			});
+			if (!res.ok) {
+				const body = await res.json().catch(() => ({}));
+				setSaveError(body.error ?? "Failed to update lock state");
+				setUsers((curr) =>
+					curr.map((u) => (u.id === id ? { ...u, locked: prev } : u)),
+				);
+				return;
+			}
+		} catch {
+			setSaveError("Network error — could not reach server");
+			setUsers((curr) =>
+				curr.map((u) => (u.id === id ? { ...u, locked: prev } : u)),
+			);
+			return;
+		}
 		supabase.rpc("log_audit_event", {
-			p_action: "profile.locked",
+			p_action: locked ? "profile.locked" : "profile.unlocked",
 			p_target_type: "profile",
 			p_target_id: id,
 		});
 	}
 
+	function lockUser(id: string) {
+		void setUserLocked(id, true);
+	}
+
 	function unlockUser(id: string) {
-		setUsers((prev) =>
-			prev.map((u) => (u.id === id ? { ...u, locked: false } : u)),
-		);
-		dbSave(() =>
-			supabase.from("profiles").update({ locked: false }).eq("id", id),
-		);
-		supabase.rpc("log_audit_event", {
-			p_action: "profile.unlocked",
-			p_target_type: "profile",
-			p_target_id: id,
-		});
+		void setUserLocked(id, false);
 	}
 
 	async function deleteUser(id: string) {

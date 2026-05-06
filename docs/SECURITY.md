@@ -24,14 +24,16 @@ Configure sender domain (SPF, DKIM) to avoid spam filters.
 ## Rate Limiting
 
 ### Current state
-`netlify/functions/login-rate-limit.ts` uses an in-memory `Map` — resets on every cold start (Netlify Functions are stateless). This provides some protection but is not persistent.
+`netlify/functions/login-rate-limit.ts` is a two-phase IP + email limiter using in-memory `Map`s. The login page calls `phase: "check"` before attempting auth (gates access) and `phase: "record-failure"` only when Supabase rejects the credentials — successful logins never count toward the lockout. IP comes only from `context.ip`; the `x-forwarded-for` header is ignored because it's client-controllable on Netlify Functions. Limits: 10 failures per IP and 5 per email per 15-minute window.
+
+The Maps reset on cold start and are per-instance, so this is a first line of defence — Supabase Auth's own server-side rate limits sit behind it.
 
 ### Production recommendation
 For a small-scale app (< 50 clients), the in-memory approach is acceptable — cold starts are infrequent during active hours and Supabase Auth itself has server-side rate limiting.
 
 For higher security:
 - **Supabase Auth settings:** Configure rate limits in Supabase Dashboard → Authentication → Rate Limits. Set max sign-in attempts per IP.
-- **Table-based rate limiting:** Replace the in-memory Map with a Supabase `rate_limits` table (IP + timestamp + attempt count). Query/update in the Netlify Function. Auto-expire old entries with a pg_cron job.
+- **Table-based rate limiting:** Replace the in-memory Maps with a Supabase `rate_limits` table (IP/email + timestamp + attempt count). Query/update in the Netlify Function. Auto-expire old entries with a pg_cron job.
 - **Cloudflare:** If deployed behind Cloudflare, use their rate limiting rules (free tier includes 1 rule).
 
 ---
@@ -104,8 +106,15 @@ Masters view the log from the Account Settings page (full business log with filt
 
 ### Current state
 - Supabase Auth manages JWT tokens with automatic refresh
-- Client-side idle timeout (configurable, warns before signing out)
-- Brute-force protection on login (client-side lockout after 5 attempts)
+- Client-side idle timeout (29-min warning, 30-min auto sign-out)
+- Brute-force protection on login: server-side IP + email limiter (`login-rate-limit`) gates the sign-in call; a small client-side lockout after 5 attempts is UX only (it lives in `localStorage` and a determined attacker can clear it — the server limiter is the real defence)
+- Locked accounts are enforced at the auth layer: `admin-lock-user` calls `auth.admin.updateUserById(..., { ban_duration })` so banned users can't sign in *or* refresh existing sessions, in addition to setting `profiles.locked` for RLS / UI use
+
+### JWT storage and XSS
+Supabase stores the access token in `localStorage` by default. An XSS bug — in our code or in any third-party dependency — could exfiltrate it. Mitigations:
+- Strict CSP is the most impactful next step (see HTTP security headers below)
+- Avoid logging emails / tokens / Supabase error objects to `console` (auth-path logging has been removed from `AppContext.login`)
+- For higher-security deployments, configure the Supabase client with `auth: { storage: sessionStorage }` so the token is dropped when the tab closes — note this signs users out on browser restart
 
 ### Recommendations
 - Enable **MFA (multi-factor authentication)** for master users via Supabase Auth when available on the plan
@@ -125,8 +134,35 @@ Set in `netlify.toml` and applied to every response:
 | `X-Frame-Options`           | `DENY`                                                   | App is never embedded in an iframe — denying clickjacking surface. |
 | `Referrer-Policy`           | `strict-origin-when-cross-origin`                        | Don't leak job URLs / customer IDs to third-party domains via the Referer header. |
 | `Permissions-Policy`        | `geolocation=(self), camera=(self), microphone=(), payment=(self), usb=(), interest-cohort=()` | Allow only what we use (geolocation for distance sort, camera for photo capture). Disable FLoC opt-in. |
+| `Content-Security-Policy`   | (see below)                                              | Limits where scripts, styles, images, fonts, and network connections can come from. With `script-src 'self'` (no `'unsafe-inline'` / `'unsafe-eval'`), an XSS bug can't load attacker-controlled JavaScript or exfiltrate the Supabase JWT to an external host. |
 
-**CSP is deliberately not set yet.** A strict Content-Security-Policy is the most impactful header but the hardest to maintain — Supabase realtime, signed Storage URLs, and future Stripe.js all need allowlisting. Add it once the third-party surface stabilises (after Stripe lands), and audit the report-only mode in production for a few days before flipping to enforce.
+### CSP
+
+```
+default-src 'self';
+script-src 'self';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: blob: https://*.supabase.co;
+font-src 'self' data:;
+connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+worker-src 'self';
+manifest-src 'self';
+frame-ancestors 'none';
+base-uri 'self';
+form-action 'self';
+object-src 'none'
+```
+
+Why each directive:
+- `script-src 'self'` — the load-bearing one. No inline scripts, no `eval`, no third-party JS. Without this, the rest is decorative.
+- `style-src 'self' 'unsafe-inline'` — Tailwind ships a stylesheet (covered by `'self'`), but a few third-party libs and React's runtime expect inline styles to work. Style XSS is much lower impact than script XSS, so this concession is acceptable.
+- `connect-src` — Supabase REST is `https://*.supabase.co`; Realtime is `wss://*.supabase.co`. Both required.
+- `img-src ... blob: ...` — `blob:` is needed for the camera-capture flow (job photos before upload). Supabase storage signed URLs are on `*.supabase.co`.
+- `worker-src 'self'` — covers `sw-push.js` (push notification service worker).
+- `frame-ancestors 'none'` — duplicates `X-Frame-Options: DENY` for browsers that prefer CSP.
+- `base-uri 'self'` / `form-action 'self'` / `object-src 'none'` — close common XSS pivots.
+
+When Stripe lands: add `https://js.stripe.com` to `script-src` and `frame-src`, and `https://api.stripe.com` to `connect-src`.
 
 ---
 
@@ -153,6 +189,7 @@ Use Supabase's `pgTAP` testing framework to automate these checks as part of CI.
 - [x] Storage bucket policies scoped to business — photo access requires job ownership (migration 23)
 - [x] `send-push` Netlify Function requires auth + same-business check
 - [x] HTTP security headers (HSTS, nosniff, frame-deny, referrer, permissions) in `netlify.toml`
+- [x] Content-Security-Policy with strict `script-src 'self'` (defends against XSS-driven JWT theft)
 - [ ] Configure SMTP provider in Supabase Auth settings *(near-launch — needs prod domain)*
 - [ ] Review Supabase Auth rate limit settings *(near-launch — Supabase Dashboard config)*
 - [ ] Encrypt Xero tokens when integration is built *(blocked on Phase 4)*
@@ -160,4 +197,4 @@ Use Supabase's `pgTAP` testing framework to automate these checks as part of CI.
 - [ ] Add "Delete customer" flow with data anonymisation *(GDPR right-to-erasure — needs a focused build session)*
 - [ ] Run formal RLS audit before multi-client launch *(pgTAP test suite — defer until second client onboards)*
 - [ ] Consider MFA for master users *(needs Supabase plan that supports it)*
-- [ ] Add Content-Security-Policy *(defer until after Stripe lands so the third-party allowlist is stable)*
+- [ ] Update CSP when Stripe lands — add `https://js.stripe.com` to `script-src`/`frame-src` and `https://api.stripe.com` to `connect-src`
