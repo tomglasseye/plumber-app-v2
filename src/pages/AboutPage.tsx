@@ -125,10 +125,10 @@ export function AboutPage() {
 					<span className="text-amber-500">One calendar.</span>
 				</h1>
 				<p className="text-lg text-neutral-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-					HiveQ is built for any trade business with a team out in
-					the field — plumbers, electricians, builders, HVAC, and
-					more. Schedule jobs, manage your crew, and invoice without
-					the spreadsheet chaos.
+					HiveQ is built for any trade business with a team out in the
+					field — plumbers, electricians, builders, HVAC, and more.
+					Schedule jobs, manage your crew, and invoice without the
+					spreadsheet chaos.
 				</p>
 				<div className="flex items-center justify-center gap-4 flex-wrap">
 					<a
@@ -296,16 +296,16 @@ export function AboutPage() {
 										</li>
 									))}
 								</ul>
-							<a
-								href="mailto:contacthiveq@gmail.com"
-								className={`w-full rounded-xl py-3 text-sm font-medium transition-colors text-center block no-underline ${
-									plan.highlight
-										? "bg-amber-600 hover:bg-amber-500 text-white"
-										: "border border-neutral-700 hover:border-neutral-500 text-neutral-300 bg-transparent"
-								}`}
-							>
-								Contact us →
-							</a>
+								<a
+									href="mailto:contacthiveq@gmail.com"
+									className={`w-full rounded-xl py-3 text-sm font-medium transition-colors text-center block no-underline ${
+										plan.highlight
+											? "bg-amber-600 hover:bg-amber-500 text-white"
+											: "border border-neutral-700 hover:border-neutral-500 text-neutral-300 bg-transparent"
+									}`}
+								>
+									Contact us →
+								</a>
 							</div>
 						))}
 					</div>
