@@ -131,12 +131,12 @@ export function AboutPage() {
 					the spreadsheet chaos.
 				</p>
 				<div className="flex items-center justify-center gap-4 flex-wrap">
-					<button
-						onClick={() => navigate("/login")}
-						className="rounded-xl bg-amber-600 hover:bg-amber-500 transition-colors px-7 py-3.5 text-base font-medium text-white cursor-pointer"
+					<a
+						href="mailto:contacthiveq@gmail.com"
+						className="rounded-xl bg-amber-600 hover:bg-amber-500 transition-colors px-7 py-3.5 text-base font-medium text-white no-underline"
 					>
-						Get started →
-					</button>
+						Contact us →
+					</a>
 					<a
 						href="#pricing"
 						className="rounded-xl border border-neutral-700 hover:border-neutral-500 transition-colors px-7 py-3.5 text-base text-neutral-300 no-underline"
@@ -296,16 +296,16 @@ export function AboutPage() {
 										</li>
 									))}
 								</ul>
-								<button
-									onClick={() => navigate("/login")}
-									className={`w-full rounded-xl py-3 text-sm font-medium transition-colors cursor-pointer ${
-										plan.highlight
-											? "bg-amber-600 hover:bg-amber-500 text-white"
-											: "border border-neutral-700 hover:border-neutral-500 text-neutral-300 bg-transparent"
-									}`}
-								>
-									Get started →
-								</button>
+							<a
+								href="mailto:contacthiveq@gmail.com"
+								className={`w-full rounded-xl py-3 text-sm font-medium transition-colors text-center block no-underline ${
+									plan.highlight
+										? "bg-amber-600 hover:bg-amber-500 text-white"
+										: "border border-neutral-700 hover:border-neutral-500 text-neutral-300 bg-transparent"
+								}`}
+							>
+								Contact us →
+							</a>
 							</div>
 						))}
 					</div>
