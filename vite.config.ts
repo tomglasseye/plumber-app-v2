@@ -49,13 +49,16 @@ export default defineConfig({
 							networkTimeoutSeconds: 5,
 						},
 					},
+					// Each method gets its own BackgroundSync queue. Workbox
+					// requires unique queue names per page; sharing one across
+					// POST/PATCH/DELETE throws duplicate-queue-name on SW load.
 					{
 						urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
 						handler: "NetworkOnly",
 						method: "POST",
 						options: {
 							backgroundSync: {
-								name: "supabase-mutations",
+								name: "supabase-mutations-post",
 								options: { maxRetentionTime: 24 * 60 },
 							},
 						},
@@ -66,7 +69,7 @@ export default defineConfig({
 						method: "PATCH",
 						options: {
 							backgroundSync: {
-								name: "supabase-mutations",
+								name: "supabase-mutations-patch",
 								options: { maxRetentionTime: 24 * 60 },
 							},
 						},
@@ -77,7 +80,7 @@ export default defineConfig({
 						method: "DELETE",
 						options: {
 							backgroundSync: {
-								name: "supabase-mutations",
+								name: "supabase-mutations-delete",
 								options: { maxRetentionTime: 24 * 60 },
 							},
 						},

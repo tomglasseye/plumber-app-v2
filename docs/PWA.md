@@ -59,14 +59,16 @@ Mutations sent while offline are queued by the **service worker** using Workbox'
 Configured in `vite.config.ts`:
 
 ```ts
-// One route per HTTP write method — Workbox routes are method-specific.
+// One route per HTTP write method — Workbox routes are method-specific,
+// and each method needs its own queue name (Workbox throws
+// duplicate-queue-name if two BackgroundSyncPlugins share one).
 {
   urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
   handler: "NetworkOnly",
-  method: "POST",   // also PATCH and DELETE — three identical routes
+  method: "POST",   // also PATCH and DELETE — three near-identical routes
   options: {
     backgroundSync: {
-      name: "supabase-mutations",
+      name: "supabase-mutations-post", // -patch / -delete on the others
       options: { maxRetentionTime: 24 * 60 }, // minutes — drop after 24h
     },
   },
