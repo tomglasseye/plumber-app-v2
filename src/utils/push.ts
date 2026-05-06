@@ -36,12 +36,18 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
 	const auth = subscription.getKey("auth");
 	if (!p256dh || !auth) return false;
 
-	await supabase.from("push_subscriptions").upsert({
-		user_id: userId,
-		endpoint: subscription.endpoint,
-		p256dh: btoa(String.fromCharCode(...new Uint8Array(p256dh))),
-		auth: btoa(String.fromCharCode(...new Uint8Array(auth))),
-	});
+	// The table has UNIQUE(user_id, endpoint); without onConflict, upsert
+	// targets the primary key (id) and we'd insert duplicate rows that fail
+	// the composite unique with a 409.
+	await supabase.from("push_subscriptions").upsert(
+		{
+			user_id: userId,
+			endpoint: subscription.endpoint,
+			p256dh: btoa(String.fromCharCode(...new Uint8Array(p256dh))),
+			auth: btoa(String.fromCharCode(...new Uint8Array(auth))),
+		},
+		{ onConflict: "user_id,endpoint" },
+	);
 
 	return true;
 }
