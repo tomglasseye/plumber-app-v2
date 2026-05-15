@@ -18,7 +18,12 @@
       "Bash(ls supabase/migrations)",
       "Bash(ls migrations *)",
       "Bash(find . -maxdepth 4 -path ./node_modules -prune -o -name \"*push_subscriptions*\" -print)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(Select-String -Pattern \"xero\" -List -AllMatches)",
+      "Bash(ls \"C:\\\\Users\\\\smkgl\\\\.claude\\\\plans\" 2>&1 || echo \"Plans directory does not yet exist\")",
+      "Read(//c/Users/smkgl/.claude/plans/**)",
+      "PowerShell(Get-Process git -ErrorAction SilentlyContinue)",
+      "PowerShell($lock = \"C:\\\\Users\\\\smkgl\\\\Documents\\\\LocalSites\\\\plumber-app-v2\\\\.git\\\\index.lock\"; if \\(Test-Path $lock\\) { Remove-Item $lock -Force; \"Removed $lock\" } else { \"No lock file present\" })"
     ]
   }
 }

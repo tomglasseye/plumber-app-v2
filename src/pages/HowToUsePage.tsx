@@ -39,7 +39,7 @@ const MASTER_SECTIONS = [
 		steps: [
 			"When an engineer marks a job Completed, it shows up on your calendar with a completed badge.",
 			"Open the job, review the engineer's notes & photos, then tap Ready to Invoice.",
-			"If Xero integration is enabled, the job is sent as a draft invoice automatically — no double-entry.",
+			"If accounting integration is enabled (Xero or QuickBooks), the job is sent as a draft invoice automatically — no double-entry.",
 		],
 	},
 	{
@@ -48,7 +48,7 @@ const MASTER_SECTIONS = [
 		steps: [
 			"Go to Team to see all engineers and their roles.",
 			"Use the Holidays page to view, approve, or decline time-off requests.",
-			"Account settings let you configure business hours, accent colour, and Xero connection.",
+			"Account settings let you configure business hours, accent colour, and your accounting connection (Xero or QuickBooks).",
 		],
 	},
 ];

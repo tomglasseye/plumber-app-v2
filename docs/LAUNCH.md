@@ -13,7 +13,7 @@ This doc is the single source of truth for going live. Other docs cover the *how
 | 1 | Internal staging on Netlify URL | Now | This doc |
 | 2 | Client testing on Netlify URL | First 1–2 clients | This doc |
 | 3 | Custom domain + production hardening | Before public launch | This doc |
-| 4 | Xero integration rollout | Per-client, after they're stable on the app | [XERO.md](XERO.md) |
+| 4 | Accounting integration rollout (Xero + QuickBooks) | Per-client, after they're stable on the app | [ACCOUNTING.md](ACCOUNTING.md) |
 | 5 | Stripe billing — recurring subscriptions for clients using the app | Before charging anyone | This doc |
 | 6 | Scale-up — additional clients onboarded | Ongoing | [SUPERADMIN.md](SUPERADMIN.md) |
 
@@ -150,32 +150,68 @@ Run through [SECURITY.md](SECURITY.md) before going public:
 
 ---
 
-## Phase 4 — Xero integration rollout
+## Phase 4 — Accounting integration rollout (Xero + QuickBooks Online)
 
-**Don't do this until at least one client is stable on the app for a week or two.** Xero adds OAuth complexity, token refresh edge cases, and per-client config. Trying to debug both at once is painful.
+**Don't do this until at least one client is stable on the app for a week or two.** Accounting integration adds OAuth complexity, token refresh edge cases, webhook handling, and per-client config. Trying to debug app stability and accounting integration at once is painful.
 
-Order of operations once a client is ready:
+**Key concept:** You create ONE Xero developer app AND ONE Intuit (QuickBooks) developer app — one-time setup. Each client then independently picks Xero **or** QuickBooks and connects their own accounting organisation. The app uses a provider abstraction so dispatcher code is provider-agnostic. See [ACCOUNTING.md](ACCOUNTING.md) for the full architecture, interface contract, and per-provider quirks.
 
-1. **Build the integration** — follow [XERO.md](XERO.md) sections 1–3 (developer app, OAuth callback, invoice function) and section 7 (contact sync)
-2. **Test in the Xero demo company** — Xero provides a sandbox org you can connect to before going live
-3. **Verify the schema additions are migrated** in production Supabase:
-   - `xero_access_token`, `xero_refresh_token`, `xero_token_expires_at`, `xero_tenant_id` on `businesses`
-   - `xero_account_code`, `xero_tax_type`, `xero_hourly_rate`, `xero_due_days` on `businesses`
-   - `xero_contact_id` on `customers`
-4. **Per-client onboarding flow:**
-   - Master clicks "Connect to Xero" in Account Settings
-   - Goes through OAuth — first connect runs the contact import (section 7a in XERO.md)
-   - Master sets their `xero_account_code`, `xero_tax_type`, `xero_hourly_rate` to match their chart of accounts
-   - Test by completing one job and clicking "Send to Xero" — verify draft invoice appears in their Xero org
-5. **Sign-off** — get the client to confirm the draft invoice looks correct before they approve it in Xero
+**Estimated effort:** ~16 focused dev days (~125 hours) to build both providers + all launch-readiness features (disconnect/de-auth, retry, audit logging, invoice void, payment status webhooks, AES-GCM token encryption, Stripe billing gate).
 
-### Xero env vars to add to Netlify
+### ONE-TIME SETUP (before any client connects)
+
+1. **Developer apps**
+   - Create Xero developer app at [developer.xero.com](https://developer.xero.com)
+   - Create Intuit developer app at [developer.intuit.com](https://developer.intuit.com)
+   - Register webhook URLs in both dashboards (`https://yourdomain.com/.netlify/functions/accounting-webhook-{xero|qbo}`)
+2. **Env vars** — see the Phase 4 table further down; includes `ACCOUNTING_ENCRYPTION_KEY` (generate with `openssl rand -hex 32`)
+3. **Migration 25** — adds generic `accounting_*` columns to `businesses`, `customers.accounting_contact_id`, `jobs.accounting_invoice_id`/`_status`/`_last_error`, plus a `webhook_events` table. Drops the original Xero stub columns (no production data behind them).
+4. **Build the integration** — follow [ACCOUNTING.md](ACCOUNTING.md) build order:
+   1. Migration 25 schema
+   2. `_accounting/types.ts` + `token-store.ts` (AES-GCM) + `audit.ts` + `billing-gate.ts`
+   3. `XeroProvider` end-to-end + dispatcher functions + frontend Accounting tab
+   4. **Pause: test Xero with one real client for 1–2 weeks** before adding QBO — validates the abstraction
+   5. `QboProvider` + Item bootstrap + frontend QBO-specific fields
+   6. Webhook ingestion (both providers) + paid status badges
+   7. Disconnect flow + reconnect banner + de-auth detection
+   8. Void flow on job revert
+5. **Sandbox testing** — Xero demo company + QBO sandbox. Each end-to-end scenario in [ACCOUNTING.md](ACCOUNTING.md) section 11 must pass before any real client connects.
+
+### PER-CLIENT ONBOARDING (repeat for each business)
+
+1. **Client master goes to Account Settings → Accounting tab** and picks their provider (Xero or QuickBooks)
+2. **Clicks "Connect to {Provider}"** — completes OAuth in their own accounting org
+3. **VAT/tax onboarding prompt** — app asks "Are you VAT registered?" and sets `accounting_tax_code` accordingly. Defaulting to 20% VAT would be wrong for non-VAT-registered trades, so this is explicit.
+4. **For QBO clients only:** the app auto-creates "Labour" and "Materials" Service Items in their QuickBooks. They can rename in QBO afterwards.
+5. **Master sets hourly rate and due days** in the settings form
+6. **Test invoice:** complete a small job → click "Send to {Provider}" → verify draft invoice appears in their accounting system
+7. **Sign-off** — client confirms the draft looks correct before approving it in their accounting system
+
+### Phase 4 env vars to add to Netlify
+
+These are your developer app credentials — set once, not per-client. See [ACCOUNTING.md](ACCOUNTING.md) section 10 for the full list with descriptions.
 
 ```
+# Xero (one-time, your developer app)
 XERO_CLIENT_ID=
-XERO_CLIENT_SECRET=
+XERO_CLIENT_SECRET=                       ← server-only, NEVER expose
 XERO_REDIRECT_URI=https://yourdomain.com/account
+XERO_WEBHOOK_KEY=
+VITE_XERO_CLIENT_ID=
+VITE_XERO_REDIRECT_URI=https://yourdomain.com/account
+
+# QuickBooks (one-time, your Intuit developer app)
+INTUIT_CLIENT_ID=
+INTUIT_CLIENT_SECRET=                     ← server-only
+INTUIT_REDIRECT_URI=https://yourdomain.com/account
+INTUIT_ENVIRONMENT=production
+INTUIT_WEBHOOK_VERIFIER=
+VITE_INTUIT_CLIENT_ID=
+VITE_INTUIT_REDIRECT_URI=https://yourdomain.com/account
+
+# Shared
 APP_URL=https://yourdomain.com
+ACCOUNTING_ENCRYPTION_KEY=                ← 32-byte hex, generate once: openssl rand -hex 32
 ```
 
 ---
@@ -207,7 +243,7 @@ Things that get harder with more clients:
 
 - **SMTP volume** — track usage, upgrade plan if approaching limit
 - **Supabase row count** — free tier is 500 MB; jobs accumulate fast with photos. Move to Pro ($25/mo) before hitting it
-- **Netlify Functions** — free tier is 125k invocations/month and 100 hours of compute. Push notifications and Xero invoicing add up
+- **Netlify Functions** — free tier is 125k invocations/month and 100 hours of compute. Push notifications, accounting invoicing, and webhook handling add up
 - **Audit log retention** — `audit_log` will grow indefinitely. Add a `pg_cron` job to archive/delete entries older than (say) 2 years
 
 ---
@@ -248,15 +284,25 @@ Everything that should be set in Netlify before going live. Variables prefixed `
 | `STRIPE_PRICE_PRO_MONTHLY`     | Stripe Price (Pro £159/mo)           |
 | `STRIPE_PRICE_PRO_ANNUAL`      | Stripe Price (Pro annual)            |
 
-### Required for Phase 4 (Xero)
+### Required for Phase 4 (Accounting — Xero + QuickBooks)
 
-| Variable             | Source                              |
-| -------------------- | ----------------------------------- |
-| `XERO_CLIENT_ID`     | Xero developer app                  |
-| `XERO_CLIENT_SECRET` | Xero developer app — server-only    |
-| `XERO_REDIRECT_URI`  | `https://yourdomain.com/account`    |
-| `VITE_XERO_CLIENT_ID` | Same as `XERO_CLIENT_ID` (browser uses this to build the auth URL) |
-| `VITE_XERO_REDIRECT_URI` | Same as `XERO_REDIRECT_URI`     |
+| Variable                      | Source                                                                 | Scope   |
+| ----------------------------- | ---------------------------------------------------------------------- | ------- |
+| `XERO_CLIENT_ID`              | Xero developer app                                                     | Server  |
+| `XERO_CLIENT_SECRET`          | Xero developer app — **NEVER expose to browser**                       | Server  |
+| `XERO_REDIRECT_URI`           | `https://yourdomain.com/account` (must match Xero app)                 | Server  |
+| `XERO_WEBHOOK_KEY`            | Xero webhook signing key (HMAC verification)                           | Server  |
+| `VITE_XERO_CLIENT_ID`         | Same as `XERO_CLIENT_ID` (browser uses for OAuth URL)                  | Browser |
+| `VITE_XERO_REDIRECT_URI`      | Same as `XERO_REDIRECT_URI`                                            | Browser |
+| `INTUIT_CLIENT_ID`            | Intuit developer app (QuickBooks)                                      | Server  |
+| `INTUIT_CLIENT_SECRET`        | Intuit developer app — **NEVER expose to browser**                     | Server  |
+| `INTUIT_REDIRECT_URI`         | `https://yourdomain.com/account` (must match Intuit app)               | Server  |
+| `INTUIT_ENVIRONMENT`          | `sandbox` or `production`                                              | Server  |
+| `INTUIT_WEBHOOK_VERIFIER`     | Intuit webhook verifier token (HMAC verification)                      | Server  |
+| `VITE_INTUIT_CLIENT_ID`       | Same as `INTUIT_CLIENT_ID`                                             | Browser |
+| `VITE_INTUIT_REDIRECT_URI`    | Same as `INTUIT_REDIRECT_URI`                                          | Browser |
+| `APP_URL`                     | `https://yourdomain.com` (for invoice "view job" deep-links)           | Server  |
+| `ACCOUNTING_ENCRYPTION_KEY`   | 32-byte hex — `openssl rand -hex 32`. **Losing this forces all clients to reconnect.** | Server  |
 
 ---
 
@@ -283,11 +329,28 @@ A single page to print/screenshot before announcing the app:
 - [ ] At least one super admin exists, no extras
 - [ ] RLS smoke-tested with two businesses
 
-**Xero (if applicable for the client)**
-- [ ] Xero developer app created and configured with custom-domain redirect
-- [ ] Tested with Xero demo company
-- [ ] Client's `xero_account_code`, `xero_tax_type`, `xero_hourly_rate` set
-- [ ] Test invoice raised and verified in their Xero org
+**Accounting integration (one-time setup + per-client onboarding)**
+
+One-time:
+- [ ] Xero developer app created at developer.xero.com with custom-domain redirect + webhook URL
+- [ ] Intuit developer app created at developer.intuit.com with custom-domain redirect + webhook URL
+- [ ] `ACCOUNTING_ENCRYPTION_KEY` generated (`openssl rand -hex 32`) and set in Netlify (and BACKED UP securely — losing it forces all clients to reconnect)
+- [ ] Migration 25 run in production Supabase
+- [ ] Netlify Functions built: `_accounting/` shared module (types, factory, token-store, audit, billing-gate), `XeroProvider`, `QboProvider`, dispatchers (callback, create-invoice, create-contact, disconnect, void-invoice), webhooks (xero, qbo)
+- [ ] Accounting tab UI added to Account Settings (provider picker + post-OAuth tax prompt + disconnect button)
+- [ ] Send Invoice button on JobDetailPage handles billing gate, validation, retry, paid badge
+- [ ] Reconnect banner on DashboardPage detects external de-auth
+- [ ] DB inspection confirms tokens stored as encrypted ciphertext, not plaintext
+- [ ] Tested end-to-end with Xero demo company (OAuth, send, void, paid webhook, disconnect)
+- [ ] Tested end-to-end with QBO sandbox (OAuth, Item bootstrap, send, void, paid webhook, disconnect)
+- [ ] Cross-leak test: Business A's session cannot read Business B's tokens
+
+Per-client:
+- [ ] Client picked their provider (Xero or QuickBooks)
+- [ ] Client completed OAuth + tax-registration prompt
+- [ ] Client confirmed hourly rate and due days
+- [ ] Test invoice raised and verified in their accounting system
+- [ ] Client signed off on the draft invoice format
 
 ---
 
@@ -296,6 +359,14 @@ A single page to print/screenshot before announcing the app:
 - **Build fails on Netlify** — check the build log for TS errors. Common cause: unused locals (TS6133)
 - **Login fails on production but works locally** — almost always a Supabase URL Configuration issue, double-check Site URL and Redirect URLs
 - **Push notifications stop working** — VAPID keys must match between Netlify env vars and client; if rotated, all subscriptions become invalid and need re-subscribing
-- **Xero token rejected** — likely token expired and refresh failed. Check `xero_token_expires_at` and that `xero-create-invoice` is calling `getValidToken()` first
-- **Client says "I added a customer in Xero, it's not in the app"** — current sync is one-way (app → Xero). See section 7c of XERO.md for the polling option
+- **Accounting token rejected (401)** — token expired and refresh failed. Check `accounting_token_expires_at` and that `accounting-create-invoice` is calling `getValidToken()` first. For QBO specifically: if the refresh token was used but the new one wasn't persisted (crash mid-refresh), the client must re-OAuth.
+- **`ACCOUNTING_ENCRYPTION_KEY` missing or wrong** — `decryptToken()` throws and all invoice sends fail for all clients. Recover by restoring the env var from backup; if truly lost, all clients must re-OAuth.
+- **Invoice posts to wrong account** — check that `accounting-create-invoice` is fetching the client's `accounting_revenue_account` and `accounting_tax_code` from the database instead of hardcoding. Each client has different setups.
+- **QBO invoice fails with "Item not found"** — client deleted the Labour/Materials Service Item in QBO. Re-run `bootstrapDefaults()` to recreate; update `accounting_revenue_account`/`accounting_materials_account` with new IDs.
+- **QBO invoice has wrong/no tax** — US Automated Sales Tax conflicts with explicit `TaxCodeRef`. Check `Preferences.TaxPreferences.UsingSalesTax`; if true, omit `TaxCodeRef` entirely.
+- **Webhook signature mismatch** — `XERO_WEBHOOK_KEY` or `INTUIT_WEBHOOK_VERIFIER` doesn't match the dashboard. Re-copy from the provider's developer portal.
+- **Invoice gated by billing** — `subscription_status` is `past_due` or `canceled` past `current_period_end`. Resolve via Stripe Customer Portal; see [STRIPE.md](STRIPE.md).
+- **Client says "Reconnect to Xero/QuickBooks" banner appeared** — they (or someone in their org) revoked the app from inside their accounting system. Walk them through reconnecting; tokens are now invalid.
+- **Client switches accounting orgs, invoices land on wrong contacts** — check that `accounting-callback` is detecting tenant/realm switch and clearing `accounting_contact_id` values for that business.
+- **Client says "I added a customer in Xero/QBO, it's not in the app"** — current sync is one-way (app → provider). Reverse sync is out of scope for v1; see [ACCOUNTING.md](ACCOUNTING.md) section 12.
 - **Stripe issues (webhooks not firing, stuck subscriptions, plan column not updating)** — see the troubleshooting section in [STRIPE.md](STRIPE.md)

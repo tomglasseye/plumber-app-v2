@@ -326,6 +326,20 @@ When `subscription_status` is `past_due`, `canceled`, `unpaid`, or `incomplete_e
 
 The SMS features (see [SMS.md](SMS.md)) check `business.plan === 'pro'` before showing the "Send SMS" UI or letting the SMS Netlify Function fire. Starter clients see an upsell card on the SMS settings page.
 
+### Accounting integration billing gate
+
+The accounting integration ([ACCOUNTING.md](ACCOUNTING.md)) reads the same `subscription_status` + `current_period_end` fields to block invoice sends for delinquent accounts. Specifically, `netlify/functions/_accounting/billing-gate.ts` exposes `assertBillingActive(businessId)` which the `accounting-create-invoice` function calls before any provider API call.
+
+The contract:
+- `trialing`, `active` → allow invoicing
+- `past_due` with `current_period_end` still in the future → allow (Stripe is mid-retry)
+- `past_due` / `canceled` / `unpaid` / `incomplete_expired` with `current_period_end` in the past → **block** with `BILLING_GATED` error
+- `null` (no subscription) → block
+
+This is the same logic as the full access gate (section above) — kept consistent so a client who can use the app at all can also invoice. The frontend reads the same fields to disable the Send Invoice button with a tooltip ("Resolve billing to enable invoicing").
+
+**Why this matters:** without the gate, a client who stops paying could continue to use Xero/QBO invoicing indefinitely (the OAuth tokens stay valid). The gate keeps invoicing power aligned with subscription state.
+
 ---
 
 ## 5. Testing

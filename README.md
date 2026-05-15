@@ -177,8 +177,8 @@ The database schema supports **multi-client** via `business_id` on every table w
 
 ## Still to build
 
-| Priority | Feature                          | Detail                                    |
-| -------- | -------------------------------- | ----------------------------------------- |
-| 1        | Xero API integration             | [docs/XERO.md](docs/XERO.md)             |
-| 2        | SMS notifications to customers   | [docs/SMS.md](docs/SMS.md)               |
-| 3        | PWA background sync              | Workbox BackgroundSync for offline writes |
+| Priority | Feature                                       | Detail                                         |
+| -------- | --------------------------------------------- | ---------------------------------------------- |
+| 1        | Accounting integration (Xero + QuickBooks)    | [docs/ACCOUNTING.md](docs/ACCOUNTING.md)       |
+| 2        | SMS notifications to customers                | [docs/SMS.md](docs/SMS.md)                     |
+| 3        | PWA background sync                           | Workbox BackgroundSync for offline writes      |

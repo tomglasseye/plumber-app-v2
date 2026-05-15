@@ -38,14 +38,62 @@ For higher security:
 
 ---
 
-## Xero Token Encryption
+## Accounting Token Encryption & Multi-Client Isolation
 
-When the Xero integration is built, OAuth tokens (`xero_access_token`, `xero_refresh_token`) will be stored in the `businesses` table. These grant full access to each client's Xero accounting data.
+When the accounting integration is built ([ACCOUNTING.md](ACCOUNTING.md)), OAuth tokens for Xero and QuickBooks (`accounting_access_token`, `accounting_refresh_token`) are stored in the `businesses` table. These grant full access to each client's accounting data — invoice creation, contact records, chart of accounts. In a multi-client environment, strict isolation is critical: Dave's token must never be accessible to Sarah's app session, and a database breach must not yield plaintext OAuth tokens.
 
-### Recommendation
-- **Supabase Vault** (paid plan): Use `vault.create_secret()` to store tokens encrypted at rest with application-layer encryption keys. Decrypt in Netlify Functions only.
-- **Application-layer encryption** (free plan): Encrypt tokens in the Netlify Function before storing, decrypt before use. Use a `XERO_ENCRYPTION_KEY` Netlify env var with AES-256-GCM.
-- **Never expose tokens to the browser** — all Xero API calls go through Netlify Functions using the service role key.
+### Multi-client isolation
+- Each business stores its own `accounting_tenant_id` (Xero tenant ID or QBO realm ID, indexed unique per provider so the same Xero org can't be claimed by two businesses)
+- RLS policies on the `businesses` table ensure a user can only access their own business's row
+- Netlify Functions fetch tokens via the Supabase **service role key**, which bypasses RLS but is server-only — tokens never touch the browser
+- Each `accounting-create-invoice` call validates `businessId` matches the requesting user's business before fetching tokens
+- All `accounting_*` API calls go through Netlify Functions; the browser never sees a bearer token
+
+### Token encryption — AES-256-GCM at the application layer
+
+Tokens are encrypted before being written to the database, using an `ACCOUNTING_ENCRYPTION_KEY` Netlify env var (32-byte hex, generated once via `openssl rand -hex 32`). This means even a full database leak does not yield usable tokens.
+
+Implemented in `netlify/functions/_accounting/token-store.ts`:
+
+```ts
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+const KEY = Buffer.from(process.env.ACCOUNTING_ENCRYPTION_KEY!, "hex");
+
+export function encryptToken(plaintext: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", KEY, iv);
+  const enc = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, enc]).toString("base64");  // iv || authTag || ciphertext
+}
+
+export function decryptToken(ciphertext: string): string {
+  const buf = Buffer.from(ciphertext, "base64");
+  const iv = buf.subarray(0, 12);
+  const tag = buf.subarray(12, 28);
+  const enc = buf.subarray(28);
+  const decipher = createDecipheriv("aes-256-gcm", KEY, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(enc), decipher.final()]).toString("utf8");
+}
+```
+
+### Key management
+- **`ACCOUNTING_ENCRYPTION_KEY` must be backed up securely** — losing it means every client must re-OAuth (acceptable but disruptive failure mode)
+- **Key rotation:** to rotate, run a one-off migration in a maintenance window that decrypts all tokens with the old key and re-encrypts with the new key. Keep both keys live during the window.
+- **Never expose the key to the browser** — server-only Netlify env var, never `VITE_` prefixed
+- **Never log decrypted tokens** — no `console.log(accessToken)` anywhere in functions
+
+### QBO refresh token rotation safety
+QuickBooks rotates the refresh token on every refresh — the old one is invalidated immediately on success. `getValidToken()` must **persist the new refresh token before using the new access token** so a crash mid-refresh doesn't leave the client with no valid refresh token. See [ACCOUNTING.md](ACCOUNTING.md) section 4b for the implementation.
+
+### Webhook signature verification
+Inbound webhooks from Xero and Intuit must be verified before any DB mutation:
+- Xero: HMAC-SHA256 of the raw body with `XERO_WEBHOOK_KEY`, compared to the `x-xero-signature` header
+- Intuit: HMAC-SHA256 of the raw body with `INTUIT_WEBHOOK_VERIFIER`, compared to the `intuit-signature` header
+- Replay protection via a `webhook_events(provider, event_id)` unique-keyed table — duplicates are ignored
+
+Without signature verification, anyone could POST to the webhook URL and mark arbitrary invoices as paid.
 
 ---
 

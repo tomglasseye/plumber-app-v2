@@ -28,8 +28,8 @@ const FEATURES = [
 	},
 	{
 		icon: "💷",
-		title: "Xero Integration",
-		desc: "When a job is marked final-complete, send it straight to Xero as a draft invoice. No double-entry, no chasing paperwork — just one tap to bill.",
+		title: "Xero & QuickBooks Integration",
+		desc: "When a job is marked final-complete, send it straight to Xero or QuickBooks as a draft invoice. No double-entry, no chasing paperwork — just one tap to bill.",
 	},
 	{
 		icon: "📱",
@@ -54,7 +54,7 @@ const PLANS = [
 			"Full calendar & scheduling",
 			"Job management & tracking",
 			"Customer database",
-			"Xero invoicing integration",
+			"Xero & QuickBooks invoicing",
 			"Per-engineer day columns",
 			"Holiday & absence management",
 			"Mobile-ready for engineers",
@@ -152,7 +152,7 @@ export function AboutPage() {
 					<div className="flex flex-wrap justify-center gap-6 text-xs text-neutral-600 uppercase tracking-widest">
 						{[
 							"Drag & drop scheduling",
-							"Xero integration",
+							"Xero & QuickBooks",
 							"Per-engineer views",
 							"Real-time notifications",
 							"Mobile ready",
@@ -219,7 +219,7 @@ export function AboutPage() {
 							{
 								step: "03",
 								title: "Invoice without the admin",
-								body: "When you approve a completed job it goes straight to Xero as a draft invoice. One tap, no copy-pasting — your books stay up to date automatically.",
+								body: "When you approve a completed job it goes straight to Xero or QuickBooks as a draft invoice. One tap, no copy-pasting — your books stay up to date automatically.",
 							},
 						].map((s) => (
 							<div key={s.step} className="flex gap-5">
