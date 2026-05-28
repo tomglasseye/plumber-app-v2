@@ -436,7 +436,7 @@ function CategoriesPanel({ accent }: { accent: string }) {
 	const inputClass =
 		"w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-neutral-500";
 
-	function CategoryForm() {
+	function renderCategoryForm() {
 		return (
 			<div className="rounded-xl border border-neutral-700 bg-neutral-800/60 p-4 space-y-3">
 				<div>
@@ -578,7 +578,7 @@ function CategoriesPanel({ accent }: { accent: string }) {
 				)}
 			</div>
 
-			{showNew && <CategoryForm />}
+			{showNew && renderCategoryForm()}
 
 			{categories.length === 0 && !showNew ? (
 				<div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-neutral-700 py-12 text-center">
@@ -597,7 +597,7 @@ function CategoriesPanel({ accent }: { accent: string }) {
 					{categories.map((cat) => (
 						<div key={cat.id}>
 							{editingId === cat.id ? (
-								<CategoryForm />
+								renderCategoryForm()
 							) : (
 								<div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
 									<div
