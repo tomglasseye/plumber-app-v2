@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import {
 	Navigate,
 	Route,
@@ -12,19 +12,46 @@ import { PushBanner } from "./components/PushBanner";
 import { Sidebar } from "./components/Sidebar";
 import { IosInstallPrompt } from "./components/IosInstallPrompt";
 import { OfflineBanner } from "./components/OfflineBanner";
-import { AccountPage } from "./pages/AccountPage";
-import { AdminPage } from "./pages/AdminPage";
-import { CalendarPage } from "./pages/CalendarPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { JobDetailPage } from "./pages/JobDetailPage";
-import { LoginPage } from "./pages/LoginPage";
-import { MyDayPage } from "./pages/MyDayPage";
-import { NewJobPage } from "./pages/NewJobPage";
-import { TeamPage } from "./pages/TeamPage";
-import { CustomersPage } from "./pages/CustomersPage";
-import { HolidaysPage } from "./pages/HolidaysPage";
-import { HowToUsePage } from "./pages/HowToUsePage";
-import { AboutPage } from "./pages/AboutPage";
+
+const AccountPage = lazy(() =>
+	import("./pages/AccountPage").then((m) => ({ default: m.AccountPage })),
+);
+const AdminPage = lazy(() =>
+	import("./pages/AdminPage").then((m) => ({ default: m.AdminPage })),
+);
+const CalendarPage = lazy(() =>
+	import("./pages/CalendarPage").then((m) => ({ default: m.CalendarPage })),
+);
+const DashboardPage = lazy(() =>
+	import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })),
+);
+const JobDetailPage = lazy(() =>
+	import("./pages/JobDetailPage").then((m) => ({ default: m.JobDetailPage })),
+);
+const LoginPage = lazy(() =>
+	import("./pages/LoginPage").then((m) => ({ default: m.LoginPage })),
+);
+const MyDayPage = lazy(() =>
+	import("./pages/MyDayPage").then((m) => ({ default: m.MyDayPage })),
+);
+const NewJobPage = lazy(() =>
+	import("./pages/NewJobPage").then((m) => ({ default: m.NewJobPage })),
+);
+const TeamPage = lazy(() =>
+	import("./pages/TeamPage").then((m) => ({ default: m.TeamPage })),
+);
+const CustomersPage = lazy(() =>
+	import("./pages/CustomersPage").then((m) => ({ default: m.CustomersPage })),
+);
+const HolidaysPage = lazy(() =>
+	import("./pages/HolidaysPage").then((m) => ({ default: m.HolidaysPage })),
+);
+const HowToUsePage = lazy(() =>
+	import("./pages/HowToUsePage").then((m) => ({ default: m.HowToUsePage })),
+);
+const AboutPage = lazy(() =>
+	import("./pages/AboutPage").then((m) => ({ default: m.AboutPage })),
+);
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
 	const { currentUser } = useApp();
@@ -83,11 +110,15 @@ export default function App() {
 	// Public routes (no auth required)
 	if (!currentUser) {
 		return (
-			<Routes>
-				<Route path="/" element={<AboutPage />} />
-				<Route path="/login" element={<LoginPage />} />
-				<Route path="*" element={<Navigate to="/" replace />} />
-			</Routes>
+			<Suspense
+				fallback={<div className="min-h-screen bg-neutral-950" />}
+			>
+				<Routes>
+					<Route path="/" element={<AboutPage />} />
+					<Route path="/login" element={<LoginPage />} />
+					<Route path="*" element={<Navigate to="/" replace />} />
+				</Routes>
+			</Suspense>
 		);
 	}
 
@@ -177,117 +208,123 @@ export default function App() {
 				</div>
 
 				<main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
-					<Routes>
-						<Route path="/login" element={<LoginPage />} />
-						<Route
-							path="/"
-							element={
-								<RequireAuth>
+					<Suspense
+						fallback={
+							<div className="min-h-screen bg-neutral-950" />
+						}
+					>
+						<Routes>
+							<Route path="/login" element={<LoginPage />} />
+							<Route
+								path="/"
+								element={
+									<RequireAuth>
+										<RequireClient>
+											<DashboardPage />
+										</RequireClient>
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/calendar"
+								element={
+									<RequireAuth>
+										<CalendarPage />
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/holidays"
+								element={
+									<RequireAuth>
+										<HolidaysPage />
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/job/:id"
+								element={
+									<RequireAuth>
+										<JobDetailPage />
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/my-day"
+								element={
+									<RequireAuth>
+										<MyDayPage />
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/new-job"
+								element={
+									<RequireAuth>
+										<RequireMaster>
+											<NewJobPage />
+										</RequireMaster>
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/customers"
+								element={
+									<RequireAuth>
+										<RequireMaster>
+											<CustomersPage />
+										</RequireMaster>
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/team"
+								element={
+									<RequireAuth>
+										<RequireMaster>
+											<TeamPage />
+										</RequireMaster>
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/account"
+								element={
+									<RequireAuth>
+										<RequireMaster>
+											<AccountPage />
+										</RequireMaster>
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/admin"
+								element={
+									<RequireAuth>
+										<RequireSuperAdmin>
+											<AdminPage />
+										</RequireSuperAdmin>
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/how-to-use"
+								element={
+									<RequireAuth>
+										<HowToUsePage />
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="*"
+								element={
 									<RequireClient>
-										<DashboardPage />
+										<Navigate to="/" replace />
 									</RequireClient>
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/calendar"
-							element={
-								<RequireAuth>
-									<CalendarPage />
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/holidays"
-							element={
-								<RequireAuth>
-									<HolidaysPage />
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/job/:id"
-							element={
-								<RequireAuth>
-									<JobDetailPage />
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/my-day"
-							element={
-								<RequireAuth>
-									<MyDayPage />
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/new-job"
-							element={
-								<RequireAuth>
-									<RequireMaster>
-										<NewJobPage />
-									</RequireMaster>
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/customers"
-							element={
-								<RequireAuth>
-									<RequireMaster>
-										<CustomersPage />
-									</RequireMaster>
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/team"
-							element={
-								<RequireAuth>
-									<RequireMaster>
-										<TeamPage />
-									</RequireMaster>
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/account"
-							element={
-								<RequireAuth>
-									<RequireMaster>
-										<AccountPage />
-									</RequireMaster>
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/admin"
-							element={
-								<RequireAuth>
-									<RequireSuperAdmin>
-										<AdminPage />
-									</RequireSuperAdmin>
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="/how-to-use"
-							element={
-								<RequireAuth>
-									<HowToUsePage />
-								</RequireAuth>
-							}
-						/>
-						<Route
-							path="*"
-							element={
-								<RequireClient>
-									<Navigate to="/" replace />
-								</RequireClient>
-							}
-						/>
-					</Routes>
+								}
+							/>
+						</Routes>
+					</Suspense>
 				</main>
 			</div>
 		</div>

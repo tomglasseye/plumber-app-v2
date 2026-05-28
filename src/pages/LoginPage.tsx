@@ -63,10 +63,18 @@ export function LoginPage() {
 			});
 			if (res.status === 429) {
 				const body = await res.json().catch(() => ({}));
-				return { blocked: true, message: body.message, reachable: true };
+				return {
+					blocked: true,
+					message: body.message,
+					reachable: true,
+				};
+			}
+			if (res.status === 404) {
+				// Function not deployed / not running locally — fail open.
+				return { blocked: false, reachable: false };
 			}
 			if (!res.ok) {
-				// Server error — fail closed so a misconfigured/erroring limiter
+				// Other server error — fail closed so a misconfigured limiter
 				// doesn't silently disable rate limiting in production.
 				return { blocked: true, reachable: true };
 			}
