@@ -54,14 +54,9 @@ Click any empty cell (month view) or any empty time slot (week/day view) to open
 
 You can also click the **+ New Job** button in the toolbar to open the panel without a pre-fill.
 
-### Touch vs mouse (week/day empty-slot handlers)
+### Slot times snap to the dropdown (30-min, 07:00–20:00)
 
-The empty-column handlers (`handleColumnPointerDown` in `DayColumn`, and the inline `onPointerDown` on Day-view engineer columns) branch on `e.pointerType`:
-
-- **Mouse** — full behaviour: a click opens the panel at that time; a vertical drag (≥8px) creates a job spanning the dragged time range (`onSlotDragCreate` / `openAddPanel`).
-- **Touch / pen** — **tap-to-add only**. The handler registers `pointerup`/`pointercancel` on `document` (via an `AbortController` signal) and opens the panel only for a near-stationary tap (<10px of movement). It deliberately does **not** `setPointerCapture` or `preventDefault`, so the time grid still scrolls normally. Drag-to-create is intentionally mouse-only — capturing the touch gesture would block grid scrolling.
-
-> Why not mouse events: mobile browsers only synthesise `mousemove`/`mouseup` *after* a tap and suppress them whenever a scroll is suspected, so the old mouse-listener approach made tap-to-add fire only intermittently. Real pointer events fire reliably on touch (the same reason job-block drags use `onPointerMove`/`onPointerUp` + `setPointerCapture`).
+Clicking/tapping or drag-creating an empty slot computes a time via `yToTime`, which **snaps to 30-minute steps and clamps to 07:00–20:00** (`SLOT_START_H` / `SLOT_END_H`). This must stay in sync with `TIME_OPTS` — the Time Slot `<select>` only has 30-minute options in that range. If `yToTime` returned an unsnapped time (e.g. :15 / :45) or one outside the range, the select would have **no matching `<option>` and render blank**. Both `yToTime` and `TIME_OPTS` share the `SLOT_START_H` / `SLOT_END_H` constants so they can't drift apart.
 
 Scroll position is preserved when opening and closing the panel. Because the inner view components (`DayView`, `WeekView`, `MonthView`) are defined as inner functions, any state change causes a remount — `openAddPanel` and `closePanel` save and restore `gridScrollRef.current.scrollTop` via `requestAnimationFrame`.
 

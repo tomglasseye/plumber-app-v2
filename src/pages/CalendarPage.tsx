@@ -26,6 +26,9 @@ import { useCalendarShortcuts } from "../hooks/useCalendarShortcuts";
 const HOUR_START = 5;
 const HOUR_END = 22;
 const HOUR_HEIGHT = 64; // px per hour
+// First/last selectable Time Slot hours — must match the TIME_OPTS dropdown.
+const SLOT_START_H = 7;
+const SLOT_END_H = 20;
 const HOURS = Array.from(
 	{ length: HOUR_END - HOUR_START },
 	(_, i) => HOUR_START + i,
@@ -48,8 +51,15 @@ function timeToY(t: string): number {
 
 function yToTime(y: number): string {
 	const rawMins = (y / HOUR_HEIGHT) * 60 + HOUR_START * 60;
-	const snapped = Math.round(rawMins / 15) * 15;
-	return minutesToTime(snapped);
+	// Snap to 30-min steps and clamp to the selectable slot range so the result
+	// always matches a TIME_OPTS option — otherwise the Time Slot select renders
+	// blank for :15/:45 (or for taps above/below the 07:00–20:00 range).
+	const snapped = Math.round(rawMins / 30) * 30;
+	const clamped = Math.max(
+		SLOT_START_H * 60,
+		Math.min(SLOT_END_H * 60, snapped),
+	);
+	return minutesToTime(clamped);
 }
 
 function formatTime(t: string): string {
@@ -167,7 +177,7 @@ function weekDaysFrom(start: Date, count = 7) {
 
 const TIME_OPTS = (() => {
 	const opts: { value: string; label: string }[] = [];
-	for (let h = 7; h <= 20; h++) {
+	for (let h = SLOT_START_H; h <= SLOT_END_H; h++) {
 		for (const m of [0, 30]) {
 			const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 			const ampm = h < 12 ? "am" : "pm";
@@ -713,37 +723,6 @@ function DayColumn({
 		// Ignore if clicking on a job card, resize handle, or during an existing drag
 		if ((e.target as HTMLElement).closest("[data-job]")) return;
 		if (resizeRef.current) return;
-
-		// Touch/pen: reliable tap-to-add. Mobile browsers don't fire
-		// mousemove/mouseup during a touch gesture (they're only synthesised
-		// after a tap, and suppressed whenever the browser suspects a scroll),
-		// which made tap-to-add work only intermittently. Use real pointer
-		// events instead. We don't capture the pointer or preventDefault, so the
-		// time grid still scrolls; only a near-stationary tap opens the panel.
-		// Drag-to-create stays mouse-only to avoid hijacking touch scrolling.
-		if (e.pointerType !== "mouse") {
-			const startRelY = getRelY(e);
-			const sx = e.clientX;
-			const sy = e.clientY;
-			const pid = e.pointerId;
-			const ac = new AbortController();
-			const onUp = (ev: PointerEvent) => {
-				if (ev.pointerId !== pid) return;
-				ac.abort();
-				if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 10) {
-					onSlotClick(yToTime(startRelY));
-				}
-			};
-			const onCancel = (ev: PointerEvent) => {
-				if (ev.pointerId !== pid) return;
-				ac.abort();
-			};
-			document.addEventListener("pointerup", onUp, { signal: ac.signal });
-			document.addEventListener("pointercancel", onCancel, {
-				signal: ac.signal,
-			});
-			return;
-		}
 		if (e.button !== 0) return;
 
 		const relY = getRelY(e);
@@ -2623,52 +2602,6 @@ export function CalendarPage() {
 										className="border-r border-neutral-800 select-none"
 										onPointerDown={(e) => {
 											if ((e.target as HTMLElement).closest("[data-job]")) return;
-
-											// Touch/pen: reliable tap-to-add (see DayColumn note). Mouse
-											// events don't fire during touch gestures, so use pointers
-											// without capturing — the grid still scrolls and only a
-											// near-stationary tap opens the panel.
-											if (e.pointerType !== "mouse") {
-												const colEl = e.currentTarget as HTMLDivElement;
-												const rect = colEl.getBoundingClientRect();
-												const startRelY = e.clientY - rect.top;
-												const sx = e.clientX;
-												const sy = e.clientY;
-												const pid = e.pointerId;
-												const ac = new AbortController();
-												const onUp = (ev: PointerEvent) => {
-													if (ev.pointerId !== pid) return;
-													ac.abort();
-													if (
-														Math.abs(ev.clientX - sx) +
-															Math.abs(ev.clientY - sy) <
-														10
-													) {
-														const time = yToTime(startRelY);
-														openAddPanel({
-															date: ds,
-															assignedTo: eng.id,
-															startTime: time,
-															endTime: minutesToTime(
-																timeToMinutes(time) + 60,
-															),
-														});
-													}
-												};
-												const onCancel = (ev: PointerEvent) => {
-													if (ev.pointerId !== pid) return;
-													ac.abort();
-												};
-												document.addEventListener("pointerup", onUp, {
-													signal: ac.signal,
-												});
-												document.addEventListener(
-													"pointercancel",
-													onCancel,
-													{ signal: ac.signal },
-												);
-												return;
-											}
 											if (e.button !== 0) return;
 											const colEl = e.currentTarget as HTMLDivElement;
 											const rect = colEl.getBoundingClientRect();
