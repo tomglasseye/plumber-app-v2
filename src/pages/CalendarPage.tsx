@@ -713,6 +713,37 @@ function DayColumn({
 		// Ignore if clicking on a job card, resize handle, or during an existing drag
 		if ((e.target as HTMLElement).closest("[data-job]")) return;
 		if (resizeRef.current) return;
+
+		// Touch/pen: reliable tap-to-add. Mobile browsers don't fire
+		// mousemove/mouseup during a touch gesture (they're only synthesised
+		// after a tap, and suppressed whenever the browser suspects a scroll),
+		// which made tap-to-add work only intermittently. Use real pointer
+		// events instead. We don't capture the pointer or preventDefault, so the
+		// time grid still scrolls; only a near-stationary tap opens the panel.
+		// Drag-to-create stays mouse-only to avoid hijacking touch scrolling.
+		if (e.pointerType !== "mouse") {
+			const startRelY = getRelY(e);
+			const sx = e.clientX;
+			const sy = e.clientY;
+			const pid = e.pointerId;
+			const ac = new AbortController();
+			const onUp = (ev: PointerEvent) => {
+				if (ev.pointerId !== pid) return;
+				ac.abort();
+				if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 10) {
+					onSlotClick(yToTime(startRelY));
+				}
+			};
+			const onCancel = (ev: PointerEvent) => {
+				if (ev.pointerId !== pid) return;
+				ac.abort();
+			};
+			document.addEventListener("pointerup", onUp, { signal: ac.signal });
+			document.addEventListener("pointercancel", onCancel, {
+				signal: ac.signal,
+			});
+			return;
+		}
 		if (e.button !== 0) return;
 
 		const relY = getRelY(e);
@@ -2592,6 +2623,52 @@ export function CalendarPage() {
 										className="border-r border-neutral-800 select-none"
 										onPointerDown={(e) => {
 											if ((e.target as HTMLElement).closest("[data-job]")) return;
+
+											// Touch/pen: reliable tap-to-add (see DayColumn note). Mouse
+											// events don't fire during touch gestures, so use pointers
+											// without capturing — the grid still scrolls and only a
+											// near-stationary tap opens the panel.
+											if (e.pointerType !== "mouse") {
+												const colEl = e.currentTarget as HTMLDivElement;
+												const rect = colEl.getBoundingClientRect();
+												const startRelY = e.clientY - rect.top;
+												const sx = e.clientX;
+												const sy = e.clientY;
+												const pid = e.pointerId;
+												const ac = new AbortController();
+												const onUp = (ev: PointerEvent) => {
+													if (ev.pointerId !== pid) return;
+													ac.abort();
+													if (
+														Math.abs(ev.clientX - sx) +
+															Math.abs(ev.clientY - sy) <
+														10
+													) {
+														const time = yToTime(startRelY);
+														openAddPanel({
+															date: ds,
+															assignedTo: eng.id,
+															startTime: time,
+															endTime: minutesToTime(
+																timeToMinutes(time) + 60,
+															),
+														});
+													}
+												};
+												const onCancel = (ev: PointerEvent) => {
+													if (ev.pointerId !== pid) return;
+													ac.abort();
+												};
+												document.addEventListener("pointerup", onUp, {
+													signal: ac.signal,
+												});
+												document.addEventListener(
+													"pointercancel",
+													onCancel,
+													{ signal: ac.signal },
+												);
+												return;
+											}
 											if (e.button !== 0) return;
 											const colEl = e.currentTarget as HTMLDivElement;
 											const rect = colEl.getBoundingClientRect();

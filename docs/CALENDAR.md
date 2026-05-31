@@ -54,6 +54,15 @@ Click any empty cell (month view) or any empty time slot (week/day view) to open
 
 You can also click the **+ New Job** button in the toolbar to open the panel without a pre-fill.
 
+### Touch vs mouse (week/day empty-slot handlers)
+
+The empty-column handlers (`handleColumnPointerDown` in `DayColumn`, and the inline `onPointerDown` on Day-view engineer columns) branch on `e.pointerType`:
+
+- **Mouse** — full behaviour: a click opens the panel at that time; a vertical drag (≥8px) creates a job spanning the dragged time range (`onSlotDragCreate` / `openAddPanel`).
+- **Touch / pen** — **tap-to-add only**. The handler registers `pointerup`/`pointercancel` on `document` (via an `AbortController` signal) and opens the panel only for a near-stationary tap (<10px of movement). It deliberately does **not** `setPointerCapture` or `preventDefault`, so the time grid still scrolls normally. Drag-to-create is intentionally mouse-only — capturing the touch gesture would block grid scrolling.
+
+> Why not mouse events: mobile browsers only synthesise `mousemove`/`mouseup` *after* a tap and suppress them whenever a scroll is suspected, so the old mouse-listener approach made tap-to-add fire only intermittently. Real pointer events fire reliably on touch (the same reason job-block drags use `onPointerMove`/`onPointerUp` + `setPointerCapture`).
+
 Scroll position is preserved when opening and closing the panel. Because the inner view components (`DayView`, `WeekView`, `MonthView`) are defined as inner functions, any state change causes a remount — `openAddPanel` and `closePanel` save and restore `gridScrollRef.current.scrollTop` via `requestAnimationFrame`.
 
 ### Desktop — fixed right sidebar
