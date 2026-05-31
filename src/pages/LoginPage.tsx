@@ -44,7 +44,9 @@ export function LoginPage() {
 		return () => clearInterval(id);
 	}, [lockoutUntil]);
 
-	const isLockedOut = lockoutUntil !== null && Date.now() < lockoutUntil;
+	// lockoutUntil is only ever a future timestamp: the initial state filters out
+	// expired values and the tick effect clears it within 1s of expiry.
+	const isLockedOut = lockoutUntil !== null;
 
 	function formatRemaining(secs: number) {
 		const m = Math.floor(secs / 60);

@@ -111,6 +111,7 @@ interface AppCtx {
 
 const Ctx = createContext<AppCtx>(null!);
 
+// eslint-disable-next-line react-refresh/only-export-components -- context hook colocated with provider by design
 export function useApp() {
 	return useContext(Ctx);
 }
@@ -304,6 +305,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		supabase.auth.getSession().then(({ data: { session } }) => {
 			if (session?.user) {
+				// eslint-disable-next-line react-hooks/immutability -- loadUserData is a stable function declared below; the effect only runs after mount.
 				loadUserData(session.user.id).finally(() => setLoading(false));
 			} else {
 				setLoading(false);
@@ -324,7 +326,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			}
 		});
 		return () => subscription.unsubscribe();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Idle timeout — 29 min warning, 30 min auto sign-out

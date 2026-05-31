@@ -253,9 +253,19 @@ function AddJobPanel({
 		setShowSugg(false);
 	}
 
-	useEffect(() => {
+	// Re-merge prefill into the form when the selected slot (date/time) changes,
+	// using React's "adjust state while rendering" pattern instead of an effect.
+	const [syncedSlot, setSyncedSlot] = useState({
+		date: prefill.date,
+		startTime: prefill.startTime,
+	});
+	if (
+		prefill.date !== syncedSlot.date ||
+		prefill.startTime !== syncedSlot.startTime
+	) {
+		setSyncedSlot({ date: prefill.date, startTime: prefill.startTime });
 		setForm((prev) => ({ ...prev, ...prefill }));
-	}, [prefill.date, prefill.startTime]); // eslint-disable-line react-hooks/exhaustive-deps
+	}
 
 	const canSubmit =
 		form.customer &&
@@ -695,7 +705,9 @@ function DayColumn({
 		endTime: string;
 	} | null>(null);
 	const dragCreateRangeRef = useRef(dragCreateRange);
-	dragCreateRangeRef.current = dragCreateRange;
+	useEffect(() => {
+		dragCreateRangeRef.current = dragCreateRange;
+	}, [dragCreateRange]);
 
 	function handleColumnPointerDown(e: React.PointerEvent) {
 		// Ignore if clicking on a job card, resize handle, or during an existing drag
@@ -983,6 +995,7 @@ function DayColumn({
 			})}
 
 			{/* Timed jobs */}
+			{/* eslint-disable-next-line react-hooks/refs -- isResizing reads resizeRef for live styling during an active resize gesture; re-renders are driven by liveOverrides. TODO: lift resize target into state post-launch. */}
 			{timedJobs.map(({ job, col, cols, conflict }) => {
 				const override = liveOverrides[job.id] ?? {};
 				const effStart = override.startTime ?? job.startTime!;

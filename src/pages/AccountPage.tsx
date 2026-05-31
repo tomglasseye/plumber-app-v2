@@ -81,7 +81,7 @@ type IconComponent = React.ComponentType<{
 	strokeWidth?: number;
 }>;
 
-export const CATEGORY_ICONS: Record<string, IconComponent> = {
+const CATEGORY_ICONS: Record<string, IconComponent> = {
 	// Plumbing & Water
 	Wrench,
 	Droplets,
@@ -269,9 +269,9 @@ function ExportPanel({
 	categories: Category[];
 	accent: string;
 }) {
-	const thirtyDaysAgo = fmtDate(new Date(Date.now() - 30 * 86_400_000));
-
-	const [from, setFrom] = useState(thirtyDaysAgo);
+	const [from, setFrom] = useState(() =>
+		fmtDate(new Date(Date.now() - 30 * 86_400_000)),
+	);
 	const [to, setTo] = useState(TODAY);
 	const [exported, setExported] = useState(false);
 

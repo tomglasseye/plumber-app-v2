@@ -802,7 +802,8 @@ function MemberRow({
 						<button
 							onClick={(e) => {
 								e.stopPropagation();
-								user.locked ? onUnlock() : onLock();
+								if (user.locked) onUnlock();
+								else onLock();
 							}}
 							className={`rounded-lg p-2 transition-colors cursor-pointer ${user.locked ? "text-green-600 hover:text-green-400 hover:bg-green-950/50" : "text-neutral-700 hover:text-amber-500 hover:bg-amber-950/50"}`}
 							title={
