@@ -46,18 +46,31 @@ export default async (request: Request, _context: Context) => {
 		});
 	}
 
-	// Use adminClient (service role) to fetch profiles — avoids RLS silent failures
-	const { data: profile } = await adminClient
-		.from("profiles")
-		.select("role, business_id")
+	// Check if caller is a super admin — they can update any user's password
+	const { data: superAdminRow } = await adminClient
+		.from("super_admins")
+		.select("id")
 		.eq("id", caller.id)
-		.single();
+		.maybeSingle();
 
-	if (!profile || profile.role !== "master") {
-		return new Response(JSON.stringify({ error: "Not authorised" }), {
-			status: 403,
-			headers: { "Content-Type": "application/json" },
-		});
+	const isSuperAdmin = !!superAdminRow;
+
+	// If not a super admin, verify caller is a master in a business
+	let callerBusinessId: string | null = null;
+	if (!isSuperAdmin) {
+		const { data: profile } = await adminClient
+			.from("profiles")
+			.select("role, business_id")
+			.eq("id", caller.id)
+			.single();
+
+		if (!profile || profile.role !== "master") {
+			return new Response(JSON.stringify({ error: "Not authorised" }), {
+				status: 403,
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+		callerBusinessId = profile.business_id;
 	}
 
 	// Parse request body
@@ -70,18 +83,23 @@ export default async (request: Request, _context: Context) => {
 		);
 	}
 
-	// Verify the target user belongs to the same business
-	const { data: targetProfile } = await adminClient
-		.from("profiles")
-		.select("business_id")
-		.eq("id", userId)
-		.single();
+	// Masters can only update users in their own business; super admins are unrestricted
+	if (!isSuperAdmin) {
+		const { data: targetProfile } = await adminClient
+			.from("profiles")
+			.select("business_id")
+			.eq("id", userId)
+			.single();
 
-	if (!targetProfile || targetProfile.business_id !== profile.business_id) {
-		return new Response(
-			JSON.stringify({ error: "User not in your business" }),
-			{ status: 403, headers: { "Content-Type": "application/json" } },
-		);
+		if (!targetProfile || targetProfile.business_id !== callerBusinessId) {
+			return new Response(
+				JSON.stringify({ error: "User not in your business" }),
+				{
+					status: 403,
+					headers: { "Content-Type": "application/json" },
+				},
+			);
+		}
 	}
 
 	const { error } = await adminClient.auth.admin.updateUserById(userId, {
