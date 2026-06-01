@@ -32,6 +32,7 @@ const MASTER_SECTIONS = [
 			"Jobs without a date sit in the Unscheduled panel below the calendar.",
 			"Use the distance sort to see which jobs are closest to a given location — great for squeezing in emergency callouts.",
 			"Drag a job from the queue straight onto the calendar to schedule it.",
+			"If an engineer flags themselves available for a job (from their My Day), you'll get a notification with their name — assign it to them and schedule it from here.",
 		],
 	},
 	{
@@ -69,11 +70,11 @@ const MASTER_SECTIONS = [
 		icon: "⏱️",
 		title: "Timesheets",
 		steps: [
-			"Go to Timesheets to see a summary of hours worked and miles driven per engineer.",
-			"Switch between Day, Week, and Month views and navigate with the arrow buttons.",
-			"Hours are pulled from the engineer's logged time on each job, falling back to the scheduled slot duration if nothing was logged.",
-			"Miles are calculated from each engineer's home address to the job address.",
-			"Use timesheets for payroll, expense claims, or spotting scheduling imbalances.",
+			"Go to Timesheets to see hours and miles per engineer, with Day, Week, and Month views (navigate with the arrow buttons).",
+			"Two hour figures: Worked (incl. travel) — en route → completed, for pay; and On-site (billable) — on site → completed, what the client is charged.",
+			"Both fall back to the engineer's logged time, then the scheduled slot duration, when actual timestamps aren't available.",
+			"Miles are a straight-line estimate between consecutive jobs in a day (geocoded from each job address), summed across the period — not road distance.",
+			"Use Worked for payroll and On-site for invoicing or spotting scheduling imbalances.",
 		],
 	},
 	{
@@ -118,12 +119,23 @@ const ENGINEER_SECTIONS = [
 		],
 	},
 	{
+		icon: "🙋",
+		title: "Picking Up Available Work",
+		steps: [
+			"Scroll to the Available Jobs section in My Day — these are unscheduled jobs you could take on.",
+			"Tap 'Near me' to sort them by distance from where you are right now.",
+			"Tap 'I'm available for this' on a job to put your hand up — HQ gets a notification with your name.",
+			"HQ then schedules it onto your day. You can't assign jobs to yourself directly — flagging is how you request them.",
+		],
+	},
+	{
 		icon: "🔄",
 		title: "Progressing a Job",
 		steps: [
 			"When you're heading to site, tap En Route — this updates the office in real time.",
 			"Arrive and tap On Site.",
 			"When the work is done, tap Completed.",
+			"Your On Site → Completed times automatically move that job's block on the calendar to when you actually worked, and HQ sees it live. (En Route counts towards your paid time; On Site → Completed is the billable time charged to the client.)",
 			"Add notes about what was done, materials used, or anything the office needs to know — they auto-save.",
 		],
 	},
