@@ -54,9 +54,16 @@ Click any empty cell (month view) or any empty time slot (week/day view) to open
 
 You can also click the **+ New Job** button in the toolbar to open the panel without a pre-fill.
 
-### Slot times snap to the dropdown (30-min, 07:00–20:00)
+### Slot times: start within working hours, end may overrun
 
-Clicking/tapping or drag-creating an empty slot computes a time via `yToTime`, which **snaps to 30-minute steps and clamps to 07:00–20:00** (`SLOT_START_H` / `SLOT_END_H`). This must stay in sync with `TIME_OPTS` — the Time Slot `<select>` only has 30-minute options in that range. If `yToTime` returned an unsnapped time (e.g. :15 / :45) or one outside the range, the select would have **no matching `<option>` and render blank**. Both `yToTime` and `TIME_OPTS` share the `SLOT_START_H` / `SLOT_END_H` constants so they can't drift apart.
+The New Job panel's Time Slot selects are driven by the business working hours (`business.workDayStart` / `workDayEnd`, set in Account Settings) via `buildSlotOpts` (30-min steps, inclusive):
+
+- **Start** select — `workDayStart` … `workDayEnd` only. A job can't start before or after the working day.
+- **End** select — `workDayStart` … `HOUR_END` (22:00), filtered to times after the chosen start. A job **may run past** the end of the working day (overruns are allowed), capped at the bottom of the visible grid.
+
+`yToTime` snaps a clicked/dragged Y to 30-min steps; `openAddPanel` then clamps the prefilled **start** into `[workDayStart, workDayEnd]` (and the end to after the start, within the grid). This guarantees the prefilled time always matches a `<select>` option — otherwise an out-of-range or :15/:45 time would leave the field blank. Job **rescheduling** (dragging an existing block) is not constrained to working hours; it uses the full grid.
+
+> NewJobPage uses `buildTimeOpts(workDayStart, workDayEnd)` for both selects, so its end is still capped at the working day — it does not yet allow overruns like the calendar panel.
 
 Scroll position is preserved when opening and closing the panel. Because the inner view components (`DayView`, `WeekView`, `MonthView`) are defined as inner functions, any state change causes a remount — `openAddPanel` and `closePanel` save and restore `gridScrollRef.current.scrollTop` via `requestAnimationFrame`.
 

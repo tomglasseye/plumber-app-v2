@@ -26,9 +26,6 @@ import { useCalendarShortcuts } from "../hooks/useCalendarShortcuts";
 const HOUR_START = 5;
 const HOUR_END = 22;
 const HOUR_HEIGHT = 64; // px per hour
-// First/last selectable Time Slot hours — must match the TIME_OPTS dropdown.
-const SLOT_START_H = 7;
-const SLOT_END_H = 20;
 const HOURS = Array.from(
 	{ length: HOUR_END - HOUR_START },
 	(_, i) => HOUR_START + i,
@@ -51,15 +48,10 @@ function timeToY(t: string): number {
 
 function yToTime(y: number): string {
 	const rawMins = (y / HOUR_HEIGHT) * 60 + HOUR_START * 60;
-	// Snap to 30-min steps and clamp to the selectable slot range so the result
-	// always matches a TIME_OPTS option — otherwise the Time Slot select renders
-	// blank for :15/:45 (or for taps above/below the 07:00–20:00 range).
+	// Snap to 30-min steps. Job-creation paths further clamp the start into the
+	// business working hours via openAddPanel; reschedule uses the full grid.
 	const snapped = Math.round(rawMins / 30) * 30;
-	const clamped = Math.max(
-		SLOT_START_H * 60,
-		Math.min(SLOT_END_H * 60, snapped),
-	);
-	return minutesToTime(clamped);
+	return minutesToTime(snapped);
 }
 
 function formatTime(t: string): string {
@@ -175,21 +167,22 @@ function weekDaysFrom(start: Date, count = 7) {
 
 // ── Time slot options ─────────────────────────────────────────────────────────
 
-const TIME_OPTS = (() => {
+// 30-min Time Slot options between two minute-of-day bounds (inclusive).
+function buildSlotOpts(fromMins: number, toMins: number) {
 	const opts: { value: string; label: string }[] = [];
-	for (let h = SLOT_START_H; h <= SLOT_END_H; h++) {
-		for (const m of [0, 30]) {
-			const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-			const ampm = h < 12 ? "am" : "pm";
-			const dh = h > 12 ? h - 12 : h;
-			opts.push({
-				value,
-				label: `${dh}:${String(m).padStart(2, "0")} ${ampm}`,
-			});
-		}
+	for (let mins = fromMins; mins <= toMins; mins += 30) {
+		const h = Math.floor(mins / 60);
+		const m = mins % 60;
+		const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+		const ampm = h < 12 ? "am" : "pm";
+		const dh = h > 12 ? h - 12 : h;
+		opts.push({
+			value,
+			label: `${dh}:${String(m).padStart(2, "0")} ${ampm}`,
+		});
 	}
 	return opts;
-})();
+}
 
 type CalView = "month" | "week" | "day";
 
@@ -237,14 +230,23 @@ function AddJobPanel({
 		setForm((prev) => {
 			const next: NewJobForm = { ...prev, startTime: val };
 			if (val) {
-				const [h, m] = val.split(":").map(Number);
-				const endH = h + 1;
-				if (endH <= 20)
-					next.endTime = `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+				// Default to a 1-hour slot; the end may run past the working day,
+				// capped at the bottom of the visible grid.
+				const endMins = Math.min(timeToMinutes(val) + 60, HOUR_END * 60);
+				if (endMins > timeToMinutes(val))
+					next.endTime = minutesToTime(endMins);
 			}
 			return next;
 		});
 	}
+
+	// Start must fall within the business working hours; the end may run past the
+	// working day, up to the bottom of the visible grid (HOUR_END).
+	const startOpts = buildSlotOpts(
+		business.workDayStart * 60,
+		business.workDayEnd * 60,
+	);
+	const endOpts = buildSlotOpts(business.workDayStart * 60, HOUR_END * 60);
 
 	function selectCustomer(c: {
 		id: string;
@@ -469,7 +471,7 @@ function AddJobPanel({
 							className={`flex-1 ${inputCls}`}
 						>
 							<option value="">Start</option>
-							{TIME_OPTS.map((o) => (
+							{startOpts.map((o) => (
 								<option key={o.value} value={o.value}>
 									{o.label}
 								</option>
@@ -483,7 +485,7 @@ function AddJobPanel({
 							className={`flex-1 ${inputCls} disabled:opacity-40`}
 						>
 							<option value="">End</option>
-							{TIME_OPTS.filter(
+							{endOpts.filter(
 								(o) =>
 									!form.startTime || o.value > form.startTime,
 							).map((o) => (
@@ -1987,6 +1989,27 @@ export function CalendarPage() {
 	}
 
 	function openAddPanel(prefill: Partial<NewJobForm>, ghost?: { ds: string; engineerId?: string; startTime: string; endTime: string }) {
+		// Constrain the start to the business working hours; the end may run past
+		// the working day, only kept after the start and within the visible grid.
+		if (prefill.startTime) {
+			const dayStart = business.workDayStart * 60;
+			const dayEnd = business.workDayEnd * 60;
+			const s = Math.max(
+				dayStart,
+				Math.min(dayEnd, Math.round(timeToMinutes(prefill.startTime) / 30) * 30),
+			);
+			prefill = { ...prefill, startTime: minutesToTime(s) };
+			if (prefill.endTime) {
+				const e = Math.max(
+					s + 30,
+					Math.min(
+						HOUR_END * 60,
+						Math.round(timeToMinutes(prefill.endTime) / 30) * 30,
+					),
+				);
+				prefill = { ...prefill, endTime: minutesToTime(e) };
+			}
+		}
 		preserveScroll(() => {
 			setPanelPrefill(prefill);
 			setPanelOpen(true);
