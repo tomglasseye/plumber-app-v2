@@ -24,7 +24,13 @@ export default async (request: Request, _context: Context) => {
 
 	const token = authHeader.slice(7);
 
-	// Use the anon client with the caller's JWT to verify identity + role
+	// Service-role client for all DB operations — bypasses RLS reliably in
+	// serverless cold-start contexts where the user JWT client can silently fail.
+	const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+		auth: { autoRefreshToken: false, persistSession: false },
+	});
+
+	// Verify the caller's JWT is genuine via Supabase auth
 	const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
 		global: { headers: { Authorization: `Bearer ${token}` } },
 	});
@@ -40,8 +46,8 @@ export default async (request: Request, _context: Context) => {
 		});
 	}
 
-	// Check caller is a master
-	const { data: profile } = await callerClient
+	// Use adminClient (service role) to fetch profiles — avoids RLS silent failures
+	const { data: profile } = await adminClient
 		.from("profiles")
 		.select("role, business_id")
 		.eq("id", caller.id)
@@ -65,7 +71,7 @@ export default async (request: Request, _context: Context) => {
 	}
 
 	// Verify the target user belongs to the same business
-	const { data: targetProfile } = await callerClient
+	const { data: targetProfile } = await adminClient
 		.from("profiles")
 		.select("business_id")
 		.eq("id", userId)
@@ -77,11 +83,6 @@ export default async (request: Request, _context: Context) => {
 			{ status: 403, headers: { "Content-Type": "application/json" } },
 		);
 	}
-
-	// Admin operation — update the target user's password
-	const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
-		auth: { autoRefreshToken: false, persistSession: false },
-	});
 
 	const { error } = await adminClient.auth.admin.updateUserById(userId, {
 		password,

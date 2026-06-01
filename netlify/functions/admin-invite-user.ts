@@ -24,7 +24,13 @@ export default async (request: Request, _context: Context) => {
 
 	const token = authHeader.slice(7);
 
-	// Verify caller identity and role using their JWT
+	// Service-role client for all DB operations — bypasses RLS reliably in
+	// serverless cold-start contexts where the user JWT client can silently fail.
+	const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+		auth: { autoRefreshToken: false, persistSession: false },
+	});
+
+	// Verify the caller's JWT is genuine via Supabase auth
 	const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
 		global: { headers: { Authorization: `Bearer ${token}` } },
 	});
@@ -40,8 +46,8 @@ export default async (request: Request, _context: Context) => {
 		});
 	}
 
-	// Check caller is a master
-	const { data: callerProfile } = await callerClient
+	// Use adminClient (service role) to fetch profiles — avoids RLS silent failures
+	const { data: callerProfile } = await adminClient
 		.from("profiles")
 		.select("role, business_id")
 		.eq("id", caller.id)
@@ -72,11 +78,6 @@ export default async (request: Request, _context: Context) => {
 		);
 	}
 
-	// Use service role client for admin operations
-	const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
-		auth: { autoRefreshToken: false, persistSession: false },
-	});
-
 	// Create the auth user (email_confirm: true so no confirmation email needed)
 	const { data: newUser, error: createError } =
 		await adminClient.auth.admin.createUser({
@@ -87,7 +88,9 @@ export default async (request: Request, _context: Context) => {
 
 	if (createError || !newUser.user) {
 		return new Response(
-			JSON.stringify({ error: createError?.message ?? "Failed to create user" }),
+			JSON.stringify({
+				error: createError?.message ?? "Failed to create user",
+			}),
 			{ status: 400, headers: { "Content-Type": "application/json" } },
 		);
 	}
@@ -122,7 +125,9 @@ export default async (request: Request, _context: Context) => {
 		// Roll back: delete the auth user we just created
 		await adminClient.auth.admin.deleteUser(userId);
 		return new Response(
-			JSON.stringify({ error: profileError.message ?? "Failed to create profile" }),
+			JSON.stringify({
+				error: profileError.message ?? "Failed to create profile",
+			}),
 			{ status: 400, headers: { "Content-Type": "application/json" } },
 		);
 	}

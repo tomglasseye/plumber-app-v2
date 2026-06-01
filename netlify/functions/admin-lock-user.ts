@@ -23,6 +23,13 @@ export default async (request: Request) => {
 		});
 	}
 
+	// Service-role client for all DB operations — bypasses RLS reliably in
+	// serverless cold-start contexts where the user JWT client can silently fail.
+	const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+		auth: { autoRefreshToken: false, persistSession: false },
+	});
+
+	// Verify the caller's JWT is genuine via Supabase auth
 	const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
 		global: { headers: { Authorization: `Bearer ${authHeader.slice(7)}` } },
 	});
@@ -37,7 +44,8 @@ export default async (request: Request) => {
 		});
 	}
 
-	const { data: callerProfile } = await callerClient
+	// Use adminClient (service role) to fetch profiles — avoids RLS silent failures
+	const { data: callerProfile } = await adminClient
 		.from("profiles")
 		.select("role, business_id")
 		.eq("id", caller.id)
@@ -53,7 +61,9 @@ export default async (request: Request) => {
 	const { userId, locked } = await request.json();
 	if (typeof userId !== "string" || typeof locked !== "boolean") {
 		return new Response(
-			JSON.stringify({ error: "userId (string) and locked (boolean) required" }),
+			JSON.stringify({
+				error: "userId (string) and locked (boolean) required",
+			}),
 			{ status: 400, headers: { "Content-Type": "application/json" } },
 		);
 	}
@@ -65,28 +75,30 @@ export default async (request: Request) => {
 		);
 	}
 
-	const { data: targetProfile } = await callerClient
+	const { data: targetProfile } = await adminClient
 		.from("profiles")
 		.select("business_id")
 		.eq("id", userId)
 		.single();
 
-	if (!targetProfile || targetProfile.business_id !== callerProfile.business_id) {
+	if (
+		!targetProfile ||
+		targetProfile.business_id !== callerProfile.business_id
+	) {
 		return new Response(
 			JSON.stringify({ error: "User not in your business" }),
 			{ status: 403, headers: { "Content-Type": "application/json" } },
 		);
 	}
 
-	const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
-		auth: { autoRefreshToken: false, persistSession: false },
-	});
-
 	// Flip the auth-layer ban first so existing refresh tokens stop working,
 	// then mirror the state into profiles.locked for RLS / UI use.
-	const { error: banError } = await adminClient.auth.admin.updateUserById(userId, {
-		ban_duration: locked ? FOREVER : "none",
-	});
+	const { error: banError } = await adminClient.auth.admin.updateUserById(
+		userId,
+		{
+			ban_duration: locked ? FOREVER : "none",
+		},
+	);
 	if (banError) {
 		return new Response(JSON.stringify({ error: banError.message }), {
 			status: 500,
