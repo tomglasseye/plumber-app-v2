@@ -1442,6 +1442,7 @@ function MiniCalendar({
 export function CalendarPage() {
 	const {
 		isMaster,
+		currentUser,
 		jobs,
 		myJobs,
 		users,
@@ -2365,8 +2366,10 @@ export function CalendarPage() {
 							...dayHols.map((h) => h.profileId),
 						]),
 					];
-		const showList =
-			shownIds.length > 0
+		const showList = !isMaster
+			? // Engineers only ever see their own column — never other engineers'.
+				engineers.filter((e) => e.id === currentUser?.id)
+			: shownIds.length > 0
 				? engineers.filter((e) => shownIds.includes(e.id))
 				: engineers;
 

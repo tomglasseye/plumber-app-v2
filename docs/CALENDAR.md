@@ -23,6 +23,14 @@ The toolbar contains two filters that work together:
 - **Engineer filter** — pill buttons, one per engineer plus "All". Selecting a specific engineer hides all other engineers' jobs and columns. Defaults to "All".
 - **Status filter** — select box. Options: All, Scheduled, En Route, On Site, Completed, Invoiced. Applies on top of the engineer filter.
 
+The filter toolbar is **master-only**.
+
+## Visibility — engineers vs masters
+
+Masters see all jobs in the business. **Engineers only see their own jobs** (plus unassigned ones): the calendar sources from `myJobs` (`isMaster ? jobs : myJobs`), and the Day view renders **only the engineer's own column** for non-masters (it never shows other engineers' columns). 
+
+> ⚠️ This is currently a **UI filter only**. The `jobs` RLS read policy (`members read business jobs`) still lets any business member fetch every job, so an engineer could read others' jobs via the API. Tightening the SELECT policy so engineers only read their own (+ unassigned) jobs requires a migration — see [docs/SECURITY.md](SECURITY.md).
+
 ---
 
 ## Day view — per-engineer columns
