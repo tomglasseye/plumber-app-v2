@@ -46,23 +46,66 @@ export default async (request: Request, _context: Context) => {
 		});
 	}
 
-	// Use adminClient (service role) to fetch profiles — avoids RLS silent failures
-	const { data: callerProfile } = await adminClient
-		.from("profiles")
-		.select("role, business_id")
+	// Authorisation. Super admins may create users in any business (the target
+	// business is passed in the body); otherwise the caller must be a master and
+	// the new user goes into that master's own business.
+	const { data: superAdminRow } = await adminClient
+		.from("super_admins")
+		.select("id")
 		.eq("id", caller.id)
-		.single();
+		.maybeSingle();
+	const isSuperAdmin = !!superAdminRow;
 
-	if (!callerProfile || callerProfile.role !== "master") {
-		return new Response(JSON.stringify({ error: "Not authorised" }), {
-			status: 403,
-			headers: { "Content-Type": "application/json" },
-		});
+	let targetBusinessId: string | null = null;
+	if (!isSuperAdmin) {
+		const { data: callerProfile } = await adminClient
+			.from("profiles")
+			.select("role, business_id")
+			.eq("id", caller.id)
+			.single();
+
+		if (!callerProfile || callerProfile.role !== "master") {
+			return new Response(JSON.stringify({ error: "Not authorised" }), {
+				status: 403,
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+		targetBusinessId = callerProfile.business_id;
 	}
 
 	// Parse request body
-	const { email, password, name, role, phone, homeAddress, avatar } =
-		await request.json();
+	const {
+		email,
+		password,
+		name,
+		role,
+		phone,
+		homeAddress,
+		avatar,
+		businessId,
+	} = await request.json();
+
+	// Super admins must say which existing business the user belongs to.
+	if (isSuperAdmin) {
+		if (!businessId) {
+			return new Response(
+				JSON.stringify({ error: "businessId is required" }),
+				{ status: 400, headers: { "Content-Type": "application/json" } },
+			);
+		}
+		const { data: biz } = await adminClient
+			.from("businesses")
+			.select("id")
+			.eq("id", businessId)
+			.maybeSingle();
+		if (!biz) {
+			return new Response(JSON.stringify({ error: "Business not found" }), {
+				status: 400,
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+		targetBusinessId = businessId;
+	}
 
 	if (!email || !password || !name) {
 		return new Response(
@@ -116,7 +159,7 @@ export default async (request: Request, _context: Context) => {
 		phone: phone ?? "",
 		home_address: homeAddress ?? "",
 		avatar: initials,
-		business_id: callerProfile.business_id,
+		business_id: targetBusinessId,
 		locked: false,
 		holiday_allowance: 28,
 	});

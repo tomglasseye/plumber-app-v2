@@ -130,11 +130,24 @@ values
 
 ---
 
+## Adding a master to an existing business
+
+`create-business` only spins up a **new** business. To add a master to a business that already exists (e.g. after the original master was deleted), a super admin:
+
+1. Enters the business via `switchBusiness()` (super admins are treated as `role: "master"` in `currentUser`, so they get the master UI).
+2. Goes to **Team → Add member**, picks role **Master**, and sets an email + password.
+
+This calls `admin-invite-user` with the current `business.id`. The function now allows **super admins** (not just masters) and creates a **confirmed** user with the given password directly — no invite email, which sidesteps the unreliable free-tier email. Masters using the same form are still restricted to their own business (the passed `businessId` is ignored for them).
+
+## Deleting a team member
+
+`deleteUser` now calls the `admin-delete-user` function, which **deletes the Supabase Auth account** (the `profiles` row cascades). Previously it deleted only the profile, leaving an orphaned "awaiting verification" auth user behind. The function first unassigns the user's jobs (`assigned_to → null`), removes their notifications, and nulls photo-uploader links (those FKs have no cascade), refuses to delete your own account, and limits masters to their own business (super admins can delete anyone).
+
 ## Things to watch out for
 
 | Concern                        | Detail                                                                                                                                 |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | **Invite expiry**              | Supabase invite links expire after 24 hours by default. Add a "resend invite" button to the admin page if needed.                     |
 | **Super admin data access**    | Migration 22 gives super admins broad RLS bypass. Use with care — this is intentional to support `switchBusiness()`.                  |
-| **Deleting a company**         | Cascade deletes handle all table data. Auth users must be deleted separately via the Supabase admin API (service role).               |
+| **Deleting a company**         | Cascade deletes handle table data, but deleting a *business* still leaves its auth users — remove those via the Supabase dashboard. Deleting an individual *user* via the Team page now removes their auth account (`admin-delete-user`). |
 | **Master inviting engineers**  | Already works via the Team page. No changes needed.                                                                                    |

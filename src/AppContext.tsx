@@ -1135,29 +1135,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	async function deleteUser(id: string) {
+		const removed = users.find((u) => u.id === id);
 		setUsers((prev) => prev.filter((u) => u.id !== id));
-		const { error } = await supabase.from("profiles").delete().eq("id", id);
-		if (error) {
-			// Revert optimistic removal and show error
-			const { data } = await supabase
-				.from("profiles")
-				.select("*")
-				.eq("id", id)
-				.single();
-			if (data)
+		const restore = () => {
+			if (removed)
 				setUsers((prev) =>
-					[...prev, mapProfile(data)].sort((a, b) =>
+					[...prev, removed].sort((a, b) =>
 						a.name.localeCompare(b.name),
 					),
 				);
-			setSaveError(formatError(error));
+		};
+		const {
+			data: { session },
+		} = await supabase.auth.getSession();
+		if (!session) {
+			restore();
+			setSaveError("Not authenticated");
 			return;
 		}
-		supabase.rpc("log_audit_event", {
-			p_action: "profile.deleted",
-			p_target_type: "profile",
-			p_target_id: id,
-		});
+		try {
+			// Deletes the auth user too (the profile cascades), so no orphaned
+			// "awaiting verification" account is left behind in Supabase Auth.
+			const res = await fetch("/.netlify/functions/admin-delete-user", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${session.access_token}`,
+				},
+				body: JSON.stringify({ userId: id }),
+			});
+			const body = await res.json();
+			if (!res.ok) {
+				restore();
+				setSaveError(body.error ?? "Failed to delete team member");
+				return;
+			}
+			supabase.rpc("log_audit_event", {
+				p_action: "profile.deleted",
+				p_target_type: "profile",
+				p_target_id: id,
+			});
+		} catch {
+			restore();
+			setSaveError("Network error — could not reach server");
+		}
 	}
 
 	function toggleTheme() {
@@ -1235,7 +1256,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${session.access_token}`,
 				},
-				body: JSON.stringify(params),
+				body: JSON.stringify({ ...params, businessId: business.id }),
 			});
 			const body = await res.json();
 			if (!res.ok) return body.error ?? "Failed to create team member";
