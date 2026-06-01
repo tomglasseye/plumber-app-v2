@@ -328,9 +328,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		return () => subscription.unsubscribe();
 	}, []);
 
-	// Idle timeout — 29 min warning, 30 min auto sign-out
+	// Idle timeout (masters only) — 29 min warning, 30 min auto sign-out.
+	// Engineers stay signed in on their own device; re-login is trivial with
+	// saved credentials, so an idle logout just gets in the way out on the job.
 	useEffect(() => {
 		if (!currentUser) return;
+		if (currentUser.role === "engineer") return;
 
 		const resetIdle = () => {
 			setIdleWarning(false);

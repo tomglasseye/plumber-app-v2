@@ -154,7 +154,7 @@ Masters view the log from the Account Settings page (full business log with filt
 
 ### Current state
 - Supabase Auth manages JWT tokens with automatic refresh
-- Client-side idle timeout (29-min warning, 30-min auto sign-out)
+- Client-side idle timeout for **master accounts only** (29-min warning, 30-min auto sign-out). Engineers are exempt — they stay signed in on their own device (re-login is trivial with saved credentials), so the idle logout applies only to the more privileged master/HQ role
 - Brute-force protection on login: server-side IP + email limiter (`login-rate-limit`) gates the sign-in call; a small client-side lockout after 5 attempts is UX only (it lives in `localStorage` and a determined attacker can clear it — the server limiter is the real defence)
 - Locked accounts are enforced at the auth layer: `admin-lock-user` calls `auth.admin.updateUserById(..., { ban_duration })` so banned users can't sign in *or* refresh existing sessions, in addition to setting `profiles.locked` for RLS / UI use
 
