@@ -126,6 +126,10 @@ Below both columns, full-width:
 - Awaiting HQ Approval banner (master only, when status = Completed and not yet final-complete)
 - Ready to Invoice banner (master only, when `readyToInvoice = true`)
 
+### Deleting a job
+
+Masters get a **Delete job** button in the detail-page header (top-right, below the status). It opens a `ConfirmDeleteModal`; confirming calls `deleteJob(id)` in `AppContext`, which optimistically removes the job, deletes the row (`job_photos` cascade-delete, `notifications.job_id` is set null per the schema), writes a `job.deleted` audit event, and navigates back. Engineers don't see the button.
+
 ### Fields editable on this page
 
 - Customer, address, phone, description, dates, times, category, recurring, assigned engineer (master only)
@@ -145,7 +149,9 @@ Jobs with `readyToInvoice: true` can be pushed to Xero from the job detail page.
 
 Jobs can be tagged with a category (e.g. "Boiler Service", "Leak Repair"). Categories have a name, a Lucide icon, and a colour. They are managed in Account Settings (master only) and displayed as coloured chips throughout the app.
 
-Categories were added in migration 9. If no categories are configured the category selector is hidden.
+Categories were added in migration 9. If no categories are configured the category selector is hidden. When categories **do** exist, choosing one is **required** to create or save a job — both the New Job page and the calendar Add-Job panel disable submit until a category is selected, and there is no "None" option.
+
+> Empty optional values are normalised to `NULL` before hitting Postgres in `createJob` / `updateJob` (uuid/date/time columns reject `""` with `invalid input syntax for type uuid: ""`).
 
 ---
 
@@ -191,5 +197,6 @@ Every significant action on a job is recorded in the `audit_log` table (master-v
 | `job.field_updated`     | Field edits saved (customer, address, etc.) |
 | `job.rescheduled`       | Drag-and-drop or date change       |
 | `job.final_completed`   | Master clicks Final Complete       |
+| `job.deleted`           | Master deletes a job (detail page) |
 
 The `ActivityLog` component can be rendered with a `jobId` prop to show a per-job history, or without to show the full business log with filter tabs (All / Jobs / Users / Settings).

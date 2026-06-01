@@ -60,6 +60,7 @@ interface AppCtx {
 	theme: "dark" | "light";
 	toggleTheme: () => void;
 	createJob: (form: NewJobForm) => Promise<void>;
+	deleteJob: (id: string) => void;
 	updateJob: <K extends keyof Job>(
 		id: string,
 		field: K,
@@ -763,6 +764,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		pendingMutations.current.add(id);
 		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		const prev_val = jobs.find((j) => j.id === id)?.[field];
+		// Empty strings must become NULL for uuid/date/time columns, or Postgres
+		// rejects them (e.g. `invalid input syntax for type uuid: ""`).
+		const NULLABLE_EMPTY: (keyof Job)[] = [
+			"assignedTo",
+			"categoryId",
+			"customerId",
+			"date",
+			"endDate",
+			"startTime",
+			"endTime",
+		];
+		const dbValue =
+			NULLABLE_EMPTY.includes(field) && value === "" ? null : value;
 		setJobs((prev) =>
 			prev.map((j) => (j.id === id ? { ...j, [field]: value } : j)),
 		);
@@ -770,7 +784,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			() =>
 				supabase
 					.from("jobs")
-					.update({ [jobCol(field)]: value })
+					.update({ [jobCol(field)]: dbValue })
 					.eq("id", id),
 			() =>
 				setJobs((prev) =>
@@ -966,11 +980,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			status: "Scheduled",
 			priority: form.priority,
 			date: form.date || null,
-			end_date: form.endDate ?? null,
-			category_id: form.categoryId ?? null,
-			start_time: form.startTime ?? null,
-			end_time: form.endTime ?? null,
-			customer_id: form.customerId ?? null,
+			end_date: form.endDate || null,
+			category_id: form.categoryId || null,
+			start_time: form.startTime || null,
+			end_time: form.endTime || null,
+			customer_id: form.customerId || null,
 			repeat_frequency: form.repeatFrequency ?? null,
 		});
 		if (error) {
@@ -998,6 +1012,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			p_target_type: "job",
 			p_target_id: newJob.id,
 			p_details: { ref, customer: form.customer },
+		});
+	}
+
+	function deleteJob(id: string) {
+		const job = jobs.find((j) => j.id === id);
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
+		setJobs((prev) => prev.filter((j) => j.id !== id));
+		// job_photos cascade-delete; notifications.job_id is set null (see schema).
+		dbSave(() => supabase.from("jobs").delete().eq("id", id));
+		supabase.rpc("log_audit_event", {
+			p_action: "job.deleted",
+			p_target_type: "job",
+			p_target_id: id,
+			p_details: job ? { ref: job.ref, customer: job.customer } : {},
 		});
 	}
 
@@ -1657,6 +1686,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				theme,
 				toggleTheme,
 				createJob,
+				deleteJob,
 				updateJob,
 				changeStatus,
 				changePriority,

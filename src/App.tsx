@@ -52,6 +52,11 @@ const HowToUsePage = lazy(() =>
 const AboutPage = lazy(() =>
 	import("./pages/AboutPage").then((m) => ({ default: m.AboutPage })),
 );
+const TimesheetsPage = lazy(() =>
+	import("./pages/TimesheetsPage").then((m) => ({
+		default: m.TimesheetsPage,
+	})),
+);
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
 	const { currentUser } = useApp();
@@ -293,6 +298,16 @@ export default function App() {
 									<RequireAuth>
 										<RequireMaster>
 											<AccountPage />
+										</RequireMaster>
+									</RequireAuth>
+								}
+							/>
+							<Route
+								path="/timesheets"
+								element={
+									<RequireAuth>
+										<RequireMaster>
+											<TimesheetsPage />
 										</RequireMaster>
 									</RequireAuth>
 								}

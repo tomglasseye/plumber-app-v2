@@ -226,21 +226,9 @@ export function NewJobPage() {
 				{categories.length > 0 && (
 					<div className="flex flex-col gap-2">
 						<label className="text-xs uppercase tracking-wider text-neutral-600">
-							Category
+							Category *
 						</label>
 						<div className="flex flex-wrap gap-2">
-							<button
-								type="button"
-								onClick={() =>
-									setForm((p) => ({
-										...p,
-										categoryId: undefined,
-									}))
-								}
-								className={`rounded-lg border px-3 py-1.5 text-xs transition-colors cursor-pointer ${!form.categoryId ? "border-neutral-500 bg-neutral-700 text-neutral-200" : "border-neutral-700 bg-neutral-800 text-neutral-500 hover:border-neutral-600"}`}
-							>
-								None
-							</button>
 							{categories.map((cat) => (
 								<button
 									key={cat.id}
@@ -448,7 +436,8 @@ export function NewJobPage() {
 					disabled={
 						!form.customer ||
 						!form.phone ||
-						!form.address
+						!form.address ||
+						(categories.length > 0 && !form.categoryId)
 					}
 					className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
 					style={{ backgroundColor: business.accentColor }}

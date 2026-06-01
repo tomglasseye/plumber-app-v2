@@ -16,29 +16,49 @@ export function haversine(
 	return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/** Geocode an address via Nominatim (GB only). Returns [lat, lon] or null. */
+// UK postcode (e.g. "BH15 1NN", "BH1 4QR") — used as a geocoding fallback.
+const UK_POSTCODE = /[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}/i;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function nominatimLookup(query: string): Promise<[number, number] | null> {
+	try {
+		const res = await fetch(
+			`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=gb`,
+			{ headers: { "User-Agent": "HiveQApp/1.0" } },
+		);
+		const data = await res.json();
+		if (data.length > 0) {
+			return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+		}
+	} catch {
+		// skip
+	}
+	return null;
+}
+
+/**
+ * Geocode an address via Nominatim (GB only). Returns [lat, lon] or null.
+ * Falls back to the UK postcode if the full address can't be resolved — many
+ * real addresses (flats, units, business parks) don't match at street level but
+ * their postcode does.
+ */
 export async function geocodeAddress(
 	address: string,
 	cache: Map<string, [number, number]>,
 ): Promise<[number, number] | null> {
 	const cached = cache.get(address);
 	if (cached) return cached;
-	try {
-		const res = await fetch(
-			`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=gb`,
-			{ headers: { "User-Agent": "HiveQApp/1.0" } },
-		);
-		const data = await res.json();
-		if (data.length > 0) {
-			const coords: [number, number] = [
-				parseFloat(data[0].lat),
-				parseFloat(data[0].lon),
-			];
-			cache.set(address, coords);
-			return coords;
+
+	let coords = await nominatimLookup(address);
+	if (!coords) {
+		const pc = address.match(UK_POSTCODE);
+		if (pc) {
+			await sleep(1100); // stay within Nominatim's ~1 req/s policy
+			coords = await nominatimLookup(pc[0]);
 		}
-	} catch {
-		// skip
 	}
-	return null;
+
+	if (coords) cache.set(address, coords);
+	return coords;
 }

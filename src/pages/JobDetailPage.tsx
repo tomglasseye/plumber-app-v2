@@ -4,6 +4,7 @@ import { useApp } from "../AppContext";
 import { CategoryIcon } from "./AccountPage";
 import { ActivityLog } from "../components/ActivityLog";
 import { JobPhotos } from "../components/JobPhotos";
+import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import {
 	PRIORITIES,
 	PRIORITY_COLORS,
@@ -40,6 +41,7 @@ export function JobDetailPage() {
 		changeStatus,
 		changePriority,
 		updateJob,
+		deleteJob,
 		finalComplete,
 		addNotification,
 		business,
@@ -51,6 +53,8 @@ export function JobDetailPage() {
 	const linkedCustomer = job?.customerId
 		? customers.find((c) => c.id === job.customerId)
 		: undefined;
+
+	const [showDelete, setShowDelete] = useState(false);
 
 	const [draftCustomer, setDraftCustomer] = useState(job?.customer ?? "");
 	const [draftAddress, setDraftAddress] = useState(job?.address ?? "");
@@ -322,11 +326,21 @@ export function JobDetailPage() {
 						</a>
 					)}
 				</div>
-				<span
-					className={`text-sm px-3 py-1.5 rounded-full font-mono ${sc.bg} ${sc.text}`}
-				>
-					{draftStatus}
-				</span>
+				<div className="flex flex-col items-end gap-2">
+					<span
+						className={`text-sm px-3 py-1.5 rounded-full font-mono ${sc.bg} ${sc.text}`}
+					>
+						{draftStatus}
+					</span>
+					{isMaster && (
+						<button
+							onClick={() => setShowDelete(true)}
+							className="rounded-lg border border-red-900/60 bg-red-950/30 px-3 py-1.5 text-xs text-red-400 hover:text-red-200 hover:border-red-700 transition-colors cursor-pointer"
+						>
+							Delete job
+						</button>
+					)}
+				</div>
 			</div>
 
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -888,6 +902,18 @@ export function JobDetailPage() {
 					</div>
 				)}
 			</div>
+			{showDelete && (
+				<ConfirmDeleteModal
+					title="Delete this job?"
+					message={`Job ${job.ref} for ${job.customer} will be permanently deleted. This cannot be undone.`}
+					onConfirm={() => {
+						setShowDelete(false);
+						deleteJob(job.id);
+						navigate(-1);
+					}}
+					onCancel={() => setShowDelete(false)}
+				/>
+			)}
 		</div>
 	);
 }

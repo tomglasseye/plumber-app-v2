@@ -26,7 +26,7 @@ Requires `.env.local` with `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and (o
 - `src/types.ts` — all TS interfaces (Job, User, Business, etc.)
 - `src/data.ts` — seed data, constants, colour maps, helpers
 - `src/App.tsx` — router shell, auth guards, layout
-- `src/pages/` — 13 route pages (Dashboard, JobDetail, NewJob, MyDay, Calendar, Holidays, Team, Account, Admin, Login, About, How-To, Customers)
+- `src/pages/` — 14 route pages (Dashboard, JobDetail, NewJob, MyDay, Calendar, Holidays, Team, Account, Admin, Login, About, How-To, Customers, Timesheets)
 - `src/components/` — 11 reusable components (JobCard, JobPhotos, Sidebar, ActivityLog, NotificationBell, PushBanner, OfflineBanner, IosInstallPrompt, ErrorBoundary, ConfirmDeleteModal, UnscheduledPanel)
 - `src/hooks/`, `src/utils/` — `useOnlineStatus`, `useCalendarShortcuts`; `push.ts`, `geo.ts`
 - `netlify/functions/` — service-role-only ops: `create-business`, `admin-invite-user`, `admin-lock-user`, `admin-update-password`, `login-rate-limit`, `send-push`
@@ -38,6 +38,7 @@ Requires `.env.local` with `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and (o
 | --- | --- |
 | Jobs / job sheet | `docs/JOBS.md` |
 | Calendar / scheduling | `docs/CALENDAR.md` |
+| Timesheets (hours + miles, master) | `docs/TIMESHEETS.md` |
 | DB schema, Auth, RLS | `docs/SUPABASE.md` |
 | Notifications + Web Push | `docs/NOTIFICATIONS.md` |
 | PWA / offline / SW | `docs/PWA.md` |

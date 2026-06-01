@@ -282,7 +282,8 @@ function AddJobPanel({
 	const canSubmit =
 		form.customer &&
 		form.phone &&
-		form.address;
+		form.address &&
+		(categories.length === 0 || !!form.categoryId);
 
 	const engineers = users.filter((u) => u.role === "engineer");
 	const inputCls =
@@ -371,21 +372,9 @@ function AddJobPanel({
 				{categories.length > 0 && (
 					<div>
 						<label className="mb-1.5 block text-[10px] uppercase tracking-wider text-neutral-600">
-							Category
+							Category *
 						</label>
 						<div className="flex flex-wrap gap-1.5">
-							<button
-								type="button"
-								onClick={() =>
-									setForm((p) => ({
-										...p,
-										categoryId: undefined,
-									}))
-								}
-								className={`rounded-lg border px-2 py-1 text-[11px] cursor-pointer transition-colors ${!form.categoryId ? "border-neutral-500 bg-neutral-700 text-neutral-200" : "border-neutral-700 text-neutral-500"}`}
-							>
-								None
-							</button>
 							{categories.map((cat) => (
 								<button
 									key={cat.id}
