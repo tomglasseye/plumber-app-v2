@@ -10,6 +10,7 @@ const MASTER_SECTIONS = [
 			"Select an existing customer or create a new one inline.",
 			"Fill in the job description, category, priority, and estimated duration.",
 			"Assign an engineer and pick a date & time slot — or leave it unscheduled to plan later.",
+			"To set up a repeating job, choose a repeat frequency (weekly, bi-annually, or annually) — HiveQ will create the next occurrence automatically when the current one is completed.",
 			"Hit Save. The job appears on the calendar and in the engineer's dashboard instantly.",
 		],
 	},
@@ -35,11 +36,54 @@ const MASTER_SECTIONS = [
 	},
 	{
 		icon: "✅",
-		title: "Reviewing & Invoicing",
+		title: "Reviewing & Final Complete",
 		steps: [
 			"When an engineer marks a job Completed, it shows up on your calendar with a completed badge.",
-			"Open the job, review the engineer's notes & photos, then tap Ready to Invoice.",
-			"If accounting integration is enabled (Xero or QuickBooks), the job is sent as a draft invoice automatically — no double-entry.",
+			"Open the job, review the engineer's notes, materials, logged hours, and photos.",
+			"Click Final Complete to sign it off. This locks the job and marks it as Invoiced.",
+			"If accounting integration is enabled (Xero or QuickBooks), the invoice action unlocks only after Final Complete — no double-entry.",
+		],
+	},
+	{
+		icon: "🗑️",
+		title: "Deleting a Job",
+		steps: [
+			"Open the job detail page.",
+			"Scroll to the bottom and click the Delete Job button.",
+			"Confirm the deletion in the prompt — this is permanent and cannot be undone.",
+			"Only masters can delete jobs.",
+		],
+	},
+	{
+		icon: "👤",
+		title: "Customers",
+		steps: [
+			"Go to Customers from the sidebar to manage your contact database.",
+			"Add customers with name, email, phone, address, and notes.",
+			"Each customer shows a count of how many jobs are linked to them.",
+			"When creating a job, pick from your customer list to auto-fill contact details.",
+			"Edit or delete customers at any time — deleting a customer does not delete their jobs.",
+		],
+	},
+	{
+		icon: "⏱️",
+		title: "Timesheets",
+		steps: [
+			"Go to Timesheets to see a summary of hours worked and miles driven per engineer.",
+			"Switch between Day, Week, and Month views and navigate with the arrow buttons.",
+			"Hours are pulled from the engineer's logged time on each job, falling back to the scheduled slot duration if nothing was logged.",
+			"Miles are calculated from each engineer's home address to the job address.",
+			"Use timesheets for payroll, expense claims, or spotting scheduling imbalances.",
+		],
+	},
+	{
+		icon: "🏷️",
+		title: "Job Categories",
+		steps: [
+			"Go to Account and scroll to the Categories section to create custom job types.",
+			"Give each category a name, colour, and icon (e.g. Boiler Service, Leak Repair, New Installation).",
+			"Assign a category when creating or editing a job — it appears as a coloured badge on job cards and the calendar.",
+			"Categories make it easy to filter the dashboard and spot workload patterns at a glance.",
 		],
 	},
 	{
@@ -47,8 +91,18 @@ const MASTER_SECTIONS = [
 		title: "Managing the Team",
 		steps: [
 			"Go to Team to see all engineers and their roles.",
+			"Reset an engineer's password or lock their account from the Team page.",
 			"Use the Holidays page to view, approve, or decline time-off requests.",
 			"Account settings let you configure business hours, accent colour, and your accounting connection (Xero or QuickBooks).",
+		],
+	},
+	{
+		icon: "📤",
+		title: "Exporting Job Data",
+		steps: [
+			"Go to Account and scroll to the Export section.",
+			"Filter by date range, engineer, or status, then download as CSV or Excel.",
+			"Exports include job reference, customer, address, category, status, engineer, hours, materials, and cost.",
 		],
 	},
 ];
@@ -83,7 +137,16 @@ const ENGINEER_SECTIONS = [
 		],
 	},
 	{
-		icon: "📊",
+		icon: "�",
+		title: "Logging Time & Materials",
+		steps: [
+			"On the job detail page, enter how many hours you spent on the job in the Time Spent field.",
+			"List any materials used in the Materials field and enter the cost.",
+			"This data feeds into timesheets and job exports — fill it in before marking the job Completed.",
+		],
+	},
+	{
+		icon: "�📊",
 		title: "Dashboard & Search",
 		steps: [
 			"The Dashboard gives you a searchable list of all your jobs.",
