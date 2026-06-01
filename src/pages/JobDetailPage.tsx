@@ -30,6 +30,23 @@ function timeOptions() {
 }
 const TIME_OPTS = timeOptions();
 
+// Local HH:MM from an ISO timestamp.
+function hhmm(iso: string): string {
+	const d = new Date(iso);
+	return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+// Whole minutes between two ISO timestamps, or null if either is missing.
+function durMins(fromIso?: string, toIso?: string): number | null {
+	if (!fromIso || !toIso) return null;
+	const m = (Date.parse(toIso) - Date.parse(fromIso)) / 60000;
+	return m > 0 ? m : null;
+}
+function fmtDur(mins: number): string {
+	const h = Math.floor(mins / 60);
+	const m = Math.round(mins % 60);
+	return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
 export function JobDetailPage() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
@@ -304,6 +321,41 @@ export function JobDetailPage() {
 								? ` (ends ${new Date(job.endDate + "T00:00:00").toLocaleDateString("en-GB")})`
 								: ""}
 						</p>
+					)}
+					{/* Actual timestamps (engineer's progress) */}
+					{(job.enRouteAt || job.onSiteAt || job.completedAt) && (
+						<div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+							<span className="text-neutral-500">Actual:</span>
+							{job.enRouteAt && (
+								<span className="text-neutral-400">
+									En route {hhmm(job.enRouteAt)}
+								</span>
+							)}
+							{job.onSiteAt && (
+								<span className="text-neutral-400">
+									On site {hhmm(job.onSiteAt)}
+								</span>
+							)}
+							{job.completedAt && (
+								<span className="text-neutral-400">
+									Completed {hhmm(job.completedAt)}
+								</span>
+							)}
+							{durMins(job.onSiteAt, job.completedAt) != null && (
+								<span className="rounded-full border border-green-900/50 bg-green-950/40 px-2 py-0.5 text-green-400">
+									On site{" "}
+									{fmtDur(durMins(job.onSiteAt, job.completedAt)!)}{" "}
+									· billable
+								</span>
+							)}
+							{durMins(job.enRouteAt, job.completedAt) != null && (
+								<span className="rounded-full border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-neutral-300">
+									Total{" "}
+									{fmtDur(durMins(job.enRouteAt, job.completedAt)!)}{" "}
+									· incl. travel
+								</span>
+							)}
+						</div>
 					)}
 					{job.phone && (
 						<a

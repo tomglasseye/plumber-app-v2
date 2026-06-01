@@ -67,6 +67,10 @@ export interface Job {
 	sortOrder?: number;
 	customerId?: string;
 	repeatFrequency?: RepeatFrequency;
+	// Actual timestamps (migration 26) — stamped as the engineer advances status.
+	enRouteAt?: string; // ISO — left for the job
+	onSiteAt?: string; // ISO — arrived / started work (billable start)
+	completedAt?: string; // ISO — finished (billable end)
 }
 
 export interface Customer {

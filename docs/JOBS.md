@@ -126,6 +126,23 @@ Below both columns, full-width:
 - Awaiting HQ Approval banner (master only, when status = Completed and not yet final-complete)
 - Ready to Invoice banner (master only, when `readyToInvoice = true`)
 
+### Actual timestamps (engineer progress)
+
+As an engineer advances a job's status, `changeStatus` stamps the moment onto the job (migration 26 columns / `Job` fields):
+
+| Status entered | Column / field |
+| --- | --- |
+| En Route | `en_route_at` / `enRouteAt` |
+| On Site | `on_site_at` / `onSiteAt` |
+| Completed | `completed_at` / `completedAt` |
+
+Two durations come out of these, used in different places:
+
+- **On-site (billable)** = `completed_at − on_site_at` → **what's charged to the client**. On Completed, this auto-fills `timeSpent` (if still 0), which is the field the accounting invoice reads (`time_spent × hourly_rate`).
+- **Worked incl. travel** = `completed_at − en_route_at` → the **engineer's** time for pay (shown on Timesheets only).
+
+Scheduled `startTime`/`endTime` are **left untouched** — they stay as the plan. The detail page shows an "Actual" row with the three times plus both duration badges. See [CALENDAR.md](CALENDAR.md) for how the calendar block reflects the actual on-site window, and [TIMESHEETS.md](TIMESHEETS.md) for the two hour figures.
+
 ### Deleting a job
 
 Masters get a **Delete job** button in the detail-page header (top-right, below the status). It opens a `ConfirmDeleteModal`; confirming calls `deleteJob(id)` in `AppContext`, which optimistically removes the job, deletes the row (`job_photos` cascade-delete, `notifications.job_id` is set null per the schema), writes a `job.deleted` audit event, and navigates back. Engineers don't see the button.

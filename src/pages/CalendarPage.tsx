@@ -69,6 +69,22 @@ function formatHour(h: number): string {
 	return `${h}am`;
 }
 
+// Local HH:MM from an ISO timestamp (the actual on-site / completed time).
+function timeFromIso(iso?: string): string | undefined {
+	if (!iso) return undefined;
+	const d = new Date(iso);
+	return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// Effective display window for a timed job: once the engineer is on site, the
+// actual on-site → completed window; otherwise the scheduled start/end.
+function effStartOf(job: Job): string {
+	return timeFromIso(job.onSiteAt) ?? job.startTime!;
+}
+function effEndOf(job: Job): string | undefined {
+	return timeFromIso(job.completedAt) ?? job.endTime;
+}
+
 // ── Layout overlap detection ──────────────────────────────────────────────────
 
 interface LayoutJob {
@@ -84,19 +100,21 @@ function layoutTimedJobs(jobs: Job[]): LayoutJob[] {
 	const timed = jobs.filter((j) => j.startTime);
 	if (!timed.length) return [];
 
-	const sorted = [...timed].sort((a, b) =>
-		(a.startTime ?? "").localeCompare(b.startTime ?? ""),
-	);
+	const startOf = (j: Job) => timeToMinutes(effStartOf(j));
+	const endOf = (j: Job) => {
+		const e = effEndOf(j);
+		return e ? timeToMinutes(e) : startOf(j) + 60;
+	};
+
+	const sorted = [...timed].sort((a, b) => startOf(a) - startOf(b));
 
 	const placed: LayoutJob[] = [];
 	const colEnds: number[] = [];
 
 	for (const job of sorted) {
-		const startMins = timeToMinutes(job.startTime!);
-		const endMins = job.endTime
-			? timeToMinutes(job.endTime)
-			: startMins + 60;
-		const top = timeToY(job.startTime!);
+		const startMins = startOf(job);
+		const endMins = endOf(job);
+		const top = timeToY(effStartOf(job));
 		const height = Math.max(
 			HOUR_HEIGHT,
 			((endMins - startMins) / 60) * HOUR_HEIGHT,
@@ -110,17 +128,13 @@ function layoutTimedJobs(jobs: Job[]): LayoutJob[] {
 	}
 
 	for (const item of placed) {
-		const start = timeToMinutes(item.job.startTime!);
-		const end = item.job.endTime
-			? timeToMinutes(item.job.endTime)
-			: start + 60;
+		const start = startOf(item.job);
+		const end = endOf(item.job);
 		const maxCol = placed
 			.filter((r) => {
 				if (r === item) return false;
-				const rs = timeToMinutes(r.job.startTime!);
-				const re = r.job.endTime
-					? timeToMinutes(r.job.endTime)
-					: rs + 60;
+				const rs = startOf(r.job);
+				const re = endOf(r.job);
 				return start < re && end > rs;
 			})
 			.reduce((mx, r) => Math.max(mx, r.col), -1);
@@ -133,10 +147,10 @@ function layoutTimedJobs(jobs: Job[]): LayoutJob[] {
 			const a = placed[i].job,
 				b = placed[j].job;
 			if (a.assignedTo !== b.assignedTo) continue;
-			const aS = timeToMinutes(a.startTime!);
-			const aE = a.endTime ? timeToMinutes(a.endTime) : aS + 60;
-			const bS = timeToMinutes(b.startTime!);
-			const bE = b.endTime ? timeToMinutes(b.endTime) : bS + 60;
+			const aS = startOf(a);
+			const aE = endOf(a);
+			const bS = startOf(b);
+			const bE = endOf(b);
 			if (aS < bE && bS < aE) {
 				placed[i].conflict = true;
 				placed[j].conflict = true;
@@ -999,11 +1013,17 @@ function DayColumn({
 			{/* eslint-disable-next-line react-hooks/refs -- isResizing reads resizeRef for live styling during an active resize gesture; re-renders are driven by liveOverrides. TODO: lift resize target into state post-launch. */}
 			{timedJobs.map(({ job, col, cols, conflict }) => {
 				const override = liveOverrides[job.id] ?? {};
-				const effStart = override.startTime ?? job.startTime!;
+				// Once started, the block reflects the actual on-site window
+				// (on_site_at → completed_at); otherwise the scheduled times.
+				const effStart =
+					override.startTime ??
+					timeFromIso(job.onSiteAt) ??
+					job.startTime!;
 				const effEnd =
 					override.endTime ??
+					timeFromIso(job.completedAt) ??
 					job.endTime ??
-					minutesToTime(timeToMinutes(job.startTime!) + 60);
+					minutesToTime(timeToMinutes(effStart) + 60);
 				const effTop = timeToY(effStart);
 				const effHeight = Math.max(
 					32,
@@ -2950,12 +2970,12 @@ export function CalendarPage() {
 														{(job.startTime ||
 															job.endTime) && (
 															<p className="text-[9px] text-neutral-400 px-1.5 pb-0.5">
-																{job.startTime &&
+																{effStartOf(job) &&
 																	formatTime(
-																		job.startTime,
+																		effStartOf(job),
 																	)}
-																{job.endTime &&
-																	` – ${formatTime(job.endTime)}`}
+																{effEndOf(job) &&
+																	` – ${formatTime(effEndOf(job)!)}`}
 															</p>
 														)}
 														{cat && (

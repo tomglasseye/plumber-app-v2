@@ -13,15 +13,34 @@ function timeToMinutes(t: string): number {
 	return h * 60 + m;
 }
 
-// Hours worked for a job: prefer the engineer's logged time, else fall back to
-// the scheduled start→end duration. (WIP definition — surfaced in the UI.)
-function jobHours(j: Job): number {
+// Logged or scheduled hours — the fallback when actual timestamps are missing.
+function scheduledHours(j: Job): number {
 	if (j.timeSpent && j.timeSpent > 0) return j.timeSpent;
 	if (j.startTime && j.endTime) {
 		const d = timeToMinutes(j.endTime) - timeToMinutes(j.startTime);
 		return d > 0 ? d / 60 : 0;
 	}
 	return 0;
+}
+
+// On-site (billable) hours: actual on_site → completed if present, else the
+// logged/scheduled time. This is what feeds the client invoice.
+function billableHoursOf(j: Job): number {
+	if (j.onSiteAt && j.completedAt) {
+		const h = (Date.parse(j.completedAt) - Date.parse(j.onSiteAt)) / 3_600_000;
+		if (h > 0) return h;
+	}
+	return scheduledHours(j);
+}
+
+// Total worked hours incl. travel: en_route → completed if present, else falls
+// back to the on-site figure. This is the engineer's time for pay.
+function workedHoursOf(j: Job): number {
+	if (j.enRouteAt && j.completedAt) {
+		const h = (Date.parse(j.completedAt) - Date.parse(j.enRouteAt)) / 3_600_000;
+		if (h > 0) return h;
+	}
+	return billableHoursOf(j);
 }
 
 const byStartTime = (a: Job, b: Job) =>
@@ -175,9 +194,15 @@ export function TimesheetsPage() {
 	}
 
 	// ── Totals ──
-	const totalHours = engineers.reduce(
+	const totalWorked = engineers.reduce(
 		(sum, eng) =>
-			sum + engData[eng.id].all.reduce((s, j) => s + jobHours(j), 0),
+			sum + engData[eng.id].all.reduce((s, j) => s + workedHoursOf(j), 0),
+		0,
+	);
+	const totalBillable = engineers.reduce(
+		(sum, eng) =>
+			sum +
+			engData[eng.id].all.reduce((s, j) => s + billableHoursOf(j), 0),
 		0,
 	);
 	const totalMiles = milesReady
@@ -262,15 +287,24 @@ export function TimesheetsPage() {
 			</div>
 
 			{/* Totals */}
-			<div className="mb-6 grid grid-cols-3 gap-4">
+			<div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
 				{[
-					{ label: "Total Hours", value: totalHours.toFixed(1), emoji: "⏱️" },
 					{
-						label: "Total Miles (est.)",
+						label: "Worked (incl. travel)",
+						value: totalWorked.toFixed(1),
+						emoji: "⏱️",
+					},
+					{
+						label: "On-site (billable)",
+						value: totalBillable.toFixed(1),
+						emoji: "🧾",
+					},
+					{
+						label: "Miles (est.)",
 						value: milesReady ? totalMiles.toFixed(1) : "…",
 						emoji: "🚐",
 					},
-					{ label: "Engineers Working", value: activeEngineers, emoji: "👷" },
+					{ label: "Engineers", value: activeEngineers, emoji: "👷" },
 				].map((card) => (
 					<div
 						key={card.label}
@@ -298,7 +332,14 @@ export function TimesheetsPage() {
 					<div className="space-y-2">
 						{engineers.map((eng) => {
 							const all = engData[eng.id].all;
-							const hours = all.reduce((s, j) => s + jobHours(j), 0);
+							const worked = all.reduce(
+								(s, j) => s + workedHoursOf(j),
+								0,
+							);
+							const billable = all.reduce(
+								(s, j) => s + billableHoursOf(j),
+								0,
+							);
 							const mi = milesReady
 								? milesResult.byEng[eng.id]
 								: undefined;
@@ -329,10 +370,18 @@ export function TimesheetsPage() {
 									</div>
 									<div className="text-right">
 										<p className="text-lg font-bold text-neutral-200">
-											{hours.toFixed(1)}h
+											{worked.toFixed(1)}h
 										</p>
 										<p className="text-[10px] text-neutral-600">
-											hours
+											worked
+										</p>
+									</div>
+									<div className="text-right">
+										<p className="text-lg font-bold text-green-400">
+											{billable.toFixed(1)}h
+										</p>
+										<p className="text-[10px] text-neutral-600">
+											on-site
 										</p>
 									</div>
 									<div className="w-24 text-right">
@@ -371,8 +420,12 @@ export function TimesheetsPage() {
 			{/* Method note */}
 			<p className="mt-6 text-xs leading-relaxed text-neutral-600">
 				<strong className="text-neutral-500">How this is worked out (WIP):</strong>{" "}
-				Hours use each job's logged time, falling back to the scheduled
-				start→end duration. Miles are a <em>straight-line</em> estimate
+				<strong className="text-neutral-500">Worked</strong> = en route →
+				completed (the engineer's time, incl. travel, for pay).{" "}
+				<strong className="text-green-500">On-site</strong> = on site →
+				completed (billable — what's charged to the client). Both fall back
+				to logged/scheduled time where actual timestamps are missing. Miles
+				are a <em>straight-line</em> estimate
 				between consecutive jobs (geocoded from the job address), summed per
 				day across the period — not road distance, and no home↔job legs.
 				Addresses that can't be located are skipped. Driving miles and stored

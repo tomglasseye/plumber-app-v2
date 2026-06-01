@@ -132,6 +132,10 @@ Clicking any job block opens a floating popover showing:
 
 ---
 
+## Actual on-site window
+
+Once an engineer marks a job **On Site**, its calendar block stops showing the scheduled time and instead reflects the **actual** window — `on_site_at` → `completed_at` (falling back to scheduled until each is set). The helpers `effStartOf` / `effEndOf` drive both the block position (`layoutTimedJobs`) and its time label, in Week and Day views. This propagates live to the master via the `app-jobs` realtime channel, so an engineer's start/end **moves that one job's block** on everyone's calendar without touching other jobs. Scheduled `startTime`/`endTime` stay in the data underneath. See [JOBS.md → Actual timestamps](JOBS.md).
+
 ## Multi-day jobs
 
 A job can span multiple consecutive days using the **End Date** field.

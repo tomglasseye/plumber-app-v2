@@ -161,6 +161,9 @@ function mapJob(r: any): Job {
 		repeatFrequency: (r.repeat_frequency ?? undefined) as
 			| RepeatFrequency
 			| undefined,
+		enRouteAt: r.en_route_at ?? undefined,
+		onSiteAt: r.on_site_at ?? undefined,
+		completedAt: r.completed_at ?? undefined,
 	};
 }
 
@@ -810,28 +813,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setTimeout(() => pendingMutations.current.delete(id), 10000);
 		const job = jobs.find((j) => j.id === id)!;
 		const prevStatus = job.status;
-		// When completing a timed job, snap endTime to now if now is after startTime
 		const now = new Date();
-		const nowStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-		const snapEnd =
-			status === "Completed" && job.startTime && nowStr > job.startTime
-				? nowStr
-				: undefined;
+		const nowIso = now.toISOString();
+
+		// Stamp the actual timestamp for the status being entered. Scheduled
+		// start/end times are left untouched — the calendar reads these actuals.
+		const stamp: Partial<Job> = {};
+		const dbStamp: Record<string, string | number> = {};
+		if (status === "En Route") {
+			stamp.enRouteAt = nowIso;
+			dbStamp.en_route_at = nowIso;
+		} else if (status === "On Site") {
+			stamp.onSiteAt = nowIso;
+			dbStamp.on_site_at = nowIso;
+		} else if (status === "Completed") {
+			stamp.completedAt = nowIso;
+			dbStamp.completed_at = nowIso;
+			// Auto-fill billable (on-site) hours into timeSpent if not set yet.
+			const onSiteMs = job.onSiteAt ? Date.parse(job.onSiteAt) : NaN;
+			if (!job.timeSpent && Number.isFinite(onSiteMs)) {
+				const hrs =
+					Math.round(((now.getTime() - onSiteMs) / 3_600_000) * 100) /
+					100;
+				if (hrs > 0) {
+					stamp.timeSpent = hrs;
+					dbStamp.time_spent = hrs;
+				}
+			}
+		}
+
 		setJobs((prev) =>
-			prev.map((j) =>
-				j.id === id
-					? { ...j, status, ...(snapEnd ? { endTime: snapEnd } : {}) }
-					: j,
-			),
+			prev.map((j) => (j.id === id ? { ...j, status, ...stamp } : j)),
 		);
 		dbSaveCritical(
 			() =>
 				supabase
 					.from("jobs")
-					.update({
-						status,
-						...(snapEnd ? { end_time: snapEnd } : {}),
-					})
+					.update({ status, ...dbStamp })
 					.eq("id", id),
 			() =>
 				setJobs((prev) =>

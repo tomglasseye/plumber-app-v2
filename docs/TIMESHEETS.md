@@ -17,7 +17,12 @@ A view toggle switches Day / Week / Month; the ‹ › buttons step by that unit
 
 ## How figures are derived
 
-**Hours** — `jobHours(job)`: uses the job's logged `timeSpent` (decimal hours) if `> 0`, otherwise falls back to the scheduled `endTime − startTime` duration. Summed per engineer over every job in the period (`assignedTo === engineer` and `date ∈ range`).
+**Hours** — two figures per engineer, summed over every job in the period (`assignedTo === engineer` and `date ∈ range`):
+
+- **Worked (incl. travel)** = `completed_at − en_route_at` (`workedHoursOf`) — the engineer's time for **pay**.
+- **On-site (billable)** = `completed_at − on_site_at` (`billableHoursOf`) — **what's charged to the client**.
+
+Both fall back to `scheduledHours` (logged `timeSpent`, else scheduled `endTime − startTime`) when the actual timestamps from [JOBS.md → Actual timestamps](JOBS.md) are missing.
 
 **Miles (estimate)** — computed **per day, then summed** across the period: within each day the engineer's jobs are sorted by `startTime`, each job `address` is geocoded, and the straight-line (`haversine`) distances between consecutive located stops are summed and converted km→miles (`× 0.621371`). Distance resets each day (engineers go home — no overnight leg). **Job-to-job only** — home→first / last→home legs are not counted. Rows show `N/M located` when some addresses fail to geocode.
 
