@@ -271,6 +271,9 @@ function formatError(error: unknown): string {
 
 const IDLE_WARN_MS = 29 * 60 * 1000; // 29 minutes → show warning
 const IDLE_LOGOUT_MS = 30 * 60 * 1000; // 30 minutes → sign out
+// Super admin's currently switched-into business — persisted so it survives a
+// page reload (in-memory only would reset to the admin dashboard on refresh).
+const SA_ACTIVE_BUSINESS_KEY = "sa_active_business";
 
 export function AppProvider({ children }: { children: ReactNode }) {
 	const [loading, setLoading] = useState(true);
@@ -309,7 +312,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		supabase.auth.getSession().then(({ data: { session } }) => {
 			if (session?.user) {
-				// eslint-disable-next-line react-hooks/immutability -- loadUserData is a stable function declared below; the effect only runs after mount.
 				loadUserData(session.user.id).finally(() => setLoading(false));
 			} else {
 				setLoading(false);
@@ -330,6 +332,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			}
 		});
 		return () => subscription.unsubscribe();
+		// Mount-only: restore the session once. loadUserData is intentionally
+		// not a dependency — re-running it would reload data on every render.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Idle timeout (masters only) — 29 min warning, 30 min auto sign-out.
@@ -605,13 +610,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				holidayAllowance: 0,
 			};
 			setCurrentUser(syntheticUser);
-			// Don't auto-load any business — SA starts on the admin dashboard
+			// Start on the admin dashboard, then restore the business the SA was
+			// last switched into (persisted, so it survives a page reload).
 			setBusiness({
 				...INITIAL_BUSINESS,
 				id: "",
 				name: "Select a Client",
 				logoInitials: "SA",
 			});
+			const savedBiz = localStorage.getItem(SA_ACTIVE_BUSINESS_KEY);
+			if (savedBiz) await switchBusiness(savedBiz);
 
 			subscribeToPush(userId).catch(() => {});
 			return { role: "master", superAdmin: true };
@@ -1677,7 +1685,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				.eq("business_id", businessId)
 				.order("name", { ascending: true }),
 		]);
-		if (bizRes.data) setBusiness(mapBusiness(bizRes.data));
+		if (bizRes.data) {
+			setBusiness(mapBusiness(bizRes.data));
+			localStorage.setItem(SA_ACTIVE_BUSINESS_KEY, businessId);
+		}
 		if (jobsRes.data) setJobs(jobsRes.data.map(mapJob));
 		if (profilesRes.data) setUsers(profilesRes.data.map(mapProfile));
 		if (catsRes.data) setCategories(catsRes.data.map(mapCategory));
@@ -1688,6 +1699,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	function exitBusiness() {
+		localStorage.removeItem(SA_ACTIVE_BUSINESS_KEY);
 		setBusiness({
 			...INITIAL_BUSINESS,
 			id: "",

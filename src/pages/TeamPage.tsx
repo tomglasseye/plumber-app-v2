@@ -218,7 +218,13 @@ export function TeamPage() {
 				{isMaster && (
 					<button
 						onClick={openAdd}
-						className="rounded-lg px-4 py-2 text-sm font-medium text-white cursor-pointer hover:opacity-90 transition-opacity"
+						disabled={!business.id}
+						title={
+							!business.id
+								? "Switch into a business first (from the admin dashboard)"
+								: undefined
+						}
+						className="rounded-lg px-4 py-2 text-sm font-medium text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
 						style={{ backgroundColor: business.accentColor }}
 					>
 						+ Add Member

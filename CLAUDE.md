@@ -30,7 +30,7 @@ Requires `.env.local` with `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and (o
 - `src/components/` — 11 reusable components (JobCard, JobPhotos, Sidebar, ActivityLog, NotificationBell, PushBanner, OfflineBanner, IosInstallPrompt, ErrorBoundary, ConfirmDeleteModal, UnscheduledPanel)
 - `src/hooks/`, `src/utils/` — `useOnlineStatus`, `useCalendarShortcuts`; `push.ts`, `geo.ts`
 - `netlify/functions/` — service-role-only ops: `create-business`, `admin-invite-user` (master in own business **or** super admin into any business via `businessId`), `admin-delete-user` (removes the auth account too), `admin-lock-user`, `admin-update-password`, `login-rate-limit`, `send-push`
-- `supabase/` — `1_schema.sql`, `2_seed.sql`, then `3_migration.sql` → `26_migration.sql` (run in order)
+- `supabase/` — `1_schema.sql`, `2_seed.sql`, then `3_migration.sql` → `27_migration.sql` (run in order)
 
 ## Feature docs — read the relevant one BEFORE touching a feature
 
