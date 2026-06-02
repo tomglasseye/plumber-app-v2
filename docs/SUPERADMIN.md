@@ -143,6 +143,10 @@ This calls `admin-invite-user` with the current `business.id`. The function now 
 
 `deleteUser` now calls the `admin-delete-user` function, which **deletes the Supabase Auth account** (the `profiles` row cascades). Previously it deleted only the profile, leaving an orphaned "awaiting verification" auth user behind. The function first unassigns the user's jobs (`assigned_to → null`), removes their notifications, and nulls photo-uploader links (those FKs have no cascade), refuses to delete your own account, and limits masters to their own business (super admins can delete anyone).
 
+## Editing a team member's email
+
+A member's email is their **login identity** in `auth.users`, plus a `profiles.email` copy for display. Editing it in the Team edit form calls `admin-update-email`, which updates **both** (the auth email is re-confirmed immediately, so it works for login straight away). Master or super admin only; masters are limited to their own business. The other edit-form fields (name, phone, home, role, colour) go through the normal `saveUser` profile update and don't touch auth.
+
 ## Things to watch out for
 
 | Concern                        | Detail                                                                                                                                 |

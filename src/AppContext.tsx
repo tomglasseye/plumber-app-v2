@@ -48,6 +48,7 @@ interface AppCtx {
 		userId: string,
 		password: string,
 	) => Promise<string | null>;
+	changeEmail: (userId: string, email: string) => Promise<string | null>;
 	inviteUser: (params: {
 		email: string;
 		password: string;
@@ -1262,6 +1263,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		}
 	}
 
+	async function changeEmail(
+		userId: string,
+		email: string,
+	): Promise<string | null> {
+		const {
+			data: { session },
+		} = await supabase.auth.getSession();
+		if (!session) return "Not authenticated";
+		try {
+			const res = await fetch("/.netlify/functions/admin-update-email", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${session.access_token}`,
+				},
+				body: JSON.stringify({ userId, email }),
+			});
+			const body = await res.json();
+			if (!res.ok) return body.error ?? "Failed to update email";
+			// Updates the auth login email and the profiles.email copy server-side.
+			setUsers((prev) =>
+				prev.map((u) => (u.id === userId ? { ...u, email } : u)),
+			);
+			if (currentUser?.id === userId)
+				setCurrentUser((prev) => (prev ? { ...prev, email } : prev));
+			supabase.rpc("log_audit_event", {
+				p_action: "auth.email_changed",
+				p_target_type: "profile",
+				p_target_id: userId,
+			});
+			return null;
+		} catch {
+			return "Network error — could not reach server";
+		}
+	}
+
 	async function inviteUser(params: {
 		email: string;
 		password: string;
@@ -1733,6 +1770,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				unlockUser,
 				deleteUser,
 				changePassword,
+				changeEmail,
 				inviteUser,
 				theme,
 				toggleTheme,

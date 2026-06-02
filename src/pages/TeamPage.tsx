@@ -5,6 +5,7 @@ import type { Role, User } from "../types";
 
 interface EditForm {
 	name: string;
+	email: string;
 	phone: string;
 	home: string;
 	avatar: string;
@@ -30,6 +31,7 @@ export function TeamPage() {
 		unlockUser,
 		deleteUser,
 		changePassword,
+		changeEmail,
 		inviteUser,
 		isMaster,
 		business,
@@ -39,6 +41,7 @@ export function TeamPage() {
 	const [editing, setEditing] = useState<User | null>(null);
 	const [form, setForm] = useState<EditForm>({
 		name: "",
+		email: "",
 		phone: "",
 		home: "",
 		avatar: "",
@@ -46,6 +49,7 @@ export function TeamPage() {
 		color: "#f97316",
 	});
 	const [saving, setSaving] = useState(false);
+	const [editError, setEditError] = useState<string | null>(null);
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [pwSaving, setPwSaving] = useState(false);
@@ -125,6 +129,7 @@ export function TeamPage() {
 		setEditing(u);
 		setForm({
 			name: u.name,
+			email: u.email,
 			phone: u.phone,
 			home: u.home,
 			avatar: u.avatar,
@@ -140,6 +145,7 @@ export function TeamPage() {
 
 	function closeEdit() {
 		setEditing(null);
+		setEditError(null);
 		setNewPassword("");
 		setConfirmPassword("");
 		setPwError(null);
@@ -150,9 +156,20 @@ export function TeamPage() {
 	async function handleSave() {
 		if (!editing) return;
 		setSaving(true);
+		setEditError(null);
+		const newEmail = form.email.trim();
+		if (newEmail && newEmail !== editing.email) {
+			const err = await changeEmail(editing.id, newEmail);
+			if (err) {
+				setEditError(err);
+				setSaving(false);
+				return;
+			}
+		}
 		await saveUser({
 			...editing,
 			name: form.name.trim(),
+			email: newEmail || editing.email,
 			phone: form.phone.trim(),
 			home: form.home.trim(),
 			avatar: form.avatar.trim().toUpperCase().slice(0, 3),
@@ -484,6 +501,22 @@ export function TeamPage() {
 							</div>
 							<div>
 								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
+									Work Email
+								</label>
+								<input
+									type="email"
+									value={form.email}
+									onChange={(e) =>
+										setForm((f) => ({
+											...f,
+											email: e.target.value,
+										}))
+									}
+									className={inputCls}
+								/>
+							</div>
+							<div>
+								<label className="mb-1.5 block text-xs uppercase tracking-wider text-neutral-600">
 									Initials (2-3 letters)
 								</label>
 								<input
@@ -578,6 +611,9 @@ export function TeamPage() {
 							</div>
 						</div>
 
+						{editError && (
+							<p className="mt-4 text-sm text-red-400">{editError}</p>
+						)}
 						<div className="mt-6 flex gap-3">
 							<button
 								onClick={closeEdit}
