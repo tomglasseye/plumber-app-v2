@@ -174,13 +174,13 @@ Categories were added in migration 9. If no categories are configured the catego
 
 ## Job photos
 
-Up to 2 photos can be attached to a job via `src/components/JobPhotos.tsx`, which is rendered in the job detail page.
+Up to 2 photos can be attached to a job via `src/components/JobPhotos.tsx`, which is rendered in the job detail page. The picker lets engineers **take a new photo with the camera or choose an existing one** from their library (the input is `accept="image/*"` with no forced `capture`).
 
 ### How it works
 
 - Photos are uploaded to Supabase Storage in the `job-photos` bucket (private)
-- Each photo is stored at `{jobId}/{uuid}.{ext}`
-- Images are resized to max 1200 px wide client-side before upload (JPEG, 85%) to save storage and bandwidth
+- Each photo is stored at `{jobId}/{uuid}.jpg`
+- **Every** image is downscaled to fit within 1600 px on its longest side and re-encoded as JPEG (~80%) client-side before upload — always, regardless of the source's size or format — so a full-res phone photo (3–5 MB) becomes a few hundred KB. Re-encoding via canvas also strips EXIF. See `compressImage` in `JobPhotos.tsx`.
 - Signed URLs (1-hour expiry) are fetched on component mount for display
 - A database trigger (`enforce_job_photo_limit`) prevents a third photo being inserted server-side
 - Masters and the uploader can delete photos; other engineers can only view

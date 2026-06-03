@@ -68,14 +68,13 @@ export function JobPhotos({ jobId, canEdit }: Props) {
 		setError(null);
 
 		try {
-			// Resize large images client-side
-			const resized = await resizeImage(file, 1200);
-			const ext = file.name.split(".").pop() ?? "jpg";
-			const path = `${jobId}/${crypto.randomUUID()}.${ext}`;
+			// Always downscale + JPEG-recompress client-side (see compressImage)
+			const compressed = await compressImage(file);
+			const path = `${jobId}/${crypto.randomUUID()}.jpg`;
 
 			const { error: uploadErr } = await supabase.storage
 				.from("job-photos")
-				.upload(path, resized, { contentType: resized.type });
+				.upload(path, compressed, { contentType: "image/jpeg" });
 			if (uploadErr) throw new Error(uploadErr.message);
 
 			const { data: row, error: insertErr } = await supabase
@@ -176,7 +175,6 @@ export function JobPhotos({ jobId, canEdit }: Props) {
 						ref={fileRef}
 						type="file"
 						accept="image/*"
-						capture="environment"
 						onChange={handleUpload}
 						className="hidden"
 					/>
@@ -204,27 +202,41 @@ export function JobPhotos({ jobId, canEdit }: Props) {
 	);
 }
 
-/** Resize an image file to maxWidth, returns a Blob. */
-async function resizeImage(file: File, maxWidth: number): Promise<Blob> {
-	return new Promise((resolve) => {
+const MAX_DIMENSION = 1600; // px, longest side — tunable
+const JPEG_QUALITY = 0.8;
+
+/**
+ * Always downscale-to-fit and JPEG-recompress an image before upload, so
+ * full-res phone photos (often 3–5 MB) become a few hundred KB. Bounds the
+ * longest side (handles portrait too), never upscales, and rejects images the
+ * browser can't decode. Re-encoding also strips EXIF metadata as a side benefit.
+ */
+async function compressImage(file: File): Promise<Blob> {
+	return new Promise((resolve, reject) => {
 		const img = new Image();
+		const url = URL.createObjectURL(file);
 		img.onload = () => {
-			if (img.width <= maxWidth) {
-				resolve(file);
-				return;
-			}
-			const scale = maxWidth / img.width;
+			URL.revokeObjectURL(url);
+			const longest = Math.max(img.width, img.height);
+			const scale = longest > MAX_DIMENSION ? MAX_DIMENSION / longest : 1;
 			const canvas = document.createElement("canvas");
-			canvas.width = maxWidth;
-			canvas.height = img.height * scale;
-			const ctx = canvas.getContext("2d")!;
-			ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+			canvas.width = Math.round(img.width * scale);
+			canvas.height = Math.round(img.height * scale);
+			canvas
+				.getContext("2d")!
+				.drawImage(img, 0, 0, canvas.width, canvas.height);
 			canvas.toBlob(
 				(blob) => resolve(blob ?? file),
 				"image/jpeg",
-				0.85,
+				JPEG_QUALITY,
 			);
 		};
-		img.src = URL.createObjectURL(file);
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			reject(
+				new Error("Couldn't read that image — try a different photo."),
+			);
+		};
+		img.src = url;
 	});
 }
