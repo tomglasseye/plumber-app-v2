@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
 	Navigate,
 	Route,
@@ -101,6 +101,20 @@ export default function App() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const { business } = useApp();
 	const navigate = useNavigate();
+
+	// Any logout (manual, idle timeout, or session expiry) funnels through
+	// currentUser → null. Redirect to /login on that transition so a signed-out
+	// user always lands on the login page — not the public home (AboutPage at "/").
+	// A fresh visitor who was never signed in still sees the public home.
+	const wasAuthed = useRef(false);
+	useEffect(() => {
+		if (currentUser) {
+			wasAuthed.current = true;
+		} else if (wasAuthed.current) {
+			wasAuthed.current = false;
+			navigate("/login", { replace: true });
+		}
+	}, [currentUser, navigate]);
 
 	if (loading) {
 		return (
