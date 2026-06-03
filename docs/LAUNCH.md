@@ -8,33 +8,33 @@ This doc is the single source of truth for going live. Other docs cover the *how
 
 ## Phases at a glance
 
-| Phase | What | When | Doc |
-| ----- | ---- | ---- | --- |
-| 1 | Internal staging on Netlify URL | Now | This doc |
-| 2 | Client testing on Netlify URL | First 1–2 clients | This doc |
-| 3 | Custom domain + production hardening | Before public launch | This doc |
-| 4 | Accounting integration rollout (Xero + QuickBooks) | Per-client, after they're stable on the app | [ACCOUNTING.md](ACCOUNTING.md) |
-| 5 | Stripe billing — recurring subscriptions for clients using the app | Before charging anyone | This doc |
-| 6 | Scale-up — additional clients onboarded | Ongoing | [SUPERADMIN.md](SUPERADMIN.md) |
+| Phase | What | Status | Doc |
+| ----- | ---- | ------ | --- |
+| 1 | Internal staging | ✅ Done — live on hiveq.co.uk, migrations 1–28 run | This doc |
+| 2 | Client testing | 🔵 In progress — onboarding the first 1–2 clients | This doc |
+| 3 | Custom domain + production hardening | 🔵 Domain registered (hiveq.co.uk); wiring + hardening remain | This doc |
+| 4 | Accounting integration rollout (Xero + QuickBooks) | ⬜ Deferred — not built | [ACCOUNTING.md](ACCOUNTING.md) |
+| 5 | Stripe billing | ⬜ Deferred — not built (`plan` column groundwork done) | This doc |
+| 6 | Scale-up — additional clients onboarded | ⬜ Later | [SUPERADMIN.md](SUPERADMIN.md) |
 
 ---
 
-## Phase 1 — Internal staging (current state)
+## Phase 1 — Internal staging ✅ Done
 
-The app is deployed at `https://your-site.netlify.app`. Before inviting any real client, confirm:
+The app is live in production on **hiveq.co.uk** (Netlify + Supabase). For reference, the staging baseline that had to be true before inviting any client — all met:
 
-- [ ] Production Supabase project exists (separate from any dev/local one) — see [SUPABASE.md](SUPABASE.md)
-- [ ] All migrations 1–24 have been run in production Supabase
-- [ ] At least one super admin row exists in `super_admins` (manually inserted via SQL)
-- [ ] Netlify env vars set (see env var section below)
-- [ ] Build passes (`npm run build`) — TypeScript strict mode catches a lot pre-deploy
-- [ ] Service worker registers without errors (DevTools → Application → Service Workers)
+- [x] Production Supabase project exists (separate from any dev/local one) — see [SUPABASE.md](SUPABASE.md)
+- [x] All migrations (1–28) have been run in production Supabase
+- [x] At least one super admin row exists in `super_admins` (manually inserted via SQL)
+- [x] Netlify env vars set (see env var section below)
+- [x] Build passes (`npm run build`) — TypeScript strict mode catches a lot pre-deploy
+- [x] Service worker registers without errors (DevTools → Application → Service Workers)
 
 ---
 
-## Phase 2 — Client testing on Netlify URL
+## Phase 2 — Client testing 🔵 (current)
 
-You can run client trials on the `*.netlify.app` URL — no domain needed yet. Per client:
+Client trials are running now on **hiveq.co.uk**. Per client:
 
 1. **Create the business** via the super admin page (`/admin`)
 2. **Brand colour** — pick from the swatch picker (now all 18 options, see AdminPage)
@@ -59,45 +59,35 @@ You can run client trials on the `*.netlify.app` URL — no domain needed yet. P
 
 This is the biggest jump. Do all of these before going public — most affect URLs that get baked into emails, tokens, and OAuth callbacks.
 
-### 3a. Pick and register a domain
+### 3a. Domain — registered ✅
 
-You don't have one yet. Options:
-- `.com` — most trusted for B2B SaaS, ~£10/year via Namecheap, Cloudflare, Porkbun, etc.
-- `.co.uk` — fine if UK-only, ~£8/year via 123-reg, Easyspace
-- `.app` / `.io` — premium, more expensive
-
-Considerations:
-- Short and memorable — engineers will type it on phone keyboards
-- Avoid hyphens — they're a typing tax
-- Buy the matching `.co.uk` defensively if you go `.com` (or vice versa)
-
-Once registered, **don't point DNS yet** — just hold it. The Netlify config below will tell you exactly what records to add.
+The production domain is **hiveq.co.uk**. (Optionally buy the matching `.com` defensively, but not required.) The remaining work is wiring it up (3b–3c below).
 
 ### 3b. Connect domain to Netlify
 
 In Netlify:
 
 1. **Site Settings → Domain management → Add a domain**
-2. Enter your domain (e.g. `pipeline.app`)
+2. Enter your domain (e.g. `hiveq.co.uk`)
 3. Netlify will give you DNS records to add at your registrar — typically:
    - `A` record → Netlify load balancer IP
    - `CNAME` for `www` → `<your-site>.netlify.app`
 4. Add those records at your registrar; propagation takes 5 min – 24 hr
 5. **Enable HTTPS** — Netlify provisions a Let's Encrypt cert automatically once DNS resolves
 6. **Force HTTPS redirect** — toggle in Netlify Domain settings
-7. **Set primary domain** — pick `pipeline.app` or `www.pipeline.app` (the other becomes a redirect)
+7. **Set primary domain** — pick `hiveq.co.uk` or `www.hiveq.co.uk` (the other becomes a redirect)
 
 ### 3c. Update everywhere the URL is referenced
 
 Once the domain is live, update these — **in order**:
 
 1. **Netlify env vars**
-   - `XERO_REDIRECT_URI` — change to `https://yourdomain.com/account` (when Xero is added)
-   - `APP_URL` — change to `https://yourdomain.com`
+   - `XERO_REDIRECT_URI` — change to `https://hiveq.co.uk/account` (when Xero is added)
+   - `APP_URL` — change to `https://hiveq.co.uk`
    - Trigger a redeploy so functions pick up new values
 2. **Supabase Auth → URL Configuration**
-   - **Site URL** → `https://yourdomain.com`
-   - **Redirect URLs** → add `https://yourdomain.com` (keep `localhost:5173` for dev)
+   - **Site URL** → `https://hiveq.co.uk`
+   - **Redirect URLs** → add `https://hiveq.co.uk` (keep `localhost:5173` for dev)
    - This is what password reset emails will link to
 3. **Supabase Auth → Email Templates**
    - Customise the "Invite user" template if you want it on-brand
@@ -105,25 +95,20 @@ Once the domain is live, update these — **in order**:
 4. **PWA manifest** (`vite.config.ts`)
    - No URL is hardcoded so nothing to change, but verify install icon and name look right post-deploy
 
-### 3d. Email — set up real SMTP
+### 3d. Email — invite-only, so SMTP is optional
 
-Supabase free-tier email is rate-limited to ~4/hour. With multiple clients onboarding, you'll hit this quickly.
+HiveQ sends outbound email in exactly **one** place: the new-business **master invite** (`create-business` → `inviteUserByEmail`, a set-password magic link). Engineer onboarding sets a password directly (no email) and password recovery is admin-driven ("contact your administrator") — see [SECURITY.md](SECURITY.md). So there is no transactional email volume to engineer around, and the ~4/hour Supabase free-tier limit is rarely relevant.
 
-**Set up a real SMTP provider** — Supabase Dashboard → Authentication → SMTP Settings.
+This means you do **not** need Resend/Postmark/SendGrid. The only open question is sender branding:
+- Supabase's default sender works for the occasional invite but comes from `noreply@supabase.co`.
+- To send the invite from `hiveq.co.uk`, configure a simple SMTP (Supabase Dashboard → Authentication → SMTP Settings) and add SPF + DKIM for the domain. Low volume — any basic tier is plenty.
 
-Recommended:
-- **Resend** — simplest API, generous free tier (100/day), sender domain verification via DNS
-- **Postmark** — best deliverability for transactional, 100/month free
-- **SendGrid** — 100/day free, more legacy
+Either way, the load-bearing config is the **Site URL / Redirect URLs** in 3c — the invite magic link is built from them.
 
-Setup checklist:
-- [ ] Sign up with provider
-- [ ] Add SPF and DKIM records at your registrar (provider gives you the values)
-- [ ] Verify sending domain
-- [ ] Configure SMTP in Supabase with provider's host/port/credentials
-- [ ] Send a test password reset to confirm delivery from your domain (not `noreply@supabase.co`)
-
-See [SECURITY.md](SECURITY.md) for the full SMTP rationale.
+Setup checklist (only if branding the invite):
+- [ ] Configure SMTP in Supabase with a provider's host/port/credentials
+- [ ] Add SPF + DKIM records for `hiveq.co.uk`
+- [ ] Send a test master invite and confirm it arrives from `hiveq.co.uk`, link works
 
 ### 3e. VAPID for push notifications
 
@@ -133,7 +118,7 @@ Already configured but verify in Netlify env vars (see [NOTIFICATIONS.md](NOTIFI
 | ----------------------- | ------------------------------------------- |
 | `VAPID_PUBLIC_KEY`      | From `npx web-push generate-vapid-keys`     |
 | `VAPID_PRIVATE_KEY`     | From the same command (server-only)         |
-| `VAPID_MAILTO`          | `mailto:you@yourdomain.com`                 |
+| `VAPID_MAILTO`          | `mailto:you@hiveq.co.uk`                 |
 | `VITE_VAPID_PUBLIC_KEY` | Same as `VAPID_PUBLIC_KEY` (browser-safe)   |
 
 > **Note:** Netlify currently has a `VAPID_EMAIL` env var set, but the code reads `VAPID_MAILTO`. If push is reporting `mailto:admin@example.com` to push services, rename the Netlify env var to `VAPID_MAILTO`.
@@ -163,7 +148,7 @@ Run through [SECURITY.md](SECURITY.md) before going public:
 1. **Developer apps**
    - Create Xero developer app at [developer.xero.com](https://developer.xero.com)
    - Create Intuit developer app at [developer.intuit.com](https://developer.intuit.com)
-   - Register webhook URLs in both dashboards (`https://yourdomain.com/.netlify/functions/accounting-webhook-{xero|qbo}`)
+   - Register webhook URLs in both dashboards (`https://hiveq.co.uk/.netlify/functions/accounting-webhook-{xero|qbo}`)
 2. **Env vars** — see the Phase 4 table further down; includes `ACCOUNTING_ENCRYPTION_KEY` (generate with `openssl rand -hex 32`)
 3. **Migration 25** — adds generic `accounting_*` columns to `businesses`, `customers.accounting_contact_id`, `jobs.accounting_invoice_id`/`_status`/`_last_error`, plus a `webhook_events` table. Drops the original Xero stub columns (no production data behind them).
 4. **Build the integration** — follow [ACCOUNTING.md](ACCOUNTING.md) build order:
@@ -195,22 +180,22 @@ These are your developer app credentials — set once, not per-client. See [ACCO
 # Xero (one-time, your developer app)
 XERO_CLIENT_ID=
 XERO_CLIENT_SECRET=                       ← server-only, NEVER expose
-XERO_REDIRECT_URI=https://yourdomain.com/account
+XERO_REDIRECT_URI=https://hiveq.co.uk/account
 XERO_WEBHOOK_KEY=
 VITE_XERO_CLIENT_ID=
-VITE_XERO_REDIRECT_URI=https://yourdomain.com/account
+VITE_XERO_REDIRECT_URI=https://hiveq.co.uk/account
 
 # QuickBooks (one-time, your Intuit developer app)
 INTUIT_CLIENT_ID=
 INTUIT_CLIENT_SECRET=                     ← server-only
-INTUIT_REDIRECT_URI=https://yourdomain.com/account
+INTUIT_REDIRECT_URI=https://hiveq.co.uk/account
 INTUIT_ENVIRONMENT=production
 INTUIT_WEBHOOK_VERIFIER=
 VITE_INTUIT_CLIENT_ID=
-VITE_INTUIT_REDIRECT_URI=https://yourdomain.com/account
+VITE_INTUIT_REDIRECT_URI=https://hiveq.co.uk/account
 
 # Shared
-APP_URL=https://yourdomain.com
+APP_URL=https://hiveq.co.uk
 ACCOUNTING_ENCRYPTION_KEY=                ← 32-byte hex, generate once: openssl rand -hex 32
 ```
 
@@ -264,13 +249,13 @@ Everything that should be set in Netlify before going live. Variables prefixed `
 | `VITE_VAPID_PUBLIC_KEY`   | Browser (push subscribe)    | `npx web-push generate-vapid-keys` |
 | `VAPID_PUBLIC_KEY`        | Netlify Functions (send-push) | Same as above                  |
 | `VAPID_PRIVATE_KEY`       | Netlify Functions (send-push) | Same command                   |
-| `VAPID_MAILTO`            | Netlify Functions (send-push) | `mailto:you@yourdomain.com` (currently misnamed `VAPID_EMAIL` — needs renaming) |
+| `VAPID_MAILTO`            | Netlify Functions (send-push) | `mailto:you@hiveq.co.uk` (currently misnamed `VAPID_EMAIL` — needs renaming) |
 
 ### Required for Phase 3 (custom domain)
 
 | Variable    | Value                          |
 | ----------- | ------------------------------ |
-| `APP_URL`   | `https://yourdomain.com`       |
+| `APP_URL`   | `https://hiveq.co.uk`       |
 
 ### Required for Phase 5 (Stripe)
 
@@ -290,18 +275,18 @@ Everything that should be set in Netlify before going live. Variables prefixed `
 | ----------------------------- | ---------------------------------------------------------------------- | ------- |
 | `XERO_CLIENT_ID`              | Xero developer app                                                     | Server  |
 | `XERO_CLIENT_SECRET`          | Xero developer app — **NEVER expose to browser**                       | Server  |
-| `XERO_REDIRECT_URI`           | `https://yourdomain.com/account` (must match Xero app)                 | Server  |
+| `XERO_REDIRECT_URI`           | `https://hiveq.co.uk/account` (must match Xero app)                 | Server  |
 | `XERO_WEBHOOK_KEY`            | Xero webhook signing key (HMAC verification)                           | Server  |
 | `VITE_XERO_CLIENT_ID`         | Same as `XERO_CLIENT_ID` (browser uses for OAuth URL)                  | Browser |
 | `VITE_XERO_REDIRECT_URI`      | Same as `XERO_REDIRECT_URI`                                            | Browser |
 | `INTUIT_CLIENT_ID`            | Intuit developer app (QuickBooks)                                      | Server  |
 | `INTUIT_CLIENT_SECRET`        | Intuit developer app — **NEVER expose to browser**                     | Server  |
-| `INTUIT_REDIRECT_URI`         | `https://yourdomain.com/account` (must match Intuit app)               | Server  |
+| `INTUIT_REDIRECT_URI`         | `https://hiveq.co.uk/account` (must match Intuit app)               | Server  |
 | `INTUIT_ENVIRONMENT`          | `sandbox` or `production`                                              | Server  |
 | `INTUIT_WEBHOOK_VERIFIER`     | Intuit webhook verifier token (HMAC verification)                      | Server  |
 | `VITE_INTUIT_CLIENT_ID`       | Same as `INTUIT_CLIENT_ID`                                             | Browser |
 | `VITE_INTUIT_REDIRECT_URI`    | Same as `INTUIT_REDIRECT_URI`                                          | Browser |
-| `APP_URL`                     | `https://yourdomain.com` (for invoice "view job" deep-links)           | Server  |
+| `APP_URL`                     | `https://hiveq.co.uk` (for invoice "view job" deep-links)           | Server  |
 | `ACCOUNTING_ENCRYPTION_KEY`   | 32-byte hex — `openssl rand -hex 32`. **Losing this forces all clients to reconnect.** | Server  |
 
 ---

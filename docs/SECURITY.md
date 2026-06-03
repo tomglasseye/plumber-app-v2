@@ -6,18 +6,20 @@
 
 ---
 
-## SMTP Provider
+## Email — invite-only policy
 
-Supabase's built-in email sender is rate-limited to ~4 emails/hour on the free tier. For production with multiple clients, configure a real SMTP provider.
+HiveQ deliberately keeps email to a **single touchpoint**: the new-business **master invite** (`create-business` → Supabase `inviteUserByEmail`, which sends a set-password magic link). Everything else is emailless by design:
 
-**Setup:** Supabase Dashboard → Authentication → SMTP Settings
+- **Engineer onboarding** — `admin-invite-user` creates the account with a password the master sets (`email_confirm: true`), so no email is sent (despite the function name).
+- **Password recovery** — admin-driven, not self-service: the login page shows "Forgotten your password? Contact your administrator," and masters/super-admins reset via `admin-update-password`.
 
-Recommended providers:
-- **Resend** — simple API, good free tier (100 emails/day)
-- **Postmark** — excellent deliverability, 100 free emails/month
-- **SendGrid** — 100 emails/day free, widely used
+Don't add email-dependent features (email notifications, self-service password reset, emailed reports/invoices) without revisiting this decision.
 
-Configure sender domain (SPF, DKIM) to avoid spam filters.
+### SMTP
+
+Because email is invite-only, there's no transactional volume — Supabase's built-in sender (~4 emails/hour on the free tier) is rarely stressed, and you do **not** need Resend/Postmark/SendGrid for throughput. The only reason to configure custom SMTP (Supabase Dashboard → Authentication → SMTP Settings) is **branding**: sending the invite from `hiveq.co.uk` rather than `noreply@supabase.co`. If you do, set SPF + DKIM on the domain to avoid spam filtering.
+
+> Edge case: `admin-update-email` (changing a user's login email) may still trigger a Supabase confirmation email.
 
 ---
 
