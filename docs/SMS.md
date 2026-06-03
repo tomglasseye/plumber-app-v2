@@ -45,6 +45,14 @@ Roll into the subscription price — negligible per client.
 
 ---
 
+## Manual "Send reminder" from the dashboard
+
+The master dashboard's Upcoming Events feed (see [REMINDERS.md](REMINDERS.md)) shows a **Send reminder** button on events that carry a customer recipient — recurring services and customer-linked reminders. It is **Pro-only**, gated on `business.plan === 'pro'`, so Starter (Tier 1) clients never see it and Pro (Tier 2) clients do.
+
+Today it's a **scaffold**: `handleSendReminder` in [DashboardPage.tsx](../src/pages/DashboardPage.tsx) just shows an info notice. When `send-sms` is built, wire it to POST `{ businessId, to, message }` (the customer's number + a service-due template). Because the button is Pro-gated and every client is Starter for now, no dead action is visible.
+
+---
+
 ## Architecture
 
 ```
@@ -167,4 +175,5 @@ export const handler = schedule("0 18 * * *", async () => {
 - [ ] Build daily reminder Netlify Scheduled Function
 - [ ] Add SMS settings section to Account Settings page
 - [ ] Add per-job opt-out checkbox
+- [ ] Wire the dashboard "Send reminder" button (Pro-gated) to `send-sms` — replace the `handleSendReminder` scaffold
 - [ ] Test with real UK mobile numbers

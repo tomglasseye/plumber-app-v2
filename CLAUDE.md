@@ -38,6 +38,7 @@ Requires `.env.local` with `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and (o
 | --- | --- |
 | Jobs / job sheet | `docs/JOBS.md` |
 | Calendar / scheduling | `docs/CALENDAR.md` |
+| Dashboard reminders / Upcoming Events | `docs/REMINDERS.md` |
 | Timesheets (hours + miles, master) | `docs/TIMESHEETS.md` |
 | DB schema, Auth, RLS | `docs/SUPABASE.md` |
 | Notifications + Web Push | `docs/NOTIFICATIONS.md` |

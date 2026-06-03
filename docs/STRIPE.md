@@ -82,7 +82,8 @@ ALTER TABLE businesses
   ADD COLUMN stripe_customer_id text,
   ADD COLUMN stripe_subscription_id text,
   ADD COLUMN stripe_price_id text,
-  ADD COLUMN plan text CHECK (plan IN ('starter', 'pro')),
+  -- NOTE: `plan` ('starter'/'pro') already exists — created by migration 28.
+  -- Do NOT re-add it here (it would error); the webhook just writes to it.
   ADD COLUMN subscription_status text CHECK (subscription_status IN (
     'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'incomplete', 'incomplete_expired'
   )),
@@ -112,6 +113,8 @@ CREATE INDEX billing_events_type_idx ON billing_events (type);
 RLS for `billing_events`: no client-side access. Only the service role (used by Netlify Functions) reads or writes it. Add an explicit policy denying all if RLS is enabled, or leave RLS off and revoke `anon` and `authenticated` access.
 
 The `plan` column is denormalised from `stripe_price_id` for speed — gating the SMS feature shouldn't require a Stripe round-trip on every page load. The webhook handler computes it from the price ID and writes both columns.
+
+> **`plan` already ships.** Migration 28 created `businesses.plan` (`'starter'`/`'pro'`, default `'starter'`) ahead of Stripe so the dashboard's SMS "Send reminder" button can be tier-gated today — every client is Starter until billing flips them. When Stripe lands, its webhook simply writes the same column; nothing else changes. To move a client to Pro before Stripe exists, set `plan='pro'` on their `businesses` row directly.
 
 ---
 

@@ -106,6 +106,26 @@ export interface Business {
 	logoInitials: string;
 	workDayStart: number; // hour 0-23, e.g. 7
 	workDayEnd: number;   // hour 0-23, e.g. 17
+	plan: BusinessPlan; // 'starter' = Tier 1, 'pro' = Tier 2 (gates Pro-only features e.g. SMS)
+}
+
+// Subscription tier. 'starter' = Tier 1 (no SMS), 'pro' = Tier 2 (SMS etc).
+// Populated by Stripe once billing lands (see docs/STRIPE.md); defaults to 'starter'.
+export type BusinessPlan = "starter" | "pro";
+
+export type ReminderStatus = "open" | "done" | "dismissed";
+
+// Free-form HQ reminder shown on the master dashboard's Upcoming Events feed.
+// Distinct from auto-surfaced events (holidays / recurring jobs), which aren't stored.
+export interface Reminder {
+	id: string;
+	title: string;
+	body: string;
+	dueDate?: string; // ISO 'YYYY-MM-DD' — optional; undated reminders are allowed
+	customerId?: string;
+	status: ReminderStatus;
+	createdBy?: string;
+	createdAt: string; // ISO timestamp
 }
 
 export interface NewJobForm {

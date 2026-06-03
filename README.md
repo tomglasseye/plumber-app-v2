@@ -42,7 +42,7 @@ See [docs/SUPABASE.md](docs/SUPABASE.md) for full setup instructions.
 
 ### HQ / Administrator
 
-- **Dashboard** — all jobs with live stats, search, status/engineer filters, period toggle (Today/Week/Month/Year/All), pagination (25/page)
+- **Dashboard** — Today at a glance (today's jobs, active now, completed, engineers on site), an Upcoming Events feed (engineers off, recurring services due, and free-form reminders HQ can add — each cleared when done/dismissed), and a This Week overview
 - **Create job** — customer, phone, address, type, date, engineer, priority, description, recurring frequency
 - **Job detail** — edit all fields, change status/priority, notes, materials + cost, time spent, photos
 - **Job photos** — up to 2 photos per job via Supabase Storage, client-side image resize, signed-URL display
@@ -107,7 +107,7 @@ plumber-app-v2/
 │   │   └── ErrorBoundary.tsx
 │   └── pages/
 │       ├── LoginPage.tsx     # Auth + password reset + lockout
-│       ├── DashboardPage.tsx # Job list, stats, filters, pagination
+│       ├── DashboardPage.tsx # HQ glance + events feed; engineer job list
 │       ├── JobDetailPage.tsx # View/edit single job (photos, audit log)
 │       ├── NewJobPage.tsx    # Create job form
 │       ├── MyDayPage.tsx     # Engineer daily route view

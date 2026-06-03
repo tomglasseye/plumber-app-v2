@@ -18,6 +18,8 @@ import type {
 	NewJobForm,
 	Notification,
 	Priority,
+	Reminder,
+	ReminderStatus,
 	RepeatFrequency,
 	Role,
 	Status,
@@ -96,6 +98,15 @@ interface AppCtx {
 	updateHoliday: (id: string, changes: Partial<Omit<Holiday, "id">>) => void;
 	approveHoliday: (id: string) => void;
 	declineHoliday: (id: string) => void;
+	// Reminders (free-form HQ reminders on the dashboard)
+	reminders: Reminder[];
+	createReminder: (r: Omit<Reminder, "id" | "status" | "createdAt">) => void;
+	updateReminder: (
+		id: string,
+		changes: Partial<Omit<Reminder, "id" | "createdAt">>,
+	) => void;
+	setReminderStatus: (id: string, status: ReminderStatus) => void;
+	deleteReminder: (id: string) => void;
 	// Atomic scheduling helpers (single DB call)
 	rescheduleJob: (
 		jobId: string,
@@ -206,6 +217,7 @@ function mapBusiness(r: any): Business {
 			r.logo_initials ?? (r.name as string).slice(0, 3).toUpperCase(),
 		workDayStart: r.work_day_start ?? 7,
 		workDayEnd: r.work_day_end ?? 17,
+		plan: r.plan === "pro" ? "pro" : "starter",
 	};
 }
 
@@ -263,6 +275,20 @@ function mapHoliday(r: any): Holiday {
 	};
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapReminder(r: any): Reminder {
+	return {
+		id: r.id,
+		title: r.title,
+		body: r.body ?? "",
+		dueDate: r.due_date ?? undefined,
+		customerId: r.customer_id ?? undefined,
+		status: (r.status ?? "open") as ReminderStatus,
+		createdBy: r.created_by ?? undefined,
+		createdAt: r.created_at,
+	};
+}
+
 function formatError(error: unknown): string {
 	if (error instanceof Error) return error.message;
 	if (typeof error === "object" && error !== null && "message" in error)
@@ -290,6 +316,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	const [customers, setCustomers] = useState<Customer[]>([]);
 	const [categories, setCategories] = useState<Category[]>([]);
 	const [holidays, setHolidays] = useState<Holiday[]>([]);
+	const [reminders, setReminders] = useState<Reminder[]>([]);
 	const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 	const pendingMutations = useRef<Set<string>>(new Set());
 	const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -540,6 +567,61 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		};
 	}, [currentUser]);
 
+	// Supabase Realtime — live sync for reminders table
+	useEffect(() => {
+		if (!currentUser) return;
+
+		const channel = supabase
+			.channel("app-reminders")
+			.on(
+				"postgres_changes",
+				{ event: "INSERT", schema: "public", table: "reminders" },
+				(payload) => {
+					const id = payload.new.id;
+					if (pendingMutations.current.has(id)) {
+						pendingMutations.current.delete(id);
+						return;
+					}
+					const reminder = mapReminder(payload.new);
+					setReminders((prev) =>
+						prev.some((r) => r.id === id) ? prev : [...prev, reminder],
+					);
+				},
+			)
+			.on(
+				"postgres_changes",
+				{ event: "UPDATE", schema: "public", table: "reminders" },
+				(payload) => {
+					const id = payload.new.id;
+					if (pendingMutations.current.has(id)) {
+						pendingMutations.current.delete(id);
+						return;
+					}
+					const updated = mapReminder(payload.new);
+					setReminders((prev) =>
+						prev.map((r) => (r.id === id ? updated : r)),
+					);
+				},
+			)
+			.on(
+				"postgres_changes",
+				{ event: "DELETE", schema: "public", table: "reminders" },
+				(payload) => {
+					const id = payload.old.id;
+					if (pendingMutations.current.has(id)) {
+						pendingMutations.current.delete(id);
+						return;
+					}
+					setReminders((prev) => prev.filter((r) => r.id !== id));
+				},
+			)
+			.subscribe();
+
+		return () => {
+			supabase.removeChannel(channel);
+		};
+	}, [currentUser]);
+
 	// ── DB write helpers ──────────────────────────────────────────
 
 	// Fire-and-forget with one automatic retry after 1s.
@@ -685,14 +767,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		if (catsRes.data) setCategories(catsRes.data.map(mapCategory));
 		if (holsRes.data) setHolidays(holsRes.data.map(mapHoliday));
 
-		// Load customers for master users
+		// Load customers + reminders for master users
 		if (profile.role === "master") {
-			const { data: custData } = await supabase
-				.from("customers")
-				.select("*")
-				.eq("business_id", profile.business_id)
-				.order("name", { ascending: true });
-			if (custData) setCustomers(custData.map(mapCustomer));
+			const [custRes, remRes] = await Promise.all([
+				supabase
+					.from("customers")
+					.select("*")
+					.eq("business_id", profile.business_id)
+					.order("name", { ascending: true }),
+				supabase
+					.from("reminders")
+					.select("*")
+					.eq("business_id", profile.business_id)
+					.order("due_date", { ascending: true }),
+			]);
+			if (custRes.data) setCustomers(custRes.data.map(mapCustomer));
+			if (remRes.data) setReminders(remRes.data.map(mapReminder));
 		}
 
 		// Super admin status already set at top of loadUserData
@@ -732,6 +822,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setCustomers([]);
 		setCategories([]);
 		setHolidays([]);
+		setReminders([]);
 	}
 
 	function addNotification(n: Omit<Notification, "id" | "time" | "read">) {
@@ -1676,6 +1767,65 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		);
 	}
 
+	// ── Reminders CRUD ───────────────────────────────────────────
+
+	function createReminder(r: Omit<Reminder, "id" | "status" | "createdAt">) {
+		const id = crypto.randomUUID();
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
+		const full: Reminder = {
+			...r,
+			id,
+			status: "open",
+			createdAt: new Date().toISOString(),
+			createdBy: currentUser?.id,
+		};
+		setReminders((prev) => [...prev, full]);
+		dbSave(() =>
+			supabase.from("reminders").insert({
+				id,
+				business_id: business.id,
+				title: r.title,
+				body: r.body ?? "",
+				due_date: r.dueDate ?? null,
+				customer_id: r.customerId ?? null,
+				status: "open",
+				created_by: currentUser?.id ?? null,
+			}),
+		);
+	}
+
+	function updateReminder(
+		id: string,
+		changes: Partial<Omit<Reminder, "id" | "createdAt">>,
+	) {
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
+		setReminders((prev) =>
+			prev.map((r) => (r.id === id ? { ...r, ...changes } : r)),
+		);
+		const dbChanges: Record<string, unknown> = {};
+		if (changes.title !== undefined) dbChanges.title = changes.title;
+		if (changes.body !== undefined) dbChanges.body = changes.body;
+		if (changes.dueDate !== undefined)
+			dbChanges.due_date = changes.dueDate ?? null;
+		if (changes.customerId !== undefined)
+			dbChanges.customer_id = changes.customerId ?? null;
+		if (changes.status !== undefined) dbChanges.status = changes.status;
+		dbSave(() => supabase.from("reminders").update(dbChanges).eq("id", id));
+	}
+
+	function setReminderStatus(id: string, status: ReminderStatus) {
+		updateReminder(id, { status });
+	}
+
+	function deleteReminder(id: string) {
+		pendingMutations.current.add(id);
+		setTimeout(() => pendingMutations.current.delete(id), 10000);
+		setReminders((prev) => prev.filter((r) => r.id !== id));
+		dbSave(() => supabase.from("reminders").delete().eq("id", id));
+	}
+
 	async function switchBusiness(businessId: string) {
 		const [
 			bizRes,
@@ -1685,6 +1835,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			holsRes,
 			notifsRes,
 			custRes,
+			remRes,
 		] = await Promise.all([
 			supabase
 				.from("businesses")
@@ -1721,6 +1872,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				.select("*")
 				.eq("business_id", businessId)
 				.order("name", { ascending: true }),
+			supabase
+				.from("reminders")
+				.select("*")
+				.eq("business_id", businessId)
+				.order("due_date", { ascending: true }),
 		]);
 		if (bizRes.data) {
 			setBusiness(mapBusiness(bizRes.data));
@@ -1733,6 +1889,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		if (notifsRes.data)
 			setNotifications(notifsRes.data.map(mapNotification));
 		if (custRes.data) setCustomers(custRes.data.map(mapCustomer));
+		if (remRes.data) setReminders(remRes.data.map(mapReminder));
 	}
 
 	function exitBusiness() {
@@ -1749,6 +1906,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		setHolidays([]);
 		setNotifications([]);
 		setCustomers([]);
+		setReminders([]);
 	}
 
 	return (
@@ -1804,6 +1962,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				updateHoliday,
 				approveHoliday,
 				declineHoliday,
+				reminders,
+				createReminder,
+				updateReminder,
+				setReminderStatus,
+				deleteReminder,
 				rescheduleJob,
 				resizeJobTime,
 				switchBusiness,

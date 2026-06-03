@@ -63,7 +63,7 @@ Admin operations (e.g. resetting another user's password) are handled by a Netli
 
 ## 3. Database schema
 
-Run `1_schema.sql` then `2_seed.sql` in the Supabase **SQL Editor** (Dashboard → SQL Editor → New query), then run each migration file in order (`3_migration.sql` through `7_migration.sql`).
+Run `1_schema.sql` then `2_seed.sql` in the Supabase **SQL Editor** (Dashboard → SQL Editor → New query), then run each migration file in order (`3_migration.sql` through `28_migration.sql`).
 
 The full current schema (after all migrations) is described below.
 
@@ -85,9 +85,13 @@ create table businesses (
   xero_email     text,
   work_day_start smallint default 7,   -- migration 13: calendar grid start hour (0–23)
   work_day_end   smallint default 17,  -- migration 13: calendar grid end hour (1–24)
+  plan           text default 'starter' -- migration 28: 'starter' = Tier 1, 'pro' = Tier 2
+                 check (plan in ('starter', 'pro')),
   created_at     timestamptz default now()
 );
 ```
+
+`plan` gates Pro-only features (e.g. SMS). Every client defaults to `'starter'`. Once Stripe billing lands its webhook writes this column (see [STRIPE.md](STRIPE.md)) — the Stripe migration must **not** re-add `plan`, since migration 28 already created it.
 
 ### profiles
 
@@ -235,6 +239,27 @@ Engineers submit leave requests as `pending`. Masters approve or decline. The de
 
 > **repeat_tasks (dropped in migration 12):** The `repeat_tasks` table previously held recurring job reminders as a separate concept. In migration 12 this was unified — `repeat_frequency` is now a column on the `jobs` table directly, and `repeat_tasks` was dropped.
 
+### reminders (migration 28)
+
+Free-form HQ reminders shown in the master dashboard's **Upcoming Events** feed (see [REMINDERS.md](REMINDERS.md)). Auto-surfaced events (engineers off, recurring services) are **not** stored here — they're computed live from `team_holidays` / `jobs`.
+
+```sql
+create table reminders (
+  id          uuid primary key default gen_random_uuid(),
+  business_id uuid references businesses(id) on delete cascade not null,
+  title       text not null,
+  body        text default '',
+  due_date    date,                                              -- nullable: undated reminders allowed
+  customer_id uuid references customers(id) on delete set null,  -- optional link (future SMS recipient)
+  status      text default 'open' check (status in ('open', 'done', 'dismissed')),
+  created_by  uuid references profiles(id),
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
+);
+```
+
+RLS mirrors `customers` (members read; masters write). The migration includes an explicit `GRANT … TO authenticated` (Oct 30 2026 Data API policy) and adds the table to the `supabase_realtime` publication. **Done** sets `status='done'`, **Dismiss** sets `status='dismissed'`; only `'open'` rows show in the feed.
+
 ### audit_log (migration 16)
 
 Tamper-proof record of admin actions. Client code can only write via the `log_audit_event()` security-definer function — direct inserts are blocked by RLS.
@@ -357,6 +382,7 @@ $$;
 | job_photos          | Own business                | Own business                        | —                               | Own upload OR masters        |
 | notifications       | Own (by user or role)       | —                                   | —                               | —                            |
 | customers           | Own business                | Masters only                        | Masters only                    | Masters only                 |
+| reminders           | Own business                | Masters only                        | Masters only                    | Masters only                 |
 | categories          | Own business                | Masters only                        | Masters only                    | Masters only                 |
 | team_holidays       | Own business                | Masters OR engineers (own, pending) | Masters OR engineers (own, pending) | Masters OR engineers (own, pending) |
 | audit_log           | Masters (own business only) | Via `log_audit_event()` only        | —                               | —                            |
@@ -455,3 +481,7 @@ Run these in the Supabase SQL Editor **after** applying `1_schema.sql` and `2_se
 | `22_migration.sql` | Adds RLS policies granting super admins read/write access to all tenant tables (`businesses`, `profiles`, `jobs`, `job_photos`, `customers`, `categories`, `notifications`, `team_holidays`) |
 | `23_migration.sql` | Replaces overly-broad `job-photos` Storage bucket policies with business-scoped versions — SELECT/DELETE check via `job_photos → jobs → business_id`, INSERT checks that `jobId` path segment belongs to the user's business |
 | `24_migration.sql` | Adds `guard_profile_sensitive_columns` trigger preventing engineers from changing `role`, `business_id`, or `locked` on their own profile; replaces `log_audit_event()` with version that validates action names and restricts admin-only actions to masters |
+| `25_migration.sql` | Tightens the jobs SELECT policy so engineers read only their own (or unassigned) jobs; masters still read all, super admins unaffected — enforces in the DB what the calendar's `myJobs` does in the UI |
+| `26_migration.sql` | Adds `en_route_at` / `on_site_at` / `completed_at` timestamps to `jobs` — real status-transition times for the calendar's on-site window and billable-vs-worked time split |
+| `27_migration.sql` | Adds `email` column to `profiles` (the app read/wrote it but no migration had created it) and backfills from the auth user |
+| `28_migration.sql` | Adds `plan` (`'starter'`/`'pro'`, default `'starter'`) to `businesses`; creates the `reminders` table (RLS mirrors `customers`, explicit grants, realtime) for dashboard Upcoming Events |

@@ -46,6 +46,7 @@ export const INITIAL_BUSINESS: Business = {
 	logoInitials: "DPH",
 	workDayStart: 7,
 	workDayEnd: 17,
+	plan: "starter",
 };
 
 export const USERS: User[] = [
