@@ -889,6 +889,32 @@ export function AccountPage() {
 							<p className="mt-2 text-[10px] text-neutral-500">Controls the calendar time grid and time slot options when creating jobs.</p>
 						</div>
 
+						<div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+							<h4 className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
+								Notifications
+							</h4>
+							<button
+								type="button"
+								onClick={() => f("pushEnabled", !form.pushEnabled)}
+								className="flex w-full items-center justify-between gap-3 text-left cursor-pointer"
+							>
+								<div>
+									<p className="text-sm text-neutral-100">Push notifications</p>
+									<p className="mt-0.5 text-[11px] text-neutral-500 leading-relaxed">
+										Native phone/desktop alerts when the app is closed. Off by default — your team is asked for permission only when this is on. In-app alerts (the bell) always work regardless.
+									</p>
+								</div>
+								<span
+									className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.pushEnabled ? "" : "bg-neutral-700"}`}
+									style={form.pushEnabled ? { background: form.accentColor } : undefined}
+								>
+									<span
+										className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${form.pushEnabled ? "translate-x-5" : "translate-x-0.5"}`}
+									/>
+								</span>
+							</button>
+						</div>
+
 						<button
 							onClick={handleSave}
 							className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-all cursor-pointer"

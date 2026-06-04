@@ -47,6 +47,7 @@ export const INITIAL_BUSINESS: Business = {
 	workDayStart: 7,
 	workDayEnd: 17,
 	plan: "starter",
+	pushEnabled: false,
 };
 
 export const USERS: User[] = [

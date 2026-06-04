@@ -1,15 +1,30 @@
 # Notifications
 
-Both notification layers are fully implemented: in-app real-time via Supabase Realtime, and native Web Push for OS-level alerts when the app is closed.
+There are two layers. **In-app** notifications (Supabase Realtime → bell + on-screen banner) are the primary, always-on layer and are fully working. **Web Push** (native OS notifications) is opt-in per business and **default off** — and its send path is not yet wired up (see "Push status" below).
 
 ---
 
 ## Two types of notification
 
-| Type       | What it is                                       | When it fires                        |
-| ---------- | ------------------------------------------------ | ------------------------------------ |
-| **In-app** | Notification bell counter + dropdown list        | While the app is open in the browser |
-| **Push**   | Native OS notification (even when app is closed) | On status/priority changes           |
+| Type       | What it is                                       | When it fires                        | Status |
+| ---------- | ------------------------------------------------ | ------------------------------------ | ------ |
+| **In-app** | Notification bell counter + dropdown list        | While the app is open in the browser | ✅ Live, always on |
+| **Push**   | Native OS notification (even when app is closed) | On status/priority changes (planned) | ⚠️ Opt-in (default off); **send path not yet wired** |
+
+---
+
+## Push status (read before working on push)
+
+The push **infrastructure** exists end to end — VAPID keys, `public/sw-push.js`, the `push_subscriptions` table, `subscribeToPush()`, the `send-push` Netlify Function. **But `firePush()` is never called anywhere in the app**, so no native push has ever actually been sent. The only runtime effect of the push code is the OS permission prompt that `subscribeToPush()` raises.
+
+Because clients in testing prefer the quieter in-app bell over OS-level interruptions, Web Push is now **opt-in per business** and **default off**:
+
+- `businesses.push_enabled` (boolean, default `false`) — migration 29.
+- A business master toggles it in **Account → Business → Notifications**.
+- `AppContext.loadUserData()` only calls `subscribeToPush()` when `push_enabled` is true, so a team is never prompted for OS notification permission unless their master opted in. Super admins are never prompted (no business context on the admin dashboard).
+- **In-app notifications are unaffected** by this flag — the bell and banner always run.
+
+**Later phase — actually sending push.** When push is wanted, wire `firePush()` into the status/priority change paths in `AppContext` (and/or a DB trigger calling `send-push`), and have those call sites respect `business.push_enabled` too. Until then the toggle only gates the subscription/permission prompt.
 
 ---
 
@@ -122,8 +137,9 @@ iOS requires the app to be **added to the home screen** before push notification
 - [x] Push handler in `public/sw-push.js` (injected via Workbox `importScripts`)
 - [x] `push_subscriptions` table in Supabase (migration 20)
 - [x] `subscribeToPush()` utility in `src/utils/push.ts`
-- [x] `firePush()` utility — fires and forgets
-- [x] Subscribe called after login
+- [x] `firePush()` utility defined — fires and forgets
 - [x] `send-push` Netlify Function wired up
-- [x] Push fires on status/priority change events
+- [x] Per-business opt-in `push_enabled` (default off), toggle on Account page (migration 29)
+- [x] Subscribe called after login **only when `push_enabled`**
 - [x] iOS "Add to Home Screen" banner (`IosInstallPrompt.tsx`)
+- [ ] **Later phase:** call `firePush()` on status/priority change events (currently never called → no push is actually sent)

@@ -218,6 +218,7 @@ function mapBusiness(r: any): Business {
 		workDayStart: r.work_day_start ?? 7,
 		workDayEnd: r.work_day_end ?? 17,
 		plan: r.plan === "pro" ? "pro" : "starter",
+		pushEnabled: r.push_enabled ?? false,
 	};
 }
 
@@ -704,7 +705,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			const savedBiz = localStorage.getItem(SA_ACTIVE_BUSINESS_KEY);
 			if (savedBiz) await switchBusiness(savedBiz);
 
-			subscribeToPush(userId).catch(() => {});
+			// No real business context here (SA lands on the admin dashboard),
+			// so there's nothing to gate Web Push on — skip the permission prompt.
 			return { role: "master", superAdmin: true };
 		}
 
@@ -791,8 +793,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			setCurrentUser({ ...user, role: "master" });
 		}
 
-		// Subscribe to push notifications (non-blocking)
-		subscribeToPush(userId).catch(() => {});
+		// Subscribe to Web Push only if the business has opted in (default off).
+		// In-app notifications run regardless; this just gates the OS-level
+		// permission prompt + subscription. See docs/NOTIFICATIONS.md.
+		if (bizRes.data?.push_enabled) {
+			subscribeToPush(userId).catch(() => {});
+		}
 
 		return {
 			role: isSA ? "master" : (profile.role as Role),
@@ -1163,6 +1169,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 					logo_initials: b.logoInitials,
 					work_day_start: b.workDayStart,
 					work_day_end: b.workDayEnd,
+					push_enabled: b.pushEnabled,
 				})
 				.eq("id", b.id),
 		);

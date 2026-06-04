@@ -107,6 +107,7 @@ export interface Business {
 	workDayStart: number; // hour 0-23, e.g. 7
 	workDayEnd: number;   // hour 0-23, e.g. 17
 	plan: BusinessPlan; // 'starter' = Tier 1, 'pro' = Tier 2 (gates Pro-only features e.g. SMS)
+	pushEnabled: boolean; // opt-in for native Web Push (OS notifications). Default false — in-app notifications are always on regardless. See docs/NOTIFICATIONS.md
 }
 
 // Subscription tier. 'starter' = Tier 1 (no SMS), 'pro' = Tier 2 (SMS etc).
