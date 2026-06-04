@@ -4,12 +4,14 @@ import type { Notification } from "../types";
 interface Props {
 	notifications: Notification[];
 	onClear: () => void;
+	onDismiss: (id: string) => void;
 	onNavigate: (path: string) => void;
 }
 
 export function NotificationBell({
 	notifications,
 	onClear,
+	onDismiss,
 	onNavigate,
 }: Props) {
 	const [open, setOpen] = useState(false);
@@ -91,6 +93,16 @@ export function NotificationBell({
 											{n.time}
 										</p>
 									</div>
+									<button
+										onClick={(e) => {
+											e.stopPropagation();
+											onDismiss(n.id);
+										}}
+										aria-label="Dismiss notification"
+										className="-mr-1 -mt-1 shrink-0 rounded-md p-1 text-neutral-600 hover:bg-neutral-700/60 hover:text-neutral-200 transition-colors border-0 bg-transparent leading-none"
+									>
+										✕
+									</button>
 								</div>
 							))}
 						</div>

@@ -95,6 +95,7 @@ export default function App() {
 		dismissSaveError,
 		myNotifs,
 		clearNotifs,
+		dismissNotif,
 		idleWarning,
 		dismissIdleWarning,
 	} = useApp();
@@ -213,6 +214,7 @@ export default function App() {
 					<NotificationBell
 						notifications={myNotifs}
 						onClear={clearNotifs}
+						onDismiss={dismissNotif}
 						onNavigate={(path) => navigate(path)}
 					/>
 				</header>
@@ -222,6 +224,7 @@ export default function App() {
 					<NotificationBell
 						notifications={myNotifs}
 						onClear={clearNotifs}
+						onDismiss={dismissNotif}
 						onNavigate={(path) => navigate(path)}
 					/>
 				</div>

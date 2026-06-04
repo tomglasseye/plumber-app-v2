@@ -76,6 +76,7 @@ interface AppCtx {
 	myNotifs: Notification[];
 	addNotification: (n: Omit<Notification, "id" | "time" | "read">) => void;
 	clearNotifs: () => void;
+	dismissNotif: (id: string) => void;
 	pushBanner: Notification | null;
 	dismissPush: () => void;
 	saveError: string | null;
@@ -1464,6 +1465,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 		}
 	}
 
+	// Mark a single notification read (the per-item dismiss cross). RLS scopes
+	// the update to this user's/role's rows, so the id is enough to target it.
+	function dismissNotif(id: string) {
+		setNotifications((prev) =>
+			prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+		);
+		dbSave(() =>
+			supabase.from("notifications").update({ read: true }).eq("id", id),
+		);
+	}
+
 	function createCustomer(c: Omit<Customer, "id">): string {
 		const id = crypto.randomUUID();
 		const full: Customer = { ...c, id };
@@ -1949,6 +1961,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 				myNotifs,
 				addNotification,
 				clearNotifs,
+				dismissNotif,
 				pushBanner,
 				dismissPush: () => setPushBanner(null),
 				saveError,
