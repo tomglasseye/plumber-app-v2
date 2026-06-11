@@ -63,7 +63,7 @@ Admin operations (e.g. resetting another user's password) are handled by a Netli
 
 ## 3. Database schema
 
-Run `1_schema.sql` then `2_seed.sql` in the Supabase **SQL Editor** (Dashboard → SQL Editor → New query), then run each migration file in order (`3_migration.sql` through `28_migration.sql`).
+Run `1_schema.sql` then `2_seed.sql` in the Supabase **SQL Editor** (Dashboard → SQL Editor → New query), then run each migration file in order (`3_migration.sql` through `30_migration.sql`).
 
 The full current schema (after all migrations) is described below.
 
@@ -133,7 +133,7 @@ create trigger on_auth_user_created
 create table jobs (
   id               uuid primary key default gen_random_uuid(),
   business_id      uuid references businesses(id) on delete cascade not null,
-  ref              text not null,           -- e.g. DPH-007
+  ref              text not null,           -- e.g. DPH-007; unique per business (migration 30)
   customer         text not null,
   phone            text default '',         -- migration 7
   address          text not null,
@@ -145,7 +145,7 @@ create table jobs (
   priority         text check (priority in (
                      'Emergency', 'High', 'Normal', 'Low'
                    )) default 'Normal',
-  date             date not null,
+  date             date,                    -- nullable since migration 30: unscheduled jobs
   end_date         date,                    -- migration 9: inclusive end for multi-day
   start_time       text,                    -- migration 9: 'HH:MM'
   end_time         text,                    -- migration 9: 'HH:MM'
@@ -178,6 +178,8 @@ create trigger jobs_updated_at
   before update on jobs
   for each row execute function update_updated_at();
 ```
+
+Migration 30 also adds `unique (business_id, ref)` (the client retries once with a fresh ref on conflict) and the `guard_job_invoice_gate` trigger: changes to `ready_to_invoice`, or a transition to status `'Invoiced'`, are rejected unless the caller is a master or super admin (service-role callers are exempt). This makes the Final Complete → Xero gate a database guarantee rather than a UI convention.
 
 ### customers (migration 8)
 
@@ -378,8 +380,8 @@ $$;
 | ------------------- | --------------------------- | ----------------------------------- | ------------------------------- | ---------------------------- |
 | businesses          | Own business                | —                                   | Masters only                    | —                            |
 | profiles            | Own business                | Auto (trigger)                      | Own profile OR masters for team | Masters (not self)           |
-| jobs                | Own business                | Masters only                        | Assigned engineer OR masters    | —                            |
-| job_photos          | Own business                | Own business                        | —                               | Own upload OR masters        |
+| jobs                | Own business                | Masters only                        | Assigned engineer OR masters (invoice gate: masters only, migration 30) | Masters only (migration 30)  |
+| job_photos          | Own business                | Own business                        | —                               | Own upload OR masters (migration 30) |
 | notifications       | Own (by user or role)       | —                                   | —                               | —                            |
 | customers           | Own business                | Masters only                        | Masters only                    | Masters only                 |
 | reminders           | Own business                | Masters only                        | Masters only                    | Masters only                 |
@@ -391,7 +393,7 @@ $$;
 
 Super admins have additional SELECT/INSERT/UPDATE/DELETE policies on all tenant tables (migration 22).
 
-Full SQL is in `1_schema.sql` (base), `5_migration.sql` (profile updates), `8_migration.sql` (customers), `9_migration.sql` (categories, team_holidays), `15_migration.sql` (profile delete), `16_migration.sql` (audit_log), `17_migration.sql` (holiday requests), and `22_migration.sql` (super admin bypass).
+Full SQL is in `1_schema.sql` (base), `5_migration.sql` (profile updates), `8_migration.sql` (customers), `9_migration.sql` (categories, team_holidays), `15_migration.sql` (profile delete), `16_migration.sql` (audit_log), `17_migration.sql` (holiday requests), `22_migration.sql` (super admin bypass), and `30_migration.sql` (jobs/job_photos delete policies, invoice-gate trigger).
 
 ---
 
@@ -485,3 +487,5 @@ Run these in the Supabase SQL Editor **after** applying `1_schema.sql` and `2_se
 | `26_migration.sql` | Adds `en_route_at` / `on_site_at` / `completed_at` timestamps to `jobs` — real status-transition times for the calendar's on-site window and billable-vs-worked time split |
 | `27_migration.sql` | Adds `email` column to `profiles` (the app read/wrote it but no migration had created it) and backfills from the auth user |
 | `28_migration.sql` | Adds `plan` (`'starter'`/`'pro'`, default `'starter'`) to `businesses`; creates the `reminders` table (RLS mirrors `customers`, explicit grants, realtime) for dashboard Upcoming Events |
+| `29_migration.sql` | Adds `push_enabled` (default `false`) to `businesses` — per-business opt-in for Web Push; gates the OS permission prompt / `subscribeToPush()` on login |
+| `30_migration.sql` | Adds DELETE policies for `jobs` (masters) and `job_photos` (masters or uploader) — neither existed, so client deletes were silently blocked; adds `guard_job_invoice_gate` trigger enforcing the Final Complete → Xero gate in the DB; fixes `guard_profile_sensitive_columns` to allow service-role callers (migration 24 broke `admin-lock-user`); adds `unique (business_id, ref)` after de-duping; makes `jobs.date` nullable (unscheduled jobs) |

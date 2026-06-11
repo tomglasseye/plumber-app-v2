@@ -921,7 +921,7 @@ export function JobDetailPage() {
 								if (!business.xeroConnected)
 									navigate("/account");
 								else {
-									updateJob(job.id, "status", "Invoiced");
+									// changeStatus persists the status — updateJob here double-wrote the column and duplicated audit entries.
 									changeStatus(job.id, "Invoiced");
 								}
 							}}

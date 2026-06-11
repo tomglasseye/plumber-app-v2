@@ -6,8 +6,8 @@ self.addEventListener("push", (event) => {
 	event.waitUntil(
 		self.registration.showNotification(data.title ?? "Job Update", {
 			body: data.body ?? "",
-			icon: "/icons/icon-192.png",
-			badge: "/icons/icon-192.png",
+			icon: "/android-chrome-192x192.png",
+			badge: "/android-chrome-192x192.png",
 			tag: data.tag ?? "general",
 			data: { url: data.url ?? "/" },
 		}),

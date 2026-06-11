@@ -352,13 +352,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((event) => {
 			if (event === "SIGNED_OUT") {
+				// Clear ALL tenant state — this path also covers the idle
+				// auto-logout (which calls supabase.auth.signOut() directly,
+				// bypassing logout()), so anything left out here lingers in
+				// memory behind the login screen on a shared device.
 				setCurrentUser(null);
 				setBusiness(INITIAL_BUSINESS);
 				setUsers([]);
 				setJobs([]);
 				setNotifications([]);
+				setCustomers([]);
+				setCategories([]);
+				setHolidays([]);
+				setReminders([]);
+				setIsSuperAdmin(false);
+				setPushBanner(null);
+				setSaveError(null);
 				setTheme("dark");
 				setIdleWarning(false);
+				// Don't leave the super admin's last-switched business behind
+				// for the next person who signs in on this machine.
+				localStorage.removeItem(SA_ACTIVE_BUSINESS_KEY);
 			}
 		});
 		return () => subscription.unsubscribe();
@@ -1074,7 +1088,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 	}
 
 	async function createJob(form: NewJobForm) {
-		const ref = genRef(jobs, business.logoInitials);
+		let ref = genRef(jobs, business.logoInitials);
 		const jobId = crypto.randomUUID();
 		pendingMutations.current.add(jobId);
 		setTimeout(() => pendingMutations.current.delete(jobId), 10000);
@@ -1092,26 +1106,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
 			date: form.date || undefined,
 		};
 		setJobs((prev) => [...prev, newJob]);
+		const insertRow = (jobRef: string) =>
+			supabase.from("jobs").insert({
+				id: newJob.id,
+				business_id: business.id,
+				ref: jobRef,
+				customer: form.customer,
+				phone: form.phone ?? "",
+				address: form.address,
+				description: form.description,
+				assigned_to: form.assignedTo || null,
+				status: "Scheduled",
+				priority: form.priority,
+				date: form.date || null,
+				end_date: form.endDate || null,
+				category_id: form.categoryId || null,
+				start_time: form.startTime || null,
+				end_time: form.endTime || null,
+				customer_id: form.customerId || null,
+				repeat_frequency: form.repeatFrequency ?? null,
+			});
 		// Await the insert so the job exists in DB before the notification FK reference
-		const { error } = await supabase.from("jobs").insert({
-			id: newJob.id,
-			business_id: business.id,
-			ref,
-			customer: form.customer,
-			phone: form.phone ?? "",
-			address: form.address,
-			description: form.description,
-			assigned_to: form.assignedTo || null,
-			status: "Scheduled",
-			priority: form.priority,
-			date: form.date || null,
-			end_date: form.endDate || null,
-			category_id: form.categoryId || null,
-			start_time: form.startTime || null,
-			end_time: form.endTime || null,
-			customer_id: form.customerId || null,
-			repeat_frequency: form.repeatFrequency ?? null,
-		});
+		let { error } = await insertRow(ref);
+		// 23505 = unique violation on (business_id, ref): another device minted
+		// the same ref concurrently (genRef is client-side). Refetch the latest
+		// refs from the DB and retry once with a regenerated ref.
+		if (error?.code === "23505") {
+			const { data: refRows } = await supabase
+				.from("jobs")
+				.select("ref")
+				.eq("business_id", business.id);
+			ref = genRef(refRows ?? jobs, business.logoInitials);
+			({ error } = await insertRow(ref));
+			if (!error) {
+				setJobs((prev) =>
+					prev.map((j) => (j.id === jobId ? { ...j, ref } : j)),
+				);
+			}
+		}
 		if (error) {
 			setSaveError(
 				error instanceof Error

@@ -461,7 +461,7 @@ export const INITIAL_JOBS: Job[] = [
 	},
 ];
 
-export function genRef(jobs: Job[], prefix: string): string {
+export function genRef(jobs: { ref: string }[], prefix: string): string {
 	let max = 0;
 	for (const j of jobs) {
 		const m = j.ref.match(/-(\d+)$/);

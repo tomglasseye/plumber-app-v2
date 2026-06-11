@@ -147,6 +147,8 @@ Scheduled `startTime`/`endTime` are **left untouched** — they stay as the plan
 
 Masters get a **Delete job** button in the detail-page header (top-right, below the status). It opens a `ConfirmDeleteModal`; confirming calls `deleteJob(id)` in `AppContext`, which optimistically removes the job, deletes the row (`job_photos` cascade-delete, `notifications.job_id` is set null per the schema), writes a `job.deleted` audit event, and navigates back. Engineers don't see the button.
 
+Deletion is also enforced in the database: only masters (and super admins) hold a DELETE policy on `jobs` (migration 30). Before that migration **no** delete policy existed, so client deletes were silently blocked — the job vanished from the UI but reappeared on reload.
+
 ### Fields editable on this page
 
 - Customer, address, phone, description, dates, times, category, recurring, assigned engineer (master only)
@@ -158,7 +160,9 @@ Masters get a **Delete job** button in the detail-page header (top-right, below 
 
 ## Xero integration
 
-Jobs with `readyToInvoice: true` can be pushed to Xero from the job detail page. This creates a draft invoice in Xero and sets the job status to `Invoiced`. See [XERO.md](XERO.md) for setup.
+Jobs with `readyToInvoice: true` can be pushed to Xero from the job detail page. This creates a draft invoice in Xero and sets the job status to `Invoiced` (via `changeStatus` only — it persists the status itself). See [XERO.md](XERO.md) for setup.
+
+The Final Complete gate is enforced in the database, not just the UI: the `guard_job_invoice_gate` trigger (migration 30) rejects any change to `ready_to_invoice`, or any transition to status `Invoiced`, unless the caller is a master or super admin. Engineers calling the API directly cannot short-circuit HQ approval.
 
 ---
 
