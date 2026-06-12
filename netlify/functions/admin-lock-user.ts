@@ -44,18 +44,33 @@ export default async (request: Request) => {
 		});
 	}
 
-	// Use adminClient (service role) to fetch profiles — avoids RLS silent failures
-	const { data: callerProfile } = await adminClient
-		.from("profiles")
-		.select("role, business_id")
+	// Authorisation: super admins may lock/unlock any user (they have no
+	// profile row, so the master check below would 403 them); otherwise the
+	// caller must be a master and may only lock users within their own
+	// business. Mirrors admin-delete-user / admin-update-password.
+	const { data: superAdminRow } = await adminClient
+		.from("super_admins")
+		.select("id")
 		.eq("id", caller.id)
-		.single();
+		.maybeSingle();
+	const isSuperAdmin = !!superAdminRow;
 
-	if (!callerProfile || callerProfile.role !== "master") {
-		return new Response(JSON.stringify({ error: "Not authorised" }), {
-			status: 403,
-			headers: { "Content-Type": "application/json" },
-		});
+	let callerBusinessId: string | null = null;
+	if (!isSuperAdmin) {
+		// Use adminClient (service role) to fetch profiles — avoids RLS silent failures
+		const { data: callerProfile } = await adminClient
+			.from("profiles")
+			.select("role, business_id")
+			.eq("id", caller.id)
+			.single();
+
+		if (!callerProfile || callerProfile.role !== "master") {
+			return new Response(JSON.stringify({ error: "Not authorised" }), {
+				status: 403,
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+		callerBusinessId = callerProfile.business_id;
 	}
 
 	const { userId, locked } = await request.json();
@@ -81,10 +96,14 @@ export default async (request: Request) => {
 		.eq("id", userId)
 		.single();
 
-	if (
-		!targetProfile ||
-		targetProfile.business_id !== callerProfile.business_id
-	) {
+	if (!targetProfile) {
+		return new Response(JSON.stringify({ error: "User not found" }), {
+			status: 404,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
+	if (!isSuperAdmin && targetProfile.business_id !== callerBusinessId) {
 		return new Response(
 			JSON.stringify({ error: "User not in your business" }),
 			{ status: 403, headers: { "Content-Type": "application/json" } },
