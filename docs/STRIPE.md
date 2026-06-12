@@ -73,7 +73,9 @@ Never commit live-mode keys. Use a separate Stripe account or restricted-key for
 
 ---
 
-## 2. Database schema (migration 25)
+## 2. Database schema (migration 33)
+
+> **Numbering:** the repo is currently at migration 31 (plan guard); accounting (Phase 4) is pencilled in as 32, making Stripe 33 — use the next free number at build time. Earlier drafts said "migration 25", which shipped long ago; never reuse a shipped number.
 
 Add to the `businesses` table:
 
@@ -85,7 +87,7 @@ ALTER TABLE businesses
   -- NOTE: `plan` ('starter'/'pro') already exists — created by migration 28.
   -- Do NOT re-add it here (it would error); the webhook just writes to it.
   ADD COLUMN subscription_status text CHECK (subscription_status IN (
-    'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'incomplete', 'incomplete_expired'
+    'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'incomplete', 'incomplete_expired', 'paused'
   )),
   ADD COLUMN current_period_end timestamptz,
   ADD COLUMN trial_ends_at timestamptz;
@@ -110,7 +112,11 @@ CREATE INDEX billing_events_business_id_idx ON billing_events (business_id);
 CREATE INDEX billing_events_type_idx ON billing_events (type);
 ```
 
-RLS for `billing_events`: no client-side access. Only the service role (used by Netlify Functions) reads or writes it. Add an explicit policy denying all if RLS is enabled, or leave RLS off and revoke `anon` and `authenticated` access.
+RLS for `billing_events`: **enable RLS and add no policies and no grants** — service-role only. (Don't leave RLS off on a public-schema table: Supabase's Security Advisor flags it, and one careless future `GRANT` would expose it. Under the post-Oct-2026 Data API policy an ungranted new table isn't reachable anyway.) Add a `pg_cron` cleanup for rows older than ~90 days — the table exists for idempotency, not history.
+
+`'paused'` is included in the CHECK because Stripe can emit it if subscription pausing is ever enabled in the Customer Portal. Treat it as "no access" in the gate — or keep pausing disabled in Portal settings.
+
+**Guard the billing columns from client writes.** The `masters update own business` RLS policy is row-level with no column restrictions — without a guard, a master could call the API directly and set `subscription_status='active'`: a permanently bypassed billing gate. `plan` is **already guarded** by migration 31's `guard_business_plan` trigger (service role + super admins only); this migration extends that trigger to also reject client-side changes to `subscription_status`, `stripe_customer_id`, `stripe_subscription_id`, `stripe_price_id`, `current_period_end`, and `trial_ends_at`. Only the webhook (service role) writes them.
 
 The `plan` column is denormalised from `stripe_price_id` for speed — gating the SMS feature shouldn't require a Stripe round-trip on every page load. The webhook handler computes it from the price ID and writes both columns.
 
@@ -129,6 +135,8 @@ Called from the app when a master clicks "Subscribe". Creates a Stripe Checkout 
 ```ts
 import Stripe from "stripe";
 
+// Pin apiVersion in the real build, e.g. new Stripe(key, { apiVersion: "..." }) —
+// an unpinned client silently adopts new API shapes when the SDK is upgraded.
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const PRICE_LOOKUP = {
@@ -238,7 +246,10 @@ export default async (req: Request) => {
     }
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
-      const sub = event.data.object as Stripe.Subscription;
+      // Stripe does NOT guarantee event ordering — a delayed older `updated`
+      // event can regress the row. Re-fetch so we always write current state.
+      const evSub = event.data.object as Stripe.Subscription;
+      const sub = await stripe.subscriptions.retrieve(evSub.id);
       const businessId = sub.metadata.business_id;
       if (businessId) await applySubscription(businessId, sub.customer as string, sub);
       break;
@@ -337,7 +348,7 @@ The contract:
 - `trialing`, `active` → allow invoicing
 - `past_due` with `current_period_end` still in the future → allow (Stripe is mid-retry)
 - `past_due` / `canceled` / `unpaid` / `incomplete_expired` with `current_period_end` in the past → **block** with `BILLING_GATED` error
-- `null` (no subscription) → block
+- `null` (no subscription) → block **after Stripe cutover.** Phase 4 (accounting) ships before Stripe, when every business is `null` — so the gate runs flag-disabled until `BILLING_ENFORCED=true` is set at cutover (see ACCOUNTING.md §4e). Backfill or trial existing clients at the same time.
 
 This is the same logic as the full access gate (section above) — kept consistent so a client who can use the app at all can also invoice. The frontend reads the same fields to disable the Send Invoice button with a tooltip ("Resolve billing to enable invoicing").
 
@@ -403,7 +414,7 @@ When ready to take real money:
 1. Complete Stripe live-mode activation (business verification, bank account)
 2. Recreate the Products and Prices in **live mode** (test-mode IDs don't carry over) — copy the new `price_...` IDs
 3. Recreate the webhook endpoint in live mode and copy the new signing secret
-4. Swap all six Stripe env vars in Netlify from `..._test` / `pk_test_` / `sk_test_` to live values
+4. Swap all **seven** Stripe env vars in Netlify (secret key, webhook secret, publishable key, four price IDs) from test to live values
 5. Trigger a redeploy
 6. Subscribe yourself with a real card on a small test plan (then refund + cancel) to verify end-to-end production wiring
 

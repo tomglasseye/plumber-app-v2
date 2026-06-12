@@ -18,7 +18,11 @@ self.addEventListener("notificationclick", (event) => {
 	event.notification.close();
 	event.waitUntil(
 		clients.matchAll({ type: "window" }).then((clientList) => {
-			const url = event.notification.data?.url ?? "/";
+			// Defence in depth: only same-origin relative paths may be opened,
+			// even if a push payload were ever spoofed or malformed.
+			let url = event.notification.data?.url ?? "/";
+			if (typeof url !== "string" || !url.startsWith("/") || url.startsWith("//"))
+				url = "/";
 			for (const client of clientList) {
 				if (client.url.includes(url) && "focus" in client) {
 					return client.focus();

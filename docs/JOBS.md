@@ -160,7 +160,7 @@ Deletion is also enforced in the database: only masters (and super admins) hold 
 
 ## Xero integration
 
-Jobs with `readyToInvoice: true` can be pushed to Xero from the job detail page. This creates a draft invoice in Xero and sets the job status to `Invoiced` (via `changeStatus` only — it persists the status itself). See [XERO.md](XERO.md) for setup.
+Jobs with `readyToInvoice: true` can be pushed to Xero from the job detail page. This creates a draft invoice in Xero and sets the job status to `Invoiced` (via `changeStatus` only — it persists the status itself). See [ACCOUNTING.md](ACCOUNTING.md) for setup.
 
 The Final Complete gate is enforced in the database, not just the UI: the `guard_job_invoice_gate` trigger (migration 30) rejects any change to `ready_to_invoice`, or any transition to status `Invoiced`, unless the caller is a master or super admin. Engineers calling the API directly cannot short-circuit HQ approval.
 

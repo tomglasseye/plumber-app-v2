@@ -19,6 +19,15 @@ This is the **final phase** of the build. The app should be stable with Supabase
 
 **Key point:** Your setup is one-time per provider (developer apps + env vars). Client onboarding is per-business (pick a provider → OAuth → configure tax code).
 
+### OAuth callback security (state + PKCE)
+
+The callback (`accounting-callback.ts`) must implement two rules:
+
+1. **The business is bound from the caller's Supabase JWT — never from redirect parameters.** The frontend receives `?code=...` on `/account` and POSTs it to the callback function with the user's `Authorization` header; the function derives `businessId` from that verified JWT.
+2. **A random `state` nonce is generated at connect time, held client-side (sessionStorage), sent on the authorize URL, and verified on return before the code is exchanged.** Without it, an attacker can splice their *own* authorization code into the redirect — the victim's business silently binds to the attacker's accounting org, and every subsequent invoice exports the victim's customer data into books the attacker controls.
+
+PKCE is optional for a confidential client (the secret stays in Netlify) but cheap — add it if the provider SDK makes it easy.
+
 ### Provider abstraction
 
 Rather than duplicating Xero-specific code for QBO, both providers implement a common interface (`IAccountingProvider`) so the dispatcher functions don't care which provider a business uses. Adding a third provider (Sage, FreshBooks, Wave) later costs ~1.5 days — just a new file implementing the same interface.
@@ -52,7 +61,10 @@ HQ reviews + marks Final Complete
         ↓
 "Send Invoice" button unlocks (label adapts: Send to Xero / Send to QuickBooks)
         ↓
-Pre-send checks: billing-gate (Stripe), validation (time > 0 OR materials > 0)
+Pre-send checks (ALL server-side, in accounting-create-invoice):
+  caller is a MASTER of this business; job.ready_to_invoice = true read from
+  the DB (the Final Complete gate must hold here too, not just in the UI);
+  billing-gate (Stripe); validation (time > 0 OR materials > 0)
         ↓
 accounting-create-invoice → factory.getProvider() → provider.createInvoice()
         ↓
@@ -126,7 +138,7 @@ export interface IAccountingProvider {
   }>;
   refreshTokens(refreshToken: string): Promise<{
     accessToken: string;
-    refreshToken: string;       // QBO rotates; Xero returns same
+    refreshToken: string;       // BOTH providers rotate — always persist the new one
     expiresIn: number;
     refreshExpiresIn?: number;
   }>;
@@ -161,19 +173,22 @@ export interface IAccountingProvider {
 **OAuth endpoints:**
 - Authorize: `https://login.xero.com/identity/connect/authorize`
 - Token: `https://identity.xero.com/connect/token`
-- Scopes: `openid profile email accounting.transactions accounting.contacts offline_access`
+- Scopes: `openid profile email accounting.transactions accounting.contacts accounting.settings.read offline_access`
+  (`accounting.settings.read` lets the app fetch `GET /Accounts` and `GET /TaxRates` so onboarding can show **dropdowns** of the client's real revenue accounts and tax rates instead of asking the master to free-type a code like `200` — the most error-prone step otherwise)
 
 **API:**
 - Base: `https://api.xero.com/api.xro/2.0`
 - Auth: `Authorization: Bearer {token}`, `Xero-Tenant-Id: {tenantId}`
 - Access token: 30-min expiry
-- Refresh token: 60-day expiry, **does not rotate** on refresh
+- Refresh token: **rotates on every refresh** — the old token stays usable only for a ~30-minute grace window (intended for retrying a refresh whose response was lost). Persist the new refresh token immediately, exactly as for QBO. Unused refresh tokens expire after 60 days.
 
 **Tenant ID:** captured from `GET https://api.xero.com/connections` immediately after token exchange. Stored in `businesses.accounting_tenant_id`.
 
 **Account codes & tax types are configured per-business** — defaults are wrong for most clients:
 - `accounting_revenue_account` — Xero "Account Code" (e.g. `200` for the demo company, but every real org differs)
 - `accounting_tax_code` — Xero TaxType: `NONE`, `OUTPUT2` (20% VAT), `OUTPUT` (legacy 17.5%), etc. **Prompted during onboarding.**
+
+**Connection cap (uncertified apps):** Xero limits uncertified apps to **25 connected organisations**, and users may install at most 2 uncertified apps. For a multi-client SaaS this is a hard ceiling — apply for **Xero App Partner certification** well before client #26 (it has review lead time). Track this in [LAUNCH.md](LAUNCH.md) Phase 4 one-time setup.
 
 **Webhooks:** Xero supports webhooks for `INVOICE` and `CONTACT` events. Signature is HMAC-SHA256 of the raw body with the webhook signing key (`XERO_WEBHOOK_KEY`) — verify on every incoming request.
 
@@ -189,9 +204,11 @@ export interface IAccountingProvider {
 **API:**
 - Base (production): `https://quickbooks.api.intuit.com/v3/company/{realmId}`
 - Base (sandbox): `https://sandbox-quickbooks.api.intuit.com/v3/company/{realmId}`
-- Every request requires `?minorversion=70` (or current)
+- Pin `?minorversion=75` on every request — Intuit deprecated minor versions 1–74 in August 2025; values below 75 are ignored and served as 75, so code must be compatible with the v75 schema
 - Access token: 60-min expiry
 - Refresh token: **100-day expiry AND rotates on every refresh** — the old one is invalidated. Must persist the new refresh token BEFORE using the new access token.
+
+**Production keys require Intuit's app assessment:** Intuit gates production credentials behind a legal/tech/security questionnaire plus "Production Settings" details (hosting country, IP addresses, host domain, launch URL, disconnect URL) — this applies even to private, unlisted apps. Like Stripe's business verification, it has lead time: submit it during the build, not at launch.
 
 **Realm ID:** equivalent to Xero's tenant ID — captured from the OAuth callback. Stored in `businesses.accounting_tenant_id`. Also store `accounting_environment` (`sandbox` | `production`) and `accounting_region` (`US`, `UK`, `CA`, `AU`, `GLOBAL`).
 
@@ -246,7 +263,11 @@ export function decryptToken(ciphertext: string): string {
 
 **Key rotation:** if `ACCOUNTING_ENCRYPTION_KEY` is ever lost or compromised, all stored tokens become unusable — clients will need to reconnect. Plan a maintenance window to re-encrypt with a new key if rotating. See [SECURITY.md](SECURITY.md) for the full key management approach.
 
-### 4b. Token refresh with QBO rotation safety
+**Where tokens live — a dedicated table, NOT `businesses` columns.** The app client does `select("*")` on `businesses` (AppContext), so any column there ships to every member's browser — encrypted or not, ciphertext in browser memory is unnecessary exposure and contradicts "tokens never touch the browser". Store tokens in an `accounting_tokens` table that is **service-role only**: RLS enabled with zero policies and zero grants (under the post-Oct-2026 Data API policy, an ungranted new table isn't exposed at all — exactly what we want). Non-secret config (`accounting_provider`, `accounting_connected`, tax code, hourly rate, due days) stays on `businesses` for the UI. Schema in section 14.
+
+### 4b. Token refresh with rotation safety (both providers)
+
+> The sketch below reads token columns off `businesses` for brevity — in the real build, token columns live in `accounting_tokens` (section 14) and config stays on `businesses`. Same logic, two reads/writes.
 
 ```ts
 // netlify/functions/_accounting/token-store.ts (continued)
@@ -273,9 +294,10 @@ export async function getValidToken(businessId: string): Promise<ProviderContext
   const newTokens = await provider.refreshTokens(refreshToken);
 
   // CRITICAL: persist the new refresh token BEFORE using the new access token.
-  // QBO invalidates the old refresh token immediately on a successful refresh.
-  // If we crash between using the access token and saving the new refresh token,
-  // the client must re-OAuth.
+  // BOTH providers rotate refresh tokens on every refresh: QBO invalidates the
+  // old one immediately; Xero leaves only a ~30-min grace window for retrying a
+  // lost response. If we crash between using the access token and saving the
+  // new refresh token, the client must re-OAuth.
   await supabase.from("businesses").update({
     accounting_access_token: encryptToken(newTokens.accessToken),
     accounting_refresh_token: encryptToken(newTokens.refreshToken),
@@ -337,8 +359,17 @@ export async function assertBillingActive(businessId: string) {
     .eq("id", businessId)
     .single();
 
-  if (!b.subscription_status || b.subscription_status === "active" || b.subscription_status === "trialing") return;
-  if (b.subscription_status === "canceled" && new Date(b.current_period_end) > new Date()) return;
+  // Phase 4 ships before Stripe (Phase 5), so every business has
+  // subscription_status = null until then. The gate is therefore flag-disabled:
+  // set BILLING_ENFORCED=true at Stripe cutover (and/or backfill statuses).
+  // AFTER cutover, null means "never subscribed" and blocks — matching the
+  // contract in STRIPE.md §4.
+  if (process.env.BILLING_ENFORCED !== "true") return;
+
+  if (b.subscription_status === "active" || b.subscription_status === "trialing") return;
+  // past_due mid-retry and canceled-but-paid-up keep invoicing until the period
+  // actually ends — same logic as the app-wide access gate (STRIPE.md §4).
+  if (b.current_period_end && new Date(b.current_period_end) > new Date()) return;
 
   throw new Error("BILLING_GATED: Resolve billing to enable invoicing.");
 }
@@ -358,7 +389,7 @@ The frontend reads the same fields to disable the Send Invoice button with a too
 2. Call provider's revoke endpoint:
    - Xero: `DELETE https://api.xero.com/connections/{tenantId}`
    - QBO: `POST https://developer.api.intuit.com/v2/oauth2/tokens/revoke` with the refresh token
-3. Clear `accounting_*` columns on `businesses` (set `accounting_connected = false`, `accounting_provider = 'none'`, NULL the tokens/tenant/config)
+3. Clear `accounting_*` columns on `businesses` (set `accounting_connected = false`, `accounting_provider = 'none'`, NULL the tenant/config) and **delete the business's `accounting_tokens` row**
 4. **Preserve** `customers.accounting_contact_id` (historical reference; will be cleared on next reconnect if tenant differs)
 5. **Preserve** `jobs.accounting_invoice_id` and `accounting_invoice_status` (historical records of invoices that were raised)
 6. Log `accounting.disconnected` with reason='user_initiated'
@@ -421,7 +452,8 @@ When master changes job status from `Invoiced` back to anything else, the app:
    - URL: `https://yourdomain.com/.netlify/functions/accounting-webhook-xero`
    - Subscribe to: `INVOICE` events (for paid status)
 2. Copy the webhook signing key into Netlify env var `XERO_WEBHOOK_KEY`
-3. Verify on every request:
+3. **Pass "Intent to Receive" validation** — when you save the webhook, Xero immediately fires validation requests, some intentionally mis-signed. Your endpoint must respond **within 5 seconds** with an **empty body and no cookies**: HTTP `200` for a valid signature, `401` for an invalid one. Any body content, wrong status, or slow response and Xero never enables delivery. Practical consequence: **respond first, process after** — verify the signature, return the response, and do DB work afterwards (the 5-second rule applies to live events too; a Netlify cold start plus Supabase writes can exceed it).
+4. Verify on every request:
    ```ts
    const signature = headers['x-xero-signature'];
    const expected = crypto.createHmac('sha256', process.env.XERO_WEBHOOK_KEY!).update(rawBody).digest('base64');
@@ -448,7 +480,13 @@ create table webhook_events (
   received_at timestamptz default now(),
   unique(provider, event_id)
 );
+
+-- Service-role only: RLS on, NO policies, NO grants. Under the Oct 30 2026
+-- Data API policy an ungranted new table isn't exposed at all — correct here.
+alter table webhook_events enable row level security;
 ```
+
+Add a `pg_cron` cleanup (e.g. delete rows older than 90 days) — the table only exists for replay dedupe and grows forever otherwise. For webhook → job/business lookups, index `jobs(accounting_invoice_id)` and `businesses(accounting_tenant_id)` (see section 14).
 
 ---
 
@@ -533,11 +571,13 @@ Then set it in Netlify and **never lose it** — losing it means all clients mus
 ### One-time (before any client connects)
 
 - [ ] Create Xero developer app at [developer.xero.com](https://developer.xero.com)
+- [ ] **Apply for Xero App Partner certification** — uncertified apps cap at 25 connected orgs and users can install at most 2 uncertified apps; certification has review lead time
 - [ ] Create Intuit developer app at [developer.intuit.com](https://developer.intuit.com)
-- [ ] Register webhook URLs in both developer dashboards
+- [ ] **Complete Intuit's app assessment questionnaire + Production Settings** (hosting country/IPs, domain, launch + disconnect URLs) — production keys are gated on it
+- [ ] Register webhook URLs in both developer dashboards (Xero requires passing Intent to Receive — section 7)
 - [ ] Add all env vars from section 10 to Netlify
-- [ ] Run migration 25 (schema for `accounting_*` columns + `webhook_events` table)
-- [ ] Build the integration (see [LAUNCH.md](LAUNCH.md) Phase 4 build order)
+- [ ] Run migration 32 (section 14 — `accounting_*` columns, `accounting_tokens`, `webhook_events`)
+- [ ] Build the integration (see [LAUNCH.md](LAUNCH.md) Phase 4 build order), including OAuth `state` verification (section 1)
 - [ ] Test with Xero demo company AND QBO sandbox before any real client connects
 
 ### Per-client
@@ -575,7 +615,9 @@ Documented to prevent scope creep. These can be added later without architectura
 
 | Risk | Mitigation |
 |---|---|
-| QBO refresh token rotation lost on crash → re-OAuth required | Save NEW refresh BEFORE using new access in `token-store.ts` |
+| Refresh token rotation (BOTH providers) lost on crash → re-OAuth required | Save NEW refresh BEFORE using new access in `token-store.ts`; Xero allows a ~30-min grace retry |
+| Xero uncertified-app cap (25 orgs) blocks onboarding | Apply for App Partner certification before client #26 |
+| OAuth callback CSRF / code splicing → victim business bound to attacker's org | `state` nonce verified on return; business derived from caller's JWT, never from redirect params (section 1) |
 | QBO Item deleted by client → invoice fails | Pre-flight check; on 404, recreate item + update `accounting_revenue_account` |
 | US sales tax (AST) conflicts with explicit TaxCodeRef | Detect during connect + tax onboarding; omit `TaxCodeRef` if AST on |
 | Refresh token expired (inactive client) | Warn UI at 80% of expiry; force re-OAuth on failure |
@@ -585,3 +627,71 @@ Documented to prevent scope creep. These can be added later without architectura
 | Race: two masters connect simultaneously | Last-write-wins is acceptable; both end up working with the new tokens |
 | Voiding fails (invoice already approved/sent by client) | Surface error; allow job revert anyway; log void failure |
 | Webhook URL changes (custom domain switch) | Re-register URLs at both dashboards — part of [LAUNCH.md](LAUNCH.md) Phase 3 checklist |
+
+---
+
+## 14. Schema — migration 32 (sketch)
+
+> **Numbering:** the repo is currently at migration 31 (plan guard). "32" assumes accounting ships before Stripe (which takes 33) — use the next free number at build time. Earlier drafts of this plan said "migration 25"; 25 shipped long ago (jobs SELECT tightening), so never reuse it.
+
+```sql
+-- Non-secret config lives on businesses (the UI reads these via select *)
+alter table businesses
+  add column accounting_provider text not null default 'none'
+    check (accounting_provider in ('none','xero','qbo')),
+  add column accounting_connected boolean not null default false,
+  add column accounting_tenant_id text,          -- Xero tenant ID / QBO realm ID
+  add column accounting_environment text,        -- QBO: 'sandbox' | 'production'
+  add column accounting_region text,             -- QBO: 'US','UK','CA','AU','GLOBAL'
+  add column accounting_email text,              -- org email shown in settings UI
+  add column accounting_tax_code text,           -- Xero TaxType / QBO TaxCodeRef
+  add column accounting_revenue_account text,    -- Xero account code / QBO labour Item ID
+  add column accounting_materials_account text,  -- QBO materials Item ID
+  add column accounting_hourly_rate numeric(8,2),
+  add column accounting_due_days integer default 14;
+
+-- Same Xero org / QBO company can't be claimed by two businesses
+create unique index businesses_accounting_tenant_uniq
+  on businesses (accounting_provider, accounting_tenant_id)
+  where accounting_tenant_id is not null;
+
+-- TOKENS: separate, service-role-only table. RLS on, NO policies, NO grants —
+-- ciphertext must never reach the browser (AppContext selects * on businesses).
+create table accounting_tokens (
+  business_id  uuid primary key references businesses(id) on delete cascade,
+  access_token  text not null,                   -- AES-256-GCM ciphertext
+  refresh_token text not null,                   -- AES-256-GCM ciphertext
+  token_expires_at timestamptz not null,
+  refresh_expires_at timestamptz,                -- QBO 100-day sliding window
+  updated_at timestamptz default now()
+);
+alter table accounting_tokens enable row level security;
+
+alter table customers add column accounting_contact_id text;
+
+alter table jobs
+  add column accounting_invoice_id text,
+  add column accounting_invoice_status text
+    check (accounting_invoice_status in ('sent','paid','voided')),
+  add column accounting_last_error text;
+
+-- Webhook lookups
+create index jobs_accounting_invoice_id_idx on jobs (accounting_invoice_id)
+  where accounting_invoice_id is not null;
+
+-- webhook_events table: see section 7 (RLS on, no policies, no grants, pg_cron cleanup)
+
+-- Guard trigger (same pattern as migrations 24/30): masters hold a row-level
+-- UPDATE policy on businesses, so without this they could write accounting_*
+-- state columns directly. Allow service-role (auth.uid() is null); allow
+-- masters to change ONLY the settings columns (tax code, rate, due days);
+-- reject client changes to provider/connected/tenant columns.
+
+-- Drop the original Xero stub columns LAST, and ONLY in the same deploy as the
+-- client code that stops using them — the live client still reads
+-- businesses.xero_connected/xero_email and INSERTS customers.xero_contact_id
+-- (createCustomer), so dropping early breaks customer creation:
+--   alter table businesses drop column xero_connected, drop column xero_email;
+--   alter table customers drop column xero_contact_id;
+--   alter table jobs drop column xero_invoice_id;
+```

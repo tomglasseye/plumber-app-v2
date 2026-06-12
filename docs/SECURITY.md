@@ -46,10 +46,11 @@ When the accounting integration is built ([ACCOUNTING.md](ACCOUNTING.md)), OAuth
 
 ### Multi-client isolation
 - Each business stores its own `accounting_tenant_id` (Xero tenant ID or QBO realm ID, indexed unique per provider so the same Xero org can't be claimed by two businesses)
-- RLS policies on the `businesses` table ensure a user can only access their own business's row
-- Netlify Functions fetch tokens via the Supabase **service role key**, which bypasses RLS but is server-only — tokens never touch the browser
-- Each `accounting-create-invoice` call validates `businessId` matches the requesting user's business before fetching tokens
-- All `accounting_*` API calls go through Netlify Functions; the browser never sees a bearer token
+- **Tokens live in a dedicated `accounting_tokens` table** (RLS enabled, zero policies, zero grants — service-role only; see ACCOUNTING.md §14). They must NOT sit on `businesses`: the app does `select("*")` on that table, which would ship the ciphertext to every member's browser. With the separate table, tokens genuinely never touch the browser.
+- RLS policies on the `businesses` table ensure a user can only access their own business's row (non-secret accounting config only)
+- Netlify Functions fetch tokens via the Supabase **service role key**, server-only
+- Each `accounting-create-invoice` call validates the caller is a **master** of the business, and that the job's `ready_to_invoice` is true **in the DB** — the Final Complete gate must hold at this layer too
+- The OAuth callback verifies a **`state` nonce** and derives the business from the caller's JWT, never from redirect parameters — otherwise a spliced authorization code binds the victim's business to an attacker's accounting org (see ACCOUNTING.md §1)
 
 ### Token encryption — AES-256-GCM at the application layer
 
@@ -108,7 +109,7 @@ Without signature verification, anyone could POST to the webhook URL and mark ar
 
 ### Right to erasure
 - When a customer requests deletion, the master should be able to delete their contact and all associated job data
-- `customers` table has `ON DELETE CASCADE` to clean up linked jobs' `customer_id` (set null), but job records themselves are retained for business records
+- Deleting a customer sets linked jobs' `customer_id` to null (`ON DELETE SET NULL`); job records themselves are retained for business records
 - Consider adding a "Delete customer and anonymise job records" flow that replaces customer name/address/phone with "[Deleted]"
 
 ### Data retention policy
@@ -238,7 +239,7 @@ Use Supabase's `pgTAP` testing framework to automate these checks as part of CI.
 - [x] Field-length CHECK constraints on key tables (migration 15)
 - [x] Privilege escalation guard — engineers cannot change `role`, `business_id`, or `locked` on their own profile (migration 24)
 - [x] Storage bucket policies scoped to business — photo access requires job ownership (migration 23)
-- [x] `send-push` Netlify Function requires auth + same-business check
+- [x] `send-push` Netlify Function requires auth + **master-only sender** + same-business target + relative-URL deep links (June 2026 hardening; `sw-push.js` also refuses non-relative URLs)
 - [x] HTTP security headers (HSTS, nosniff, frame-deny, referrer, permissions) in `netlify.toml`
 - [x] Content-Security-Policy with strict `script-src 'self'` (defends against XSS-driven JWT theft)
 - [ ] Configure SMTP provider in Supabase Auth settings *(near-launch — needs prod domain)*
@@ -249,3 +250,7 @@ Use Supabase's `pgTAP` testing framework to automate these checks as part of CI.
 - [ ] Run formal RLS audit before multi-client launch *(pgTAP test suite — defer until second client onboards)*
 - [ ] Consider MFA for master users *(needs Supabase plan that supports it)*
 - [ ] Update CSP when Stripe lands — add `https://js.stripe.com` to `script-src`/`frame-src` and `https://api.stripe.com` to `connect-src`
+- [ ] OAuth `state` verification in the accounting callback *(Phase 4 — see ACCOUNTING.md §1)*
+- [x] `businesses.plan` guarded from client writes — service role + super admins only (migration 31)
+- [ ] Extend `guard_business_plan` to `subscription_status` / `stripe_*` / `current_period_end` when Stripe's migration adds them *(Phase 5 — see STRIPE.md §2)*
+- [x] `send-push` tightened: master-only sender, relative-URL allowlist, length caps (June 2026)

@@ -54,7 +54,7 @@ export default async (request: Request, _context: Context) => {
 		});
 	}
 
-	// ── Verify the target user is in the same business ──────────
+	// ── Validate payload ─────────────────────────────────────────
 	const { userId, title, body, url } = await request.json();
 
 	if (!userId || !title) {
@@ -64,11 +64,31 @@ export default async (request: Request, _context: Context) => {
 		});
 	}
 
+	// Deep-link must stay on our origin — only relative paths are accepted, so
+	// a push can never be used to open an attacker-controlled site.
+	if (
+		url !== undefined &&
+		(typeof url !== "string" || !url.startsWith("/") || url.startsWith("//"))
+	) {
+		return new Response(
+			JSON.stringify({ error: "url must be a relative path (e.g. /job/123)" }),
+			{ status: 400, headers: { "Content-Type": "application/json" } },
+		);
+	}
+
+	const safeTitle = String(title).slice(0, 120);
+	const safeBody = body ? String(body).slice(0, 500) : "";
+
+	// ── Authorise: masters only, target in the same business ────
+	// Engineers can't send pushes — otherwise any member could push arbitrary
+	// HQ-looking messages to colleagues. When engineer→master push events are
+	// wanted (status changes etc.), send them server-side rather than
+	// loosening this check — see docs/NOTIFICATIONS.md.
 	const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
 	const { data: callerProfile } = await adminClient
 		.from("profiles")
-		.select("business_id")
+		.select("role, business_id")
 		.eq("id", caller.id)
 		.single();
 
@@ -80,6 +100,7 @@ export default async (request: Request, _context: Context) => {
 
 	if (
 		!callerProfile ||
+		callerProfile.role !== "master" ||
 		!targetProfile ||
 		callerProfile.business_id !== targetProfile.business_id
 	) {
@@ -103,26 +124,35 @@ export default async (request: Request, _context: Context) => {
 	}
 
 	const results = await Promise.allSettled(
-		subs.map((sub) =>
-			webpush
-				.sendNotification(
+		subs.map(async (sub) => {
+			try {
+				await webpush.sendNotification(
 					{
 						endpoint: sub.endpoint,
 						keys: { p256dh: sub.p256dh, auth: sub.auth },
 					},
-					JSON.stringify({ title, body, url }),
-				)
-				.catch(() => {
-					// Subscription expired or invalid — remove it
-					adminClient
+					JSON.stringify({ title: safeTitle, body: safeBody, url }),
+				);
+				return true;
+			} catch (err) {
+				// 404/410 = subscription expired or unsubscribed — remove it.
+				// Other errors (e.g. push service hiccup) keep the subscription.
+				const status = (err as { statusCode?: number }).statusCode;
+				if (status === 404 || status === 410) {
+					await adminClient
 						.from("push_subscriptions")
 						.delete()
 						.eq("endpoint", sub.endpoint);
-				}),
-		),
+				}
+				return false;
+			}
+		}),
 	);
 
-	const sent = results.filter((r) => r.status === "fulfilled").length;
+	// Previously failures were swallowed by a .catch and counted as "sent".
+	const sent = results.filter(
+		(r) => r.status === "fulfilled" && r.value === true,
+	).length;
 
 	return new Response(JSON.stringify({ sent }), {
 		status: 200,

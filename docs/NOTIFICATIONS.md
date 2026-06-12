@@ -112,7 +112,9 @@ self.addEventListener("notificationclick", (event) => {
 
 ### Netlify Function — `netlify/functions/send-push.ts`
 
-Fetches all subscriptions for the target `userId`, sends the push payload via the `web-push` library, and removes any expired/gone endpoints automatically.
+Fetches all subscriptions for the target `userId`, sends the push payload via the `web-push` library, and removes expired/gone endpoints (404/410) automatically.
+
+**Security contract (hardened June 2026):** the sender must be a **master**; the target must be in the sender's business; the optional deep-link `url` must be a **relative path** (`/job/123`) — absolute/external URLs are rejected with 400, and `sw-push.js` independently refuses to open non-relative URLs as defence in depth; title/body are length-capped (120/500). Rationale: without the master check, any engineer could push arbitrary HQ-looking messages or links to colleagues. When engineer→master push events are wanted (status changes, holiday requests), send them **server-side** (e.g. a function/trigger using the service role) rather than loosening the sender check.
 
 ### iOS requirements
 
@@ -138,8 +140,8 @@ iOS requires the app to be **added to the home screen** before push notification
 - [x] `push_subscriptions` table in Supabase (migration 20)
 - [x] `subscribeToPush()` utility in `src/utils/push.ts`
 - [x] `firePush()` utility defined — fires and forgets
-- [x] `send-push` Netlify Function wired up
+- [x] `send-push` Netlify Function wired up (master-only sender, relative-URL deep links, length caps)
 - [x] Per-business opt-in `push_enabled` (default off), toggle on Account page (migration 29)
 - [x] Subscribe called after login **only when `push_enabled`**
 - [x] iOS "Add to Home Screen" banner (`IosInstallPrompt.tsx`)
-- [ ] **Later phase:** call `firePush()` on status/priority change events (currently never called → no push is actually sent)
+- [ ] **Later phase:** call `firePush()` on status/priority change events (currently never called → no push is actually sent). Note: `send-push` now requires a **master** sender — engineer-originated events (status updates, holiday requests) must be pushed server-side rather than from the engineer's session.

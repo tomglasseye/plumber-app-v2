@@ -24,7 +24,7 @@ This doc is the single source of truth for going live. Other docs cover the *how
 The app is live in production on **hiveq.co.uk** (Netlify + Supabase). For reference, the staging baseline that had to be true before inviting any client — all met:
 
 - [x] Production Supabase project exists (separate from any dev/local one) — see [SUPABASE.md](SUPABASE.md)
-- [x] All migrations (1–28) have been run in production Supabase
+- [x] All migrations (1–28) have been run in production Supabase — **the repo is now at 31: confirm 29 (push opt-in) ran, 30 (delete policies, invoice-gate trigger, ref uniqueness) ran on 12 Jun 2026, and run 31 (plan guard) before the next deploy**
 - [x] At least one super admin row exists in `super_admins` (manually inserted via SQL)
 - [x] Netlify env vars set (see env var section below)
 - [x] Build passes (`npm run build`) — TypeScript strict mode catches a lot pre-deploy
@@ -146,13 +146,13 @@ Run through [SECURITY.md](SECURITY.md) before going public:
 ### ONE-TIME SETUP (before any client connects)
 
 1. **Developer apps**
-   - Create Xero developer app at [developer.xero.com](https://developer.xero.com)
-   - Create Intuit developer app at [developer.intuit.com](https://developer.intuit.com)
-   - Register webhook URLs in both dashboards (`https://hiveq.co.uk/.netlify/functions/accounting-webhook-{xero|qbo}`)
+   - Create Xero developer app at [developer.xero.com](https://developer.xero.com) — and **apply for App Partner certification**: uncertified apps cap at 25 connected orgs (and users can install max 2 uncertified apps), so certification must be in flight well before client #26
+   - Create Intuit developer app at [developer.intuit.com](https://developer.intuit.com) — **production keys are gated on Intuit's app assessment questionnaire + Production Settings** (hosting country/IPs, domain, launch/disconnect URLs); submit during the build, it has lead time
+   - Register webhook URLs in both dashboards (`https://hiveq.co.uk/.netlify/functions/accounting-webhook-{xero|qbo}`) — Xero requires passing **Intent to Receive** validation (200/401, empty body, within 5s; see ACCOUNTING.md §7)
 2. **Env vars** — see the Phase 4 table further down; includes `ACCOUNTING_ENCRYPTION_KEY` (generate with `openssl rand -hex 32`)
-3. **Migration 25** — adds generic `accounting_*` columns to `businesses`, `customers.accounting_contact_id`, `jobs.accounting_invoice_id`/`_status`/`_last_error`, plus a `webhook_events` table. Drops the original Xero stub columns (no production data behind them).
+3. **Migration 32** (next free number at build time — full SQL sketch in [ACCOUNTING.md](ACCOUNTING.md) §14) — adds `accounting_*` config columns to `businesses`, a **service-role-only `accounting_tokens` table**, `customers.accounting_contact_id`, `jobs.accounting_invoice_id`/`_status`/`_last_error`, plus a `webhook_events` table. Drops the original Xero stub columns — **only in the same deploy as the new client code**: the live client still reads `xero_connected`/`xero_email` and inserts `customers.xero_contact_id`, so dropping early breaks customer creation.
 4. **Build the integration** — follow [ACCOUNTING.md](ACCOUNTING.md) build order:
-   1. Migration 25 schema
+   1. Migration 32 schema (ACCOUNTING.md §14)
    2. `_accounting/types.ts` + `token-store.ts` (AES-GCM) + `audit.ts` + `billing-gate.ts`
    3. `XeroProvider` end-to-end + dispatcher functions + frontend Accounting tab
    4. **Pause: test Xero with one real client for 1–2 weeks** before adding QBO — validates the abstraction
@@ -211,12 +211,12 @@ Full implementation guide is in [STRIPE.md](STRIPE.md). High-level checklist:
 
 - [ ] **Decisions** — annual price for each plan, trial length + card-on-file or not, what happens when a Pro client crosses 8 users
 - [ ] **Stripe account** — create account, complete business verification, set up test-mode Products + Prices for Starter and Pro (monthly + annual = 4 Prices total), enable Customer Portal, configure Stripe Tax for VAT
-- [ ] **Schema** — migration 25 adds `stripe_customer_id`, `stripe_subscription_id`, `stripe_price_id`, `plan`, `subscription_status`, `current_period_end`, `trial_ends_at` to `businesses`; new `billing_events` table for webhook idempotency
+- [ ] **Schema** — migration 33 (next free number at build time; see [STRIPE.md](STRIPE.md) §2) adds `stripe_customer_id`, `stripe_subscription_id`, `stripe_price_id`, `subscription_status`, `current_period_end`, `trial_ends_at` to `businesses` (`plan` exists since 28); new `billing_events` table (RLS on, no policies/grants); **extends migration 31's `guard_business_plan` trigger to the new billing columns** (plan itself is already guarded)
 - [ ] **Netlify Functions** — `stripe-create-checkout-session`, `stripe-create-portal-session`, `stripe-webhook` (signature-verified, idempotent)
 - [ ] **Frontend** — Pricing/Subscribe page, Billing tab on Account, trial banner, access gate for `past_due`/`canceled` past `current_period_end`
 - [ ] **Pro feature gating** — SMS UI + function check `business.plan === 'pro'`
 - [ ] **Lifecycle smoke test** — subscribe → trial-end → upgrade → payment-fail → cancel → re-subscribe, all via Stripe CLI test events
-- [ ] **Live-mode cutover** — recreate Products/Prices/webhook in live mode, swap the six Stripe env vars in Netlify, redeploy, verify with a real card
+- [ ] **Live-mode cutover** — recreate Products/Prices/webhook in live mode, swap the seven Stripe env vars in Netlify, set `BILLING_ENFORCED=true` (turns on the accounting billing gate — see STRIPE.md §4), redeploy, verify with a real card
 
 ---
 
@@ -317,15 +317,18 @@ A single page to print/screenshot before announcing the app:
 **Accounting integration (one-time setup + per-client onboarding)**
 
 One-time:
-- [ ] Xero developer app created at developer.xero.com with custom-domain redirect + webhook URL
+- [ ] Xero developer app created at developer.xero.com with custom-domain redirect + webhook URL (Intent to Receive passed)
+- [ ] Xero App Partner certification applied for / approved (uncertified cap: 25 orgs)
 - [ ] Intuit developer app created at developer.intuit.com with custom-domain redirect + webhook URL
+- [ ] Intuit app assessment passed — production keys issued
 - [ ] `ACCOUNTING_ENCRYPTION_KEY` generated (`openssl rand -hex 32`) and set in Netlify (and BACKED UP securely — losing it forces all clients to reconnect)
-- [ ] Migration 25 run in production Supabase
+- [ ] Migration 32 run in production Supabase (see ACCOUNTING.md §14)
+- [ ] OAuth `state` verification tested — callback rejects a missing or mismatched state
 - [ ] Netlify Functions built: `_accounting/` shared module (types, factory, token-store, audit, billing-gate), `XeroProvider`, `QboProvider`, dispatchers (callback, create-invoice, create-contact, disconnect, void-invoice), webhooks (xero, qbo)
 - [ ] Accounting tab UI added to Account Settings (provider picker + post-OAuth tax prompt + disconnect button)
 - [ ] Send Invoice button on JobDetailPage handles billing gate, validation, retry, paid badge
 - [ ] Reconnect banner on DashboardPage detects external de-auth
-- [ ] DB inspection confirms tokens stored as encrypted ciphertext, not plaintext
+- [ ] DB inspection confirms tokens stored as encrypted ciphertext in `accounting_tokens` (service-role only — confirm an authenticated client query returns nothing), not plaintext on `businesses`
 - [ ] Tested end-to-end with Xero demo company (OAuth, send, void, paid webhook, disconnect)
 - [ ] Tested end-to-end with QBO sandbox (OAuth, Item bootstrap, send, void, paid webhook, disconnect)
 - [ ] Cross-leak test: Business A's session cannot read Business B's tokens

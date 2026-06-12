@@ -63,7 +63,7 @@ Admin operations (e.g. resetting another user's password) are handled by a Netli
 
 ## 3. Database schema
 
-Run `1_schema.sql` then `2_seed.sql` in the Supabase **SQL Editor** (Dashboard → SQL Editor → New query), then run each migration file in order (`3_migration.sql` through `30_migration.sql`).
+Run `1_schema.sql` then `2_seed.sql` in the Supabase **SQL Editor** (Dashboard → SQL Editor → New query), then run each migration file in order (`3_migration.sql` through `31_migration.sql`).
 
 The full current schema (after all migrations) is described below.
 
@@ -489,3 +489,4 @@ Run these in the Supabase SQL Editor **after** applying `1_schema.sql` and `2_se
 | `28_migration.sql` | Adds `plan` (`'starter'`/`'pro'`, default `'starter'`) to `businesses`; creates the `reminders` table (RLS mirrors `customers`, explicit grants, realtime) for dashboard Upcoming Events |
 | `29_migration.sql` | Adds `push_enabled` (default `false`) to `businesses` — per-business opt-in for Web Push; gates the OS permission prompt / `subscribeToPush()` on login |
 | `30_migration.sql` | Adds DELETE policies for `jobs` (masters) and `job_photos` (masters or uploader) — neither existed, so client deletes were silently blocked; adds `guard_job_invoice_gate` trigger enforcing the Final Complete → Xero gate in the DB; fixes `guard_profile_sensitive_columns` to allow service-role callers (migration 24 broke `admin-lock-user`); adds `unique (business_id, ref)` after de-duping; makes `jobs.date` nullable (unscheduled jobs) |
+| `31_migration.sql` | Adds `guard_business_plan` trigger — only the service role and super admins can change `businesses.plan`; blocks masters self-upgrading to Pro via direct API calls ahead of Stripe (the Stripe migration extends this guard to its `subscription_*`/`stripe_*` columns) |
