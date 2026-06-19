@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
+import { useTeam } from "../hooks/useTeam";
 
 interface AuditEntry {
 	id: string;
@@ -57,7 +58,8 @@ interface Props {
 }
 
 export function ActivityLog({ jobId, limit = 50, showFilters = false }: Props) {
-	const { users, isMaster } = useApp();
+	const { isMaster } = useAuth();
+	const { users } = useTeam();
 	const [entries, setEntries] = useState<AuditEntry[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [tab, setTab] = useState<FilterTab>("all");

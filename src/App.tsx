@@ -6,7 +6,9 @@ import {
 	useLocation,
 	useNavigate,
 } from "react-router-dom";
-import { useApp } from "./AppContext";
+import { useAuth } from "./hooks/useAuth";
+import { useBusiness } from "./hooks/useBusiness";
+import { useNotifications } from "./hooks/useNotifications";
 import { NotificationBell } from "./components/NotificationBell";
 import { PushBanner } from "./components/PushBanner";
 import { Sidebar } from "./components/Sidebar";
@@ -59,7 +61,7 @@ const TimesheetsPage = lazy(() =>
 );
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-	const { currentUser } = useApp();
+	const { currentUser } = useAuth();
 	const location = useLocation();
 	if (!currentUser)
 		return <Navigate to="/login" state={{ from: location }} replace />;
@@ -67,40 +69,30 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 function RequireMaster({ children }: { children: React.ReactNode }) {
-	const { isMaster } = useApp();
+	const { isMaster } = useAuth();
 	if (!isMaster) return <Navigate to="/" replace />;
 	return <>{children}</>;
 }
 
 function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
-	const { isSuperAdmin } = useApp();
+	const { isSuperAdmin } = useAuth();
 	if (!isSuperAdmin) return <Navigate to="/" replace />;
 	return <>{children}</>;
 }
 
 /** Redirect SA to /admin if they haven't entered a client yet */
 function RequireClient({ children }: { children: React.ReactNode }) {
-	const { isSuperAdmin, business } = useApp();
+	const { isSuperAdmin } = useAuth();
+	const { business } = useBusiness();
 	if (isSuperAdmin && !business.id) return <Navigate to="/admin" replace />;
 	return <>{children}</>;
 }
 
 export default function App() {
-	const {
-		currentUser,
-		pushBanner,
-		dismissPush,
-		loading,
-		saveError,
-		dismissSaveError,
-		myNotifs,
-		clearNotifs,
-		dismissNotif,
-		idleWarning,
-		dismissIdleWarning,
-	} = useApp();
+	const { currentUser, loading, saveError, dismissSaveError, idleWarning, dismissIdleWarning } = useAuth();
+	const { pushBanner, dismissPush, myNotifs, clearNotifs, dismissNotif } = useNotifications();
+	const { business } = useBusiness();
 	const [sidebarOpen, setSidebarOpen] = useState(false);
-	const { business } = useApp();
 	const navigate = useNavigate();
 
 	// Any logout (manual, idle timeout, or session expiry) funnels through

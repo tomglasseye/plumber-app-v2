@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useApp } from "../AppContext";
+import { useCustomers } from "../hooks/useCustomers";
+import { useJobs } from "../hooks/useJobs";
+import { useBusiness } from "../hooks/useBusiness";
 import type { Customer } from "../types";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 
@@ -12,14 +14,9 @@ const EMPTY: Omit<Customer, "id"> = {
 };
 
 export function CustomersPage() {
-	const {
-		customers,
-		createCustomer,
-		updateCustomer,
-		deleteCustomer,
-		business,
-		jobs,
-	} = useApp();
+	const { customers, createCustomer, updateCustomer, deleteCustomer } = useCustomers();
+	const { jobs } = useJobs();
+	const { business } = useBusiness();
 	const [search, setSearch] = useState("");
 	const [showForm, setShowForm] = useState(false);
 	const [editId, setEditId] = useState<string | null>(null);

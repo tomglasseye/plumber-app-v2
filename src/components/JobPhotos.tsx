@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../supabase";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
 import type { JobPhoto } from "../types";
 
 const MAX_PHOTOS = 2;
@@ -22,7 +22,7 @@ interface Props {
 }
 
 export function JobPhotos({ jobId, canEdit }: Props) {
-	const { currentUser, isMaster } = useApp();
+	const { currentUser, isMaster } = useAuth();
 	const [photos, setPhotos] = useState<JobPhoto[]>([]);
 	const [urls, setUrls] = useState<Record<string, string>>({});
 	const [uploading, setUploading] = useState(false);

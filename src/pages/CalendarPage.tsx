@@ -1,6 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
+import { useJobs } from "../hooks/useJobs";
+import { useTeam } from "../hooks/useTeam";
+import { useBusiness } from "../hooks/useBusiness";
+import { useCustomers } from "../hooks/useCustomers";
+import { useCategories } from "../hooks/useCategories";
+import { useSchedule } from "../hooks/useSchedule";
 import { CategoryIcon } from "./AccountPage";
 import {
 	HOLIDAY_TYPE_CONFIG,
@@ -224,7 +230,10 @@ function AddJobPanel({
 	onClose: () => void;
 	onSubmit: (form: NewJobForm) => void;
 }) {
-	const { users, customers, categories, business } = useApp();
+	const { users } = useTeam();
+	const { customers } = useCustomers();
+	const { categories } = useCategories();
+	const { business } = useBusiness();
 	const [form, setForm] = useState<NewJobForm>({ ...EMPTY_FORM, ...prefill });
 	const [custSearch, setCustSearch] = useState(prefill.customer ?? "");
 	const [showSugg, setShowSugg] = useState(false);
@@ -649,7 +658,9 @@ function DayColumn({
 	onNavigateToDay,
 	panelGhost,
 }: DayColumnProps) {
-	const { users, categories, isMaster } = useApp();
+	const { isMaster } = useAuth();
+	const { users } = useTeam();
+	const { categories } = useCategories();
 	const colRef = useRef<HTMLDivElement>(null);
 	const allTimedJobs = layoutTimedJobs(jobs);
 
@@ -1460,22 +1471,12 @@ function MiniCalendar({
 // ── Main CalendarPage ─────────────────────────────────────────────────────────
 
 export function CalendarPage() {
-	const {
-		isMaster,
-		currentUser,
-		jobs,
-		myJobs,
-		users,
-		categories,
-		holidays,
-		createJob,
-		rescheduleJob,
-		resizeJobTime,
-		createHoliday,
-		deleteHoliday,
-		updateHoliday,
-		business,
-	} = useApp();
+	const { isMaster, currentUser } = useAuth();
+	const { jobs, myJobs, createJob, rescheduleJob, resizeJobTime } = useJobs();
+	const { users } = useTeam();
+	const { categories } = useCategories();
+	const { holidays, createHoliday, deleteHoliday, updateHoliday } = useSchedule();
+	const { business } = useBusiness();
 	const navigate = useNavigate();
 
 	const [calDate, setCalDate] = useState(new Date());
@@ -2085,7 +2086,7 @@ export function CalendarPage() {
 		rect: DOMRect;
 		onClose: () => void;
 	}) {
-		const { changeStatus } = useApp();
+		const { changeStatus } = useJobs();
 		const job = jobs.find((j) => j.id === jobId);
 		if (!job) return null;
 		const engineer = users.find((u) => u.id === job.assignedTo);

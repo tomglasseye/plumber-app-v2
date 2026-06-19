@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 15 * 60;
@@ -8,7 +8,7 @@ const LS_LOCKOUT_KEY = "login_lockout_until";
 const LS_ATTEMPTS_KEY = "login_attempts";
 
 export function LoginPage() {
-	const { login } = useApp();
+	const { login } = useAuth();
 	const navigate = useNavigate();
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");

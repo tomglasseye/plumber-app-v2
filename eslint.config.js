@@ -30,4 +30,26 @@ export default defineConfig([
       ],
     },
   },
+  // Enforce the domain-hook seam: only files in src/hooks/ may import useAppContext.
+  // Pages and components must go through useAuth, useJobs, useBusiness, etc.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/hooks/**'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [
+          {
+            name: '../AppContext',
+            importNames: ['useAppContext'],
+            message: 'Use a domain hook (useAuth, useJobs, etc.) instead of useAppContext directly.',
+          },
+          {
+            name: './AppContext',
+            importNames: ['useAppContext'],
+            message: 'Use a domain hook (useAuth, useJobs, etc.) instead of useAppContext directly.',
+          },
+        ],
+      }],
+    },
+  },
 ])

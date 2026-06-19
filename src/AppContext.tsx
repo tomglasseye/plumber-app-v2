@@ -125,8 +125,8 @@ interface AppCtx {
 
 const Ctx = createContext<AppCtx>(null!);
 
-// eslint-disable-next-line react-refresh/only-export-components -- context hook colocated with provider by design
-export function useApp() {
+// eslint-disable-next-line react-refresh/only-export-components -- internal; consume via domain hooks (useAuth, useJobs, etc.)
+export function useAppContext() {
 	return useContext(Ctx);
 }
 

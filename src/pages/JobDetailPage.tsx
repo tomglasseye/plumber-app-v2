@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
+import { useJobs } from "../hooks/useJobs";
+import { useTeam } from "../hooks/useTeam";
+import { useNotifications } from "../hooks/useNotifications";
+import { useBusiness } from "../hooks/useBusiness";
+import { useCustomers } from "../hooks/useCustomers";
+import { useCategories } from "../hooks/useCategories";
 import { CategoryIcon } from "./AccountPage";
 import { ActivityLog } from "../components/ActivityLog";
 import { JobPhotos } from "../components/JobPhotos";
@@ -50,21 +56,13 @@ function fmtDur(mins: number): string {
 export function JobDetailPage() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
-	const {
-		jobs,
-		users,
-		isMaster,
-		currentUser,
-		changeStatus,
-		changePriority,
-		updateJob,
-		deleteJob,
-		finalComplete,
-		addNotification,
-		business,
-		customers,
-		categories,
-	} = useApp();
+	const { isMaster, currentUser } = useAuth();
+	const { jobs, changeStatus, changePriority, updateJob, deleteJob, finalComplete } = useJobs();
+	const { users } = useTeam();
+	const { addNotification } = useNotifications();
+	const { business } = useBusiness();
+	const { customers } = useCustomers();
+	const { categories } = useCategories();
 
 	const job = jobs.find((j) => j.id === id);
 	const linkedCustomer = job?.customerId

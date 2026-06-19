@@ -1,14 +1,18 @@
 import { useNavigate } from "react-router-dom";
 import { PRIORITY_COLORS, STATUS_COLORS, userColor } from "../data";
 import type { Job } from "../types";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
+import { useTeam } from "../hooks/useTeam";
+import { useCategories } from "../hooks/useCategories";
 
 interface Props {
 	job: Job;
 }
 
 export function JobCard({ job }: Props) {
-	const { isMaster, users, categories } = useApp();
+	const { isMaster } = useAuth();
+	const { users } = useTeam();
+	const { categories } = useCategories();
 	const navigate = useNavigate();
 	const sc = STATUS_COLORS[job.status];
 	const pc = PRIORITY_COLORS[job.priority];

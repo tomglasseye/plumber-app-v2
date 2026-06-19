@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
+import { useJobs } from "../hooks/useJobs";
+import { useTeam } from "../hooks/useTeam";
+import { useBusiness } from "../hooks/useBusiness";
+import { useCustomers } from "../hooks/useCustomers";
+import { useCategories } from "../hooks/useCategories";
+import { useSchedule } from "../hooks/useSchedule";
 import { JobCard } from "../components/JobCard";
 import {
 	HOLIDAY_TYPE_CONFIG,
@@ -12,7 +18,7 @@ import {
 } from "../data";
 
 export function DashboardPage() {
-	const { isMaster } = useApp();
+	const { isMaster } = useAuth();
 
 	if (isMaster) return <MasterDashboard />;
 	return <EngineerDashboard />;
@@ -21,7 +27,9 @@ export function DashboardPage() {
 // ── Engineer Dashboard (kept mostly as-is) ───────────────────────────────────
 
 function EngineerDashboard() {
-	const { myJobs, business, currentUser } = useApp();
+	const { myJobs } = useJobs();
+	const { business } = useBusiness();
+	const { currentUser } = useAuth();
 	const userAccent = currentUser?.color ?? business.accentColor;
 	const navigate = useNavigate();
 	const [search, setSearch] = useState("");
@@ -184,17 +192,12 @@ function EngineerDashboard() {
 // ── Master Dashboard ─────────────────────────────────────────────────────────
 
 function MasterDashboard() {
-	const {
-		jobs,
-		business,
-		users,
-		holidays,
-		categories,
-		customers,
-		reminders,
-		createReminder,
-		setReminderStatus,
-	} = useApp();
+	const { jobs } = useJobs();
+	const { business } = useBusiness();
+	const { users } = useTeam();
+	const { categories } = useCategories();
+	const { customers } = useCustomers();
+	const { holidays, reminders, createReminder, setReminderStatus } = useSchedule();
 	const navigate = useNavigate();
 
 	// Add-reminder form + a transient info notice (used by the SMS scaffold)

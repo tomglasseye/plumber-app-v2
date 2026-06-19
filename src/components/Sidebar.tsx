@@ -1,22 +1,15 @@
 import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
+import { useBusiness } from "../hooks/useBusiness";
 
 interface Props {
 	onClose?: () => void;
 }
 
 export function Sidebar({ onClose }: Props) {
-	const {
-		currentUser,
-		isMaster,
-		isSuperAdmin,
-		logout,
-		business,
-		theme,
-		toggleTheme,
-		exitBusiness,
-	} = useApp();
+	const { currentUser, isMaster, isSuperAdmin, logout } = useAuth();
+	const { business, theme, toggleTheme, exitBusiness } = useBusiness();
 	const navigate = useNavigate();
 
 	const activeColor = business.accentColor;

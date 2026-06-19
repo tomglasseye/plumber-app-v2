@@ -1,6 +1,10 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../AppContext";
+import { useJobs } from "../hooks/useJobs";
+import { useTeam } from "../hooks/useTeam";
+import { useBusiness } from "../hooks/useBusiness";
+import { useCustomers } from "../hooks/useCustomers";
+import { useCategories } from "../hooks/useCategories";
 import { CategoryIcon } from "./AccountPage";
 import { buildTimeOpts, PRIORITIES } from "../data";
 import type { NewJobForm, RepeatFrequency } from "../types";
@@ -21,8 +25,11 @@ const EMPTY: NewJobForm = {
 // TIME_OPTS built dynamically in component from business work hours
 
 export function NewJobPage() {
-	const { createJob, createCustomer, business, users, customers, categories } =
-		useApp();
+	const { createJob } = useJobs();
+	const { users } = useTeam();
+	const { business } = useBusiness();
+	const { customers, createCustomer } = useCustomers();
+	const { categories } = useCategories();
 	const navigate = useNavigate();
 	const TIME_OPTS = buildTimeOpts(business.workDayStart, business.workDayEnd);
 	const [form, setForm] = useState<NewJobForm>(EMPTY);

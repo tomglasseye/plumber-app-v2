@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useApp } from "../AppContext";
+import { useJobs } from "../hooks/useJobs";
+import { useTeam } from "../hooks/useTeam";
+import { useBusiness } from "../hooks/useBusiness";
 import { TODAY, fmtDate, userColor } from "../data";
 import { geocodeAddress, haversine } from "../utils/geo";
 import type { Job } from "../types";
@@ -101,7 +103,9 @@ function computeRange(view: View, anchor: string): { days: string[]; label: stri
 type EngMiles = { miles: number; located: number; total: number };
 
 export function TimesheetsPage() {
-	const { jobs, users, business } = useApp();
+	const { jobs } = useJobs();
+	const { users } = useTeam();
+	const { business } = useBusiness();
 	const [view, setView] = useState<View>("day");
 	const [anchor, setAnchor] = useState(TODAY);
 

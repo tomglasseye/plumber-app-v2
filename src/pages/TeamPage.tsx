@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
+import { useTeam } from "../hooks/useTeam";
+import { useBusiness } from "../hooks/useBusiness";
 import { ACCENT_OPTIONS, userColor } from "../data";
 import type { Role, User } from "../types";
 
@@ -24,19 +26,9 @@ interface AddForm {
 }
 
 export function TeamPage() {
-	const {
-		users,
-		saveUser,
-		lockUser,
-		unlockUser,
-		deleteUser,
-		changePassword,
-		changeEmail,
-		inviteUser,
-		isMaster,
-		business,
-		currentUser,
-	} = useApp();
+	const { isMaster, currentUser } = useAuth();
+	const { users, saveUser, lockUser, unlockUser, deleteUser, changePassword, changeEmail, inviteUser } = useTeam();
+	const { business } = useBusiness();
 
 	const [editing, setEditing] = useState<User | null>(null);
 	const [form, setForm] = useState<EditForm>({

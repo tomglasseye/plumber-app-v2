@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
 
 const MASTER_SECTIONS = [
 	{
@@ -187,7 +187,7 @@ const JOB_FLOW = [
 
 export function HowToUsePage() {
 	const navigate = useNavigate();
-	const { isMaster } = useApp();
+	const { isMaster } = useAuth();
 
 	return (
 		<div className="min-h-screen bg-neutral-950 text-neutral-100 font-sans">

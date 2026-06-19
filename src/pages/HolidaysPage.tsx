@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
+import { useTeam } from "../hooks/useTeam";
+import { useBusiness } from "../hooks/useBusiness";
+import { useSchedule } from "../hooks/useSchedule";
 import { TODAY } from "../data";
 import type { Holiday, HolidayType } from "../types";
 
@@ -108,18 +111,10 @@ function computeStats(
 }
 
 export function HolidaysPage() {
-	const {
-		currentUser,
-		isMaster,
-		users,
-		holidays,
-		business,
-		createHoliday,
-		deleteHoliday,
-		approveHoliday,
-		declineHoliday,
-		saveUser,
-	} = useApp();
+	const { currentUser, isMaster } = useAuth();
+	const { users, saveUser } = useTeam();
+	const { business } = useBusiness();
+	const { holidays, createHoliday, deleteHoliday, approveHoliday, declineHoliday } = useSchedule();
 
 	const currentYear = new Date().getFullYear();
 	const [selectedYear, setSelectedYear] = useState(currentYear);

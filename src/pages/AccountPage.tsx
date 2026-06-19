@@ -69,7 +69,10 @@ import {
 	Zap,
 	ZapOff,
 } from "lucide-react";
-import { useApp } from "../AppContext";
+import { useJobs } from "../hooks/useJobs";
+import { useTeam } from "../hooks/useTeam";
+import { useBusiness } from "../hooks/useBusiness";
+import { useCategories } from "../hooks/useCategories";
 import { ACCENT_OPTIONS, TODAY, fmtDate } from "../data";
 import type { Business, Category, Job, User } from "../types";
 
@@ -390,7 +393,7 @@ const DEFAULT_COLORS = [
 
 function CategoriesPanel({ accent }: { accent: string }) {
 	const { categories, createCategory, updateCategory, deleteCategory } =
-		useApp();
+		useCategories();
 
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [showNew, setShowNew] = useState(false);
@@ -638,15 +641,10 @@ function CategoriesPanel({ accent }: { accent: string }) {
 // ── Account Page ──────────────────────────────────────────────────────────────
 
 export function AccountPage() {
-	const {
-		business,
-		saveBusiness,
-		theme,
-		toggleTheme,
-		jobs,
-		users,
-		categories,
-	} = useApp();
+	const { business, saveBusiness, theme, toggleTheme } = useBusiness();
+	const { jobs } = useJobs();
+	const { users } = useTeam();
+	const { categories } = useCategories();
 	const [form, setForm] = useState<Business>(business);
 	const [tab, setTab] = useState<
 		"business" | "categories" | "xero" | "export"

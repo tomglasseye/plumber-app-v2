@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 import { ACCENT_OPTIONS } from "../data";
-import { useApp } from "../AppContext";
+import { useBusiness } from "../hooks/useBusiness";
 
 interface BizRow {
 	id: string;
@@ -15,7 +15,7 @@ interface BizRow {
 }
 
 export function AdminPage() {
-	const { switchBusiness, business } = useApp();
+	const { switchBusiness, business } = useBusiness();
 	const navigate = useNavigate();
 	const [name, setName] = useState("");
 	const [logoInitials, setLogoInitials] = useState("");

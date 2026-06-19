@@ -1,6 +1,10 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../AppContext";
+import { useAuth } from "../hooks/useAuth";
+import { useJobs } from "../hooks/useJobs";
+import { useBusiness } from "../hooks/useBusiness";
+import { useCategories } from "../hooks/useCategories";
+import { useNotifications } from "../hooks/useNotifications";
 import {
 	mapsRouteUrl,
 	PRIORITIES,
@@ -29,15 +33,11 @@ function fmtTime12(t: string): string {
 const DONE_STATUSES = ["Completed", "Invoiced"];
 
 export function MyDayPage() {
-	const {
-		currentUser,
-		jobs,
-		business,
-		categories,
-		changeStatus,
-		updateJob,
-		addNotification,
-	} = useApp();
+	const { currentUser } = useAuth();
+	const { jobs, changeStatus, updateJob } = useJobs();
+	const { business } = useBusiness();
+	const { categories } = useCategories();
+	const { addNotification } = useNotifications();
 	const navigate = useNavigate();
 
 	const [activeStop, setActiveStop] = useState<string | null>(null);
